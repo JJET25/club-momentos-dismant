@@ -1,14 +1,48 @@
-import type { Metadata } from 'next'
+'use client'
 
-export const metadata: Metadata = {
-  title: 'Iniciar sesión',
+import { useState } from 'react'
+import Link from 'next/link'
+import { useSearchParams } from 'next/navigation'
+
+const ERROR_MESSAGES: Record<string, string> = {
+  'link-expirado': 'Tu enlace de acceso expiró. Solicita uno nuevo.',
+  'link-invalido': 'El enlace de acceso no es válido.',
+  'cuenta-suspendida': 'Tu cuenta está suspendida. Contacta a Dismant.',
 }
 
 export default function LoginPage() {
+  const searchParams = useSearchParams()
+  const urlError = searchParams.get('error')
+
+  const [email, setEmail] = useState('')
+  const [sent, setSent] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState(urlError ? ERROR_MESSAGES[urlError] ?? '' : '')
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    setError('')
+    setLoading(true)
+
+    const res = await fetch('/api/auth/magic-link', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email }),
+    })
+
+    setLoading(false)
+
+    if (!res.ok) {
+      setError('Ocurrió un error. Intenta de nuevo.')
+      return
+    }
+
+    setSent(true)
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-brand-950 to-brand-800 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
-        {/* Logo */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-white/10 mb-4">
             <span className="text-2xl font-bold text-white">D</span>
@@ -17,36 +51,69 @@ export default function LoginPage() {
           <p className="text-brand-300 mt-1">Ingresa a tu cuenta de lealtad</p>
         </div>
 
-        {/* Card */}
         <div className="bg-white rounded-2xl shadow-2xl p-8">
-          <h2 className="text-xl font-semibold text-foreground mb-2">Bienvenido</h2>
-          <p className="text-muted-foreground text-sm mb-6">
-            Te enviaremos un enlace de acceso a tu correo. Sin contraseñas.
-          </p>
-
-          {/* TODO: Reemplazar con <LoginForm /> cuando esté listo */}
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-1.5">
-                Correo electrónico
-              </label>
-              <input
-                type="email"
-                placeholder="tu@empresa.com"
-                className="w-full px-3 py-2.5 rounded-lg border border-input bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-              />
+          {sent ? (
+            <div className="text-center">
+              <div className="w-14 h-14 bg-brand-50 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg className="w-7 h-7 text-brand-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                </svg>
+              </div>
+              <h2 className="text-xl font-semibold text-foreground mb-2">Revisa tu correo</h2>
+              <p className="text-muted-foreground text-sm mb-4">
+                Te enviamos un enlace de acceso a <strong>{email}</strong>. Expira en 15 minutos.
+              </p>
+              <button
+                onClick={() => { setSent(false); setEmail('') }}
+                className="text-sm text-brand-600 hover:underline"
+              >
+                Usar otro correo
+              </button>
             </div>
-            <button className="w-full bg-primary text-primary-foreground py-2.5 rounded-lg font-medium hover:bg-primary/90 transition-colors">
-              Enviar enlace de acceso
-            </button>
-          </div>
+          ) : (
+            <>
+              <h2 className="text-xl font-semibold text-foreground mb-1">Bienvenido</h2>
+              <p className="text-muted-foreground text-sm mb-6">
+                Te enviaremos un enlace de acceso. Sin contraseñas.
+              </p>
 
-          <div className="mt-6 text-center">
-            <span className="text-sm text-muted-foreground">¿Aún no tienes cuenta?{' '}</span>
-            <a href="/register" className="text-sm text-primary font-medium hover:underline">
-              Regístrate aquí
-            </a>
-          </div>
+              {error && (
+                <div className="mb-4 p-3 rounded-lg bg-danger-light text-danger text-sm">
+                  {error}
+                </div>
+              )}
+
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-1.5">
+                    Correo electrónico
+                  </label>
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="tu@empresa.com"
+                    required
+                    className="w-full px-3 py-2.5 rounded-lg border border-input bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                  />
+                </div>
+                <button
+                  type="submit"
+                  disabled={loading || !email}
+                  className="w-full bg-brand-600 text-white py-2.5 rounded-lg font-medium hover:bg-brand-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {loading ? 'Enviando...' : 'Enviar enlace de acceso'}
+                </button>
+              </form>
+
+              <div className="mt-6 text-center">
+                <span className="text-sm text-muted-foreground">¿Aún no tienes cuenta? </span>
+                <Link href="/register" className="text-sm text-brand-600 font-medium hover:underline">
+                  Regístrate aquí
+                </Link>
+              </div>
+            </>
+          )}
         </div>
       </div>
     </div>

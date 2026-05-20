@@ -97,6 +97,32 @@ export function buildInvoiceRejectedEmail(params: {
   `
 }
 
+/** Magic Link de acceso */
+export function buildMagicLinkEmail(magicLink: string, userName?: string): string {
+  return `
+    <div style="font-family: Inter, sans-serif; max-width: 500px; margin: 0 auto; padding: 32px;">
+      <div style="text-align: center; margin-bottom: 24px;">
+        <div style="display: inline-flex; align-items: center; justify-content: center; width: 64px; height: 64px; background: #2563eb; border-radius: 16px;">
+          <span style="font-size: 28px; font-weight: 700; color: white;">D</span>
+        </div>
+        <h1 style="margin-top: 12px; font-size: 20px; color: #1e3a8a;">Club Momentos Dismant</h1>
+      </div>
+      <h2 style="color: #111827;">Tu enlace de acceso</h2>
+      ${userName ? `<p>Hola ${userName},</p>` : ''}
+      <p>Haz clic en el botón para ingresar a tu cuenta. Este enlace expira en <strong>15 minutos</strong> y solo puede usarse una vez.</p>
+      <div style="text-align: center; margin: 32px 0;">
+        <a href="${magicLink}"
+           style="display: inline-block; background: #2563eb; color: white; padding: 14px 32px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 16px;">
+          Ingresar a mi cuenta
+        </a>
+      </div>
+      <p style="color: #6b7280; font-size: 13px; text-align: center;">
+        Si no solicitaste este enlace, ignora este mensaje. Tu cuenta permanece segura.
+      </p>
+    </div>
+  `
+}
+
 /** Alerta de puntos por vencer */
 export function buildPointsExpiringEmail(params: {
   userName: string
