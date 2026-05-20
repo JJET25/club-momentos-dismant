@@ -1,0 +1,315 @@
+// ─────────────────────────────────────────────────────────────
+// Club Momentos Dismant — Schema de Base de Datos
+// Motor: PostgreSQL (Supabase)
+// ORM: Prisma
+// ─────────────────────────────────────────────────────────────
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL") // Requerido por Supabase para migraciones
+}
+
+// ─────────────────────────────────────────────────────────────
+// ROLES Y PERMISOS
+// ─────────────────────────────────────────────────────────────
+
+model Role {
+  id          String   @id @default(uuid())
+  name        String   @unique // owner | admin | employee | member
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  members     Member[]
+  permissions RolePermission[]
+
+  @@map("roles")
+}
+
+model RolePermission {
+  id         String @id @default(uuid())
+  roleId     String @map("role_id")
+  permission String // load_points | approve_invoice | manage_catalog | view_reports | etc.
+
+  role Role @relation(fields: [roleId], references: [id])
+
+  @@unique([roleId, permission])
+  @@map("role_permissions")
+}
+
+// ─────────────────────────────────────────────────────────────
+// MIEMBROS DEL CLUB
+// ─────────────────────────────────────────────────────────────
+
+model Member {
+  id              String    @id @default(uuid())
+  email           String    @unique
+  fullName        String    @map("full_name")
+  companyName     String    @map("company_name")
+  rfc             String    @unique
+  locationState   String    @map("location_state")  // Estado de México
+  locationCity    String    @map("location_city")   // Ciudad
+  invitationCode  String?   @map("invitation_code")
+  fcmToken        String?   @map("fcm_token")       // Token de Firebase push
+  status          String    @default("active")       // active | suspended
+  roleId          String    @map("role_id")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  lastLoginAt     DateTime? @map("last_login_at")
+
+  role            Role      @relation(fields: [roleId], references: [id])
+
+  // Relaciones
+  ledgerEntries   LedgerEntry[]
+  invoices        Invoice[]
+  redemptions     Redemption[]
+  reviews         Review[]
+  otpTokens       OtpToken[]
+  auditLogs       AuditLog[]  @relation("ActorLogs")
+  approvedInvoices Invoice[]  @relation("ApprovedInvoices")
+  ledgerOperations LedgerEntry[] @relation("OperatorLedger")
+  createdPromotions PartnerPromotion[] @relation("CreatedPromotions")
+  approvedPromotions PartnerPromotion[] @relation("ApprovedPromotions")
+
+  @@map("members")
+}
+
+// ─────────────────────────────────────────────────────────────
+// AUTENTICACIÓN — OTP TOKENS
+// ─────────────────────────────────────────────────────────────
+
+model OtpToken {
+  id        String   @id @default(uuid())
+  email     String
+  codeHash  String   @map("code_hash")
+  used      Boolean  @default(false)
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  member    Member?  @relation(fields: [email], references: [email])
+
+  @@index([email, expiresAt])
+  @@map("otp_tokens")
+}
+
+// ─────────────────────────────────────────────────────────────
+// LEDGER DE PUNTOS (APPEND-ONLY — NUNCA ACTUALIZAR/ELIMINAR)
+// ─────────────────────────────────────────────────────────────
+
+model LedgerEntry {
+  id             String    @id @default(uuid())
+  memberId       String    @map("member_id")
+  type           String    // invoice | redemption | welcome_bonus | review_bonus | adjustment
+  points         Int       // positivo o negativo
+  balanceAfter   Int       @map("balance_after")  // saldo acumulado post-movimiento
+  description    String?
+  invoiceId      String?   @map("invoice_id")
+  redemptionId   String?   @map("redemption_id")
+  operatorId     String?   @map("operator_id")   // quién ejecutó la operación
+  expiresAt      DateTime? @map("expires_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+
+  member         Member    @relation(fields: [memberId], references: [id])
+  invoice        Invoice?  @relation(fields: [invoiceId], references: [id])
+  redemption     Redemption? @relation(fields: [redemptionId], references: [id])
+  operator       Member?   @relation("OperatorLedger", fields: [operatorId], references: [id])
+
+  @@index([memberId, createdAt(sort: Desc)])
+  @@index([type])
+  @@index([expiresAt])
+  @@map("ledger_entries")
+}
+
+// ─────────────────────────────────────────────────────────────
+// FACTURAS CFDI
+// ─────────────────────────────────────────────────────────────
+
+model Invoice {
+  id               String    @id @default(uuid())
+  memberId         String    @map("member_id")
+  uuidCfdi         String    @unique @map("uuid_cfdi")  // Folio Fiscal del SAT
+  rfcEmisor        String    @map("rfc_emisor")
+  rfcReceptor      String    @map("rfc_receptor")
+  totalMxn         Decimal   @map("total_mxn") @db.Decimal(12, 2)
+  issuedAt         DateTime  @map("issued_at")    // fecha de emisión del CFDI
+  paidAt           DateTime? @map("paid_at")      // fecha de pago registrada
+  pointsGenerated  Int?      @map("points_generated")
+  status           String    @default("pending")  // pending | approved | rejected | cancelled
+  satStatus        String?   @map("sat_status")   // vigente | cancelada | no_encontrada
+  rejectionReason  String?   @map("rejection_reason")
+  approvedBy       String?   @map("approved_by")
+  approvedAt       DateTime? @map("approved_at")
+  xmlStorageKey    String?   @map("xml_storage_key")  // path en Cloudflare R2
+  createdAt        DateTime  @default(now()) @map("created_at")
+
+  member           Member    @relation(fields: [memberId], references: [id])
+  approver         Member?   @relation("ApprovedInvoices", fields: [approvedBy], references: [id])
+  ledgerEntries    LedgerEntry[]
+
+  @@index([memberId, status])
+  @@index([uuidCfdi])
+  @@map("invoices")
+}
+
+// ─────────────────────────────────────────────────────────────
+// ALIADOS / SOCIOS
+// ─────────────────────────────────────────────────────────────
+
+model Partner {
+  id          String   @id @default(uuid())
+  name        String
+  logoUrl     String?  @map("logo_url")
+  isVerified  Boolean  @default(false) @map("is_verified")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  skus        RewardSku[]
+  promotions  PartnerPromotion[]
+
+  @@map("partners")
+}
+
+// ─────────────────────────────────────────────────────────────
+// SKUs DE PREMIOS
+// ─────────────────────────────────────────────────────────────
+
+model RewardSku {
+  id                    String   @id @default(uuid())
+  name                  String
+  description           String?
+  imageUrl              String?  @map("image_url")
+  pointsCost            Int      @map("points_cost")
+  stock                 Int      @default(0)
+  stockAlertThreshold   Int      @default(10) @map("stock_alert_threshold")
+  geoType               String   @default("national") @map("geo_type")  // national | local
+  geoStates             String[] @map("geo_states")   // array de estados
+  geoCities             String[] @map("geo_cities")   // array de ciudades
+  isDigital             Boolean  @default(false) @map("is_digital")
+  status                String   @default("active")   // active | paused | discontinued
+  category              String?
+  partnerId             String?  @map("partner_id")
+  createdAt             DateTime @default(now()) @map("created_at")
+
+  partner        Partner?     @relation(fields: [partnerId], references: [id])
+  redemptions    Redemption[]
+  reviews        Review[]
+  digitalCodes   DigitalCode[]
+
+  @@index([geoType, status])
+  @@map("reward_skus")
+}
+
+// ─────────────────────────────────────────────────────────────
+// CÓDIGOS DIGITALES (asignación FIFO)
+// ─────────────────────────────────────────────────────────────
+
+model DigitalCode {
+  id           String    @id @default(uuid())
+  skuId        String    @map("sku_id")
+  code         String
+  assignedTo   String?   @map("assigned_to")  // redemption_id
+  assignedAt   DateTime? @map("assigned_at")
+  createdAt    DateTime  @default(now()) @map("created_at")
+
+  sku          RewardSku  @relation(fields: [skuId], references: [id])
+  redemption   Redemption? @relation(fields: [assignedTo], references: [id])
+
+  @@index([skuId, assignedTo])
+  @@map("digital_codes")
+}
+
+// ─────────────────────────────────────────────────────────────
+// CANJES
+// ─────────────────────────────────────────────────────────────
+
+model Redemption {
+  id           String   @id @default(uuid())
+  memberId     String   @map("member_id")
+  skuId        String   @map("sku_id")
+  pointsSpent  Int      @map("points_spent")
+  voucherCode  String?  @map("voucher_code")
+  status       String   @default("active")  // active | used | expired
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  member       Member      @relation(fields: [memberId], references: [id])
+  sku          RewardSku   @relation(fields: [skuId], references: [id])
+  review       Review?
+  ledgerEntries LedgerEntry[]
+  digitalCodes  DigitalCode[]
+
+  @@index([memberId])
+  @@map("redemptions")
+}
+
+// ─────────────────────────────────────────────────────────────
+// RESEÑAS DE PREMIOS
+// ─────────────────────────────────────────────────────────────
+
+model Review {
+  id            String   @id @default(uuid())
+  memberId      String   @map("member_id")
+  redemptionId  String   @unique @map("redemption_id")
+  skuId         String   @map("sku_id")
+  rating        Int      // 1–5
+  comment       String?
+  bonusAwarded  Boolean  @default(false) @map("bonus_awarded")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  member        Member     @relation(fields: [memberId], references: [id])
+  redemption    Redemption @relation(fields: [redemptionId], references: [id])
+  sku           RewardSku  @relation(fields: [skuId], references: [id])
+
+  @@index([skuId])
+  @@map("reviews")
+}
+
+// ─────────────────────────────────────────────────────────────
+// PROMOCIONES DE ALIADOS
+// ─────────────────────────────────────────────────────────────
+
+model PartnerPromotion {
+  id             String   @id @default(uuid())
+  partnerId      String   @map("partner_id")
+  title          String
+  description    String?
+  imageUrl       String?  @map("image_url")
+  destinationUrl String?  @map("destination_url")
+  geoType        String   @default("national") @map("geo_type")  // national | local
+  geoStates      String[] @map("geo_states")
+  geoCities      String[] @map("geo_cities")
+  validFrom      DateTime @map("valid_from")
+  validUntil     DateTime @map("valid_until")
+  status         String   @default("draft")  // draft | in_review | approved | active | expired | rejected
+  featured       Boolean  @default(false)
+  createdBy      String?  @map("created_by")
+  approvedBy     String?  @map("approved_by")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  partner        Partner  @relation(fields: [partnerId], references: [id])
+  creator        Member?  @relation("CreatedPromotions", fields: [createdBy], references: [id])
+  approver       Member?  @relation("ApprovedPromotions", fields: [approvedBy], references: [id])
+
+  @@index([status, validUntil])
+  @@map("partner_promotions")
+}
+
+// ─────────────────────────────────────────────────────────────
+// AUDITORÍA (APPEND-ONLY — NUNCA ACTUALIZAR/ELIMINAR)
+// ─────────────────────────────────────────────────────────────
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  actorId    String?  @map("actor_id")
+  action     String   // ej. "invoice.approved", "points.manual_adjustment"
+  targetType String?  @map("target_type")  // "invoice" | "member" | "redemption"
+  targetId   String?  @map("target_id")
+  metadata   Json?    // datos adicionales del evento
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  actor      Member?  @relation("ActorLogs", fields: [actorId], references: [id])
+
+  @@index([actorId, createdAt(sort: Desc)])
+  @@index([action])
+  @@map("audit_log")
+}
