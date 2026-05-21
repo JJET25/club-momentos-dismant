@@ -3,7 +3,7 @@ import type { NextRequest } from 'next/server'
 import { jwtVerify } from 'jose'
 
 // Rutas que NO requieren autenticación
-const PUBLIC_ROUTES = ['/login', '/register', '/verify']
+const PUBLIC_ROUTES = ['/login', '/register', '/verify', '/api/auth']
 
 // Rutas solo para admins (owner / admin / employee)
 const ADMIN_ROUTES = ['/admin']

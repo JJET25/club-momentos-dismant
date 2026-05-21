@@ -38,10 +38,12 @@ export async function POST(req: NextRequest) {
     .eq('email', normalizedEmail)
     .eq('used', false)
 
+  const id = crypto.randomUUID()
   const token = crypto.randomUUID()
   const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 7 días
 
   const { error } = await supabase.from('invitations').insert({
+    id,
     email: normalizedEmail,
     token,
     sent_by: session.sub,
