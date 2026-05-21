@@ -14,7 +14,8 @@
     "format": "prettier --write \"**/*.{ts,tsx,md,json}\"",
     "db:generate": "turbo db:generate",
     "db:migrate": "turbo db:migrate",
-    "db:studio": "turbo db:studio"
+    "db:studio": "turbo db:studio",
+    "test": "turbo test"
   },
   "devDependencies": {
     "turbo": "^2.0.0",

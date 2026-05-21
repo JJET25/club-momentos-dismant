@@ -26,6 +26,10 @@
     "db:studio": {
       "cache": false,
       "persistent": true
+    },
+    "test": {
+      "cache": false,
+      "env": ["NEXT_PUBLIC_SUPABASE_URL", "SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY"]
     }
   }
 }
