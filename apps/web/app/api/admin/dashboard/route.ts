@@ -41,7 +41,7 @@ export async function GET() {
   // Top 5 premios del mes
   const skuCounts: Record<string, { name: string; count: number }> = {}
   for (const r of topRewardsRes.data ?? []) {
-    const sku = r.reward_skus as { name: string } | null
+    const sku = (r.reward_skus as unknown) as { name: string } | null
     if (!sku) continue
     if (!skuCounts[sku.name]) skuCounts[sku.name] = { name: sku.name, count: 0 }
     skuCounts[sku.name].count++
