@@ -39,10 +39,11 @@ function fmtPts(n: number) {
 
 // ── Modal de detalle ──────────────────────────────────────────
 
-function MemberDetailModal({ detail, onClose, onUpdated }: {
+function MemberDetailModal({ detail, onClose, onUpdated, currentUserRole }: {
   detail: MemberDetail
   onClose: () => void
   onUpdated: () => void
+  currentUserRole: string
 }) {
   const [tab, setTab]         = useState<'ledger' | 'invoices' | 'canjes'>('ledger')
   const [adjustPts, setAdjustPts] = useState('')
@@ -51,6 +52,9 @@ function MemberDetailModal({ detail, onClose, onUpdated }: {
   const [adjustError, setAdjustError]   = useState('')
   const [suspendReason, setSuspendReason] = useState('')
   const [suspending, setSuspending]       = useState(false)
+  const [roleChanging, setRoleChanging]   = useState(false)
+  const [roleTarget, setRoleTarget]       = useState('')
+  const [roleError, setRoleError]         = useState('')
 
   const { member, balance } = detail
   const st = STATUS_CFG[member.status] ?? STATUS_CFG.active
@@ -92,6 +96,19 @@ function MemberDetailModal({ detail, onClose, onUpdated }: {
     setSuspending(false)
     onUpdated()
     onClose()
+  }
+
+  async function handleRoleChange() {
+    if (!roleTarget) return
+    setRoleChanging(true); setRoleError('')
+    const res = await fetch(`/api/admin/members/${member.id}/role`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ newRole: roleTarget }),
+    })
+    setRoleChanging(false)
+    if (!res.ok) { const d = await res.json(); setRoleError(d.error ?? 'Error'); return }
+    onUpdated(); onClose()
   }
 
   return (
@@ -243,8 +260,8 @@ function MemberDetailModal({ detail, onClose, onUpdated }: {
           )}
         </div>
 
-        {/* Footer — suspender/reactivar */}
-        <div className="px-6 py-4 border-t shrink-0 bg-muted/20">
+        {/* Footer — suspender/reactivar + cambiar rol */}
+        <div className="px-6 py-4 border-t shrink-0 bg-muted/20 space-y-3">
           {member.status === 'active' ? (
             <div className="flex items-center gap-2">
               <input
@@ -271,6 +288,32 @@ function MemberDetailModal({ detail, onClose, onUpdated }: {
               Reactivar cuenta
             </button>
           )}
+
+          {/* Cambiar rol — solo owner, solo para admin/employee */}
+          {currentUserRole === 'owner' && (
+            <div className="pt-3 border-t">
+              <p className="text-xs text-muted-foreground mb-2">Cambiar rol del usuario interno</p>
+              <div className="flex items-center gap-2">
+                <select
+                  value={roleTarget}
+                  onChange={e => setRoleTarget(e.target.value)}
+                  className="input-field text-sm py-2 flex-1"
+                >
+                  <option value="">Seleccionar nuevo rol…</option>
+                  <option value="admin">Administrador</option>
+                  <option value="employee">Empleado</option>
+                </select>
+                <button
+                  onClick={handleRoleChange}
+                  disabled={roleChanging || !roleTarget}
+                  className="px-4 py-2 rounded-lg border border-orange-200 text-orange-700 text-sm font-medium hover:bg-orange-50 disabled:opacity-50"
+                >
+                  {roleChanging ? '…' : 'Cambiar rol'}
+                </button>
+              </div>
+              {roleError && <p className="text-xs text-red-600 mt-1">{roleError}</p>}
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -285,6 +328,11 @@ export default function MembersPage() {
   const [search, setSearch]     = useState('')
   const [detail, setDetail]     = useState<MemberDetail | null>(null)
   const [loadingDetail, setLoadingDetail] = useState(false)
+  const [currentUserRole, setCurrentUserRole] = useState('')
+
+  useEffect(() => {
+    fetch('/api/admin/me').then(r => r.json()).then(d => setCurrentUserRole(d.role ?? ''))
+  }, [])
 
   const load = useCallback(async (q = '') => {
     setLoading(true)
@@ -318,6 +366,7 @@ export default function MembersPage() {
           detail={detail}
           onClose={() => setDetail(null)}
           onUpdated={() => load(search)}
+          currentUserRole={currentUserRole}
         />
       )}
 
