@@ -3,14 +3,34 @@ import { createAdminClient } from '@/lib/supabase'
 import { createSessionToken } from '@/lib/auth'
 
 export async function POST(req: NextRequest) {
-  const { email, fullName, companyName, rfc, locationState, locationCity, invitationCode } =
+  const { email, fullName, companyName, rfc, locationState, locationCity, inviteToken } =
     await req.json()
 
   if (!email || !fullName || !companyName || !rfc || !locationState || !locationCity) {
     return NextResponse.json({ error: 'Faltan campos obligatorios' }, { status: 400 })
   }
 
+  if (!inviteToken) {
+    return NextResponse.json({ error: 'Se requiere una invitación válida' }, { status: 403 })
+  }
+
   const supabase = createAdminClient()
+
+  // Validar el token de invitación
+  const { data: invitation } = await supabase
+    .from('invitations')
+    .select('id, email, used, expires_at')
+    .eq('token', inviteToken)
+    .maybeSingle()
+
+  if (!invitation || invitation.used || new Date(invitation.expires_at) < new Date()) {
+    return NextResponse.json({ error: 'La invitación no es válida o ya fue utilizada' }, { status: 403 })
+  }
+
+  // El email del registro debe coincidir con el de la invitación
+  if (invitation.email !== email.toLowerCase().trim()) {
+    return NextResponse.json({ error: 'El correo no coincide con la invitación' }, { status: 403 })
+  }
 
   // Obtener el role_id de "member"
   const { data: role } = await supabase
@@ -31,7 +51,6 @@ export async function POST(req: NextRequest) {
       rfc: rfc.toUpperCase().trim(),
       location_state: locationState,
       location_city: locationCity.trim(),
-      invitation_code: invitationCode?.trim() || null,
       role_id: role.id,
     })
     .select('id, email, full_name')
@@ -44,6 +63,12 @@ export async function POST(req: NextRequest) {
     console.error('[register] Error al crear miembro:', error)
     return NextResponse.json({ error: 'Error al crear la cuenta' }, { status: 500 })
   }
+
+  // Marcar la invitación como usada
+  await supabase
+    .from('invitations')
+    .update({ used: true, used_at: new Date().toISOString() })
+    .eq('id', invitation.id)
 
   // Bono de bienvenida en el ledger
   const welcomePoints = parseInt(process.env.WELCOME_BONUS_POINTS ?? '100')
@@ -61,6 +86,7 @@ export async function POST(req: NextRequest) {
     action: 'member.registered',
     target_type: 'member',
     target_id: member.id,
+    metadata: { invite_used: invitation.id },
   })
 
   // Crear sesión JWT

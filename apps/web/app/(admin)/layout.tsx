@@ -23,6 +23,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           {[
             { href: '/admin/dashboard', label: 'Dashboard', icon: '📊' },
             { href: '/admin/members', label: 'Miembros', icon: '👥' },
+            { href: '/admin/invitations', label: 'Invitaciones', icon: '✉️' },
             { href: '/admin/invoices', label: 'Facturas', icon: '📄' },
             { href: '/admin/catalog', label: 'Catálogo', icon: '🎁' },
             { href: '/admin/promotions', label: 'Promociones', icon: '📢' },

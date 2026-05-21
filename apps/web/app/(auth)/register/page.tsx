@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
-import { useRouter } from 'next/navigation'
+import { Suspense, useState, useEffect, useRef } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { isValidRFC } from '@/lib/utils'
 import { MEXICAN_STATES } from '@dismant/types'
@@ -13,7 +13,6 @@ interface FormData {
   email: string
   companyName: string
   rfc: string
-  invitationCode: string
   locationState: string
   locationCity: string
   acceptTerms: boolean
@@ -43,10 +42,12 @@ function ProgressBar({ step, total }: { step: number; total: number }) {
 
 function Step1({
   data,
+  emailLocked,
   onChange,
   onNext,
 }: {
   data: FormData
+  emailLocked: boolean
   onChange: (field: keyof FormData, value: string) => void
   onNext: () => void
 }) {
@@ -126,10 +127,14 @@ function Step1({
         <input
           type="email"
           value={data.email}
-          onChange={(e) => onChange('email', e.target.value)}
+          onChange={emailLocked ? undefined : (e) => onChange('email', e.target.value)}
+          readOnly={emailLocked}
           placeholder="juan@empresa.com"
-          className="input-field"
+          className={`input-field ${emailLocked ? 'bg-gray-50 text-muted-foreground cursor-not-allowed' : ''}`}
         />
+        {emailLocked && (
+          <p className="text-xs text-muted-foreground mt-1">Correo vinculado a tu invitación</p>
+        )}
         {errors.email && <p className="text-danger text-xs mt-1">{errors.email}</p>}
       </div>
 
@@ -156,19 +161,6 @@ function Step1({
           className="input-field font-mono"
         />
         {errors.rfc && <p className="text-danger text-xs mt-1">{errors.rfc}</p>}
-      </div>
-
-      <div>
-        <label className="block text-sm font-medium text-foreground mb-1.5">
-          Código de invitación <span className="text-muted-foreground font-normal">(opcional)</span>
-        </label>
-        <input
-          type="text"
-          value={data.invitationCode}
-          onChange={(e) => onChange('invitationCode', e.target.value)}
-          placeholder="DISMANT2026"
-          className="input-field"
-        />
       </div>
 
       <button
@@ -200,7 +192,6 @@ function Step2({
   const [canResend, setCanResend] = useState(false)
   const inputs = useRef<(HTMLInputElement | null)[]>([])
 
-  // Enviar OTP al montar el componente
   useEffect(() => {
     fetch('/api/auth/send-otp', {
       method: 'POST',
@@ -209,7 +200,6 @@ function Step2({
     })
   }, [email, name])
 
-  // Cuenta regresiva para reenvío
   useEffect(() => {
     if (countdown <= 0) { setCanResend(true); return }
     const timer = setTimeout(() => setCountdown((c) => c - 1), 1000)
@@ -403,10 +393,27 @@ function Step3({
   )
 }
 
+// ── Estado de carga / validación ─────────────────────────────
+
+function ValidatingToken() {
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-brand-950 to-brand-800 flex items-center justify-center p-4">
+      <div className="text-white text-center">
+        <div className="animate-spin w-8 h-8 border-2 border-white/30 border-t-white rounded-full mx-auto mb-4" />
+        <p className="text-sm opacity-75">Validando invitación...</p>
+      </div>
+    </div>
+  )
+}
+
 // ── Página principal ─────────────────────────────────────────
 
-export default function RegisterPage() {
+function RegisterContent() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const inviteToken = searchParams.get('token')
+
+  const [tokenState, setTokenState] = useState<'loading' | 'valid' | 'invalid'>('loading')
   const [step, setStep] = useState(1)
   const [registering, setRegistering] = useState(false)
   const [error, setError] = useState('')
@@ -416,12 +423,38 @@ export default function RegisterPage() {
     email: '',
     companyName: '',
     rfc: '',
-    invitationCode: '',
     locationState: '',
     locationCity: '',
     acceptTerms: false,
     acceptPrivacy: false,
   })
+
+  // Validar el token de invitación al montar
+  useEffect(() => {
+    if (!inviteToken) {
+      router.replace('/login?error=registro-cerrado')
+      return
+    }
+
+    fetch(`/api/auth/validate-invite?token=${inviteToken}`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.valid) {
+          setFormData((prev) => ({ ...prev, email: data.email }))
+          setTokenState('valid')
+        } else {
+          const reasonMap: Record<string, string> = {
+            'token-used': 'invitacion-usada',
+            'token-expired': 'invitacion-expirada',
+            'token-invalid': 'invitacion-invalida',
+          }
+          router.replace(`/login?error=${reasonMap[data.reason] ?? 'invitacion-invalida'}`)
+        }
+      })
+      .catch(() => router.replace('/login?error=invitacion-invalida'))
+  }, [inviteToken, router])
+
+  if (tokenState === 'loading') return <ValidatingToken />
 
   function handleChange(field: keyof FormData, value: string | boolean) {
     setFormData((prev) => ({ ...prev, [field]: value }))
@@ -441,7 +474,7 @@ export default function RegisterPage() {
         rfc: formData.rfc,
         locationState: formData.locationState,
         locationCity: formData.locationCity,
-        invitationCode: formData.invitationCode,
+        inviteToken,
       }),
     })
 
@@ -456,11 +489,7 @@ export default function RegisterPage() {
     router.push('/welcome')
   }
 
-  const titles = [
-    'Crea tu cuenta',
-    'Verifica tu correo',
-    'Configura tu perfil',
-  ]
+  const titles = ['Crea tu cuenta', 'Verifica tu correo', 'Configura tu perfil']
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-brand-950 to-brand-800 flex items-center justify-center p-4">
@@ -497,7 +526,12 @@ export default function RegisterPage() {
           )}
 
           {step === 1 && (
-            <Step1 data={formData} onChange={handleChange} onNext={() => setStep(2)} />
+            <Step1
+              data={formData}
+              emailLocked={true}
+              onChange={handleChange}
+              onNext={() => setStep(2)}
+            />
           )}
           {step === 2 && (
             <Step2 email={formData.email} name={formData.fullName} onNext={() => setStep(3)} />
@@ -520,5 +554,13 @@ export default function RegisterPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function RegisterPage() {
+  return (
+    <Suspense fallback={<ValidatingToken />}>
+      <RegisterContent />
+    </Suspense>
   )
 }

@@ -97,6 +97,53 @@ export function buildInvoiceRejectedEmail(params: {
   `
 }
 
+/** Email de invitación al club */
+export function buildInvitationEmail(params: {
+  inviteLink: string
+  recipientName?: string
+  senderName?: string
+}): string {
+  return `
+    <div style="font-family: Inter, sans-serif; max-width: 500px; margin: 0 auto; padding: 32px;">
+      <div style="text-align: center; margin-bottom: 32px;">
+        <div style="display: inline-flex; align-items: center; justify-content: center; width: 64px; height: 64px; background: #2563eb; border-radius: 16px;">
+          <span style="font-size: 28px; font-weight: 700; color: white;">D</span>
+        </div>
+        <h1 style="margin-top: 12px; font-size: 20px; color: #1e3a8a; margin-bottom: 0;">Club Momentos Dismant</h1>
+      </div>
+
+      <h2 style="color: #111827; margin-bottom: 8px;">
+        ${params.recipientName ? `Hola ${params.recipientName},` : 'Hola,'}
+      </h2>
+      <p style="color: #374151; line-height: 1.6;">
+        ${params.senderName ? `<strong>${params.senderName}</strong> te ha invitado a` : 'Has sido invitado a'} unirte al
+        <strong>Club Momentos Dismant</strong>, el programa de lealtad exclusivo para clientes de Dismant.
+      </p>
+      <p style="color: #374151; line-height: 1.6;">
+        Acumula puntos con cada compra y canjéalos por premios exclusivos en tu zona.
+      </p>
+
+      <div style="text-align: center; margin: 36px 0;">
+        <a href="${params.inviteLink}"
+           style="display: inline-block; background: #2563eb; color: white; padding: 16px 40px;
+                  border-radius: 10px; text-decoration: none; font-weight: 600; font-size: 16px;">
+          Crear mi cuenta
+        </a>
+      </div>
+
+      <div style="background: #f1f5f9; border-radius: 8px; padding: 16px; margin-bottom: 24px;">
+        <p style="margin: 0; font-size: 13px; color: #64748b;">
+          Este enlace es personal e intransferible. Expira en <strong>7 días</strong> y solo puede usarse una vez.
+        </p>
+      </div>
+
+      <p style="color: #9ca3af; font-size: 12px; text-align: center;">
+        Si no esperabas esta invitación, puedes ignorar este mensaje.
+      </p>
+    </div>
+  `
+}
+
 /** Magic Link de acceso */
 export function buildMagicLinkEmail(magicLink: string, userName?: string): string {
   return `

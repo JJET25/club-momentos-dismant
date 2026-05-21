@@ -72,6 +72,7 @@ model Member {
   ledgerOperations LedgerEntry[] @relation("OperatorLedger")
   createdPromotions PartnerPromotion[] @relation("CreatedPromotions")
   approvedPromotions PartnerPromotion[] @relation("ApprovedPromotions")
+  sentInvitations   Invitation[]
 
   @@map("members")
 }
@@ -292,6 +293,26 @@ model PartnerPromotion {
 
   @@index([status, validUntil])
   @@map("partner_promotions")
+}
+
+// ─────────────────────────────────────────────────────────────
+// INVITACIONES
+// ─────────────────────────────────────────────────────────────
+
+model Invitation {
+  id        String    @id @default(uuid())
+  email     String
+  token     String    @unique
+  sentBy    String?   @map("sent_by")
+  used      Boolean   @default(false)
+  usedAt    DateTime? @map("used_at")
+  expiresAt DateTime  @map("expires_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  sender    Member?   @relation(fields: [sentBy], references: [id])
+
+  @@index([email])
+  @@map("invitations")
 }
 
 // ─────────────────────────────────────────────────────────────
