@@ -1,3 +1,4 @@
+import { MANAGER_ROLES } from '@/lib/permissions'
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/lib/auth'
 import { createAdminClient } from '@/lib/supabase'
@@ -7,7 +8,7 @@ import crypto from 'crypto'
 export async function POST(req: NextRequest) {
   const session = await getSession()
 
-  if (!session || !['owner', 'admin'].includes(session.role)) {
+  if (!session || !MANAGER_ROLES.includes(session.role as never)) {
     return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
   }
 
@@ -85,7 +86,7 @@ export async function POST(req: NextRequest) {
 export async function GET(req: NextRequest) {
   const session = await getSession()
 
-  if (!session || !['owner', 'admin'].includes(session.role)) {
+  if (!session || !MANAGER_ROLES.includes(session.role as never)) {
     return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
   }
 

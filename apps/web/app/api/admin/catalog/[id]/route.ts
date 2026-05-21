@@ -1,10 +1,11 @@
+import { MANAGER_ROLES } from '@/lib/permissions'
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/lib/auth'
 import { createAdminClient } from '@/lib/supabase'
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSession()
-  if (!session || !['owner', 'admin'].includes(session.role)) {
+  if (!session || !MANAGER_ROLES.includes(session.role as never)) {
     return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
   }
 

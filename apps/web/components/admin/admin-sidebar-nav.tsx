@@ -3,17 +3,35 @@
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 
-const NAV_ITEMS = [
+interface NavItem {
+  href:      string
+  label:     string
+  icon:      string
+  minRole?:  'employee' | 'admin' | 'owner'  // mínimo rol requerido (default: employee)
+}
+
+const NAV_ITEMS: NavItem[] = [
   { href: '/admin/dashboard',   label: 'Dashboard',     icon: '📊' },
   { href: '/admin/members',     label: 'Miembros',      icon: '👥' },
-  { href: '/admin/invitations', label: 'Invitaciones',  icon: '✉️' },
   { href: '/admin/invoices',    label: 'Facturas',      icon: '📄' },
-  { href: '/admin/catalog',     label: 'Catálogo',      icon: '🎁' },
-  { href: '/admin/promotions',  label: 'Promociones',   icon: '📢' },
-  { href: '/admin/reports',     label: 'Reportes',      icon: '📈' },
-  { href: '/admin/audit',       label: 'Auditoría',     icon: '🔍' },
-  { href: '/admin/settings',    label: 'Configuración', icon: '⚙️' },
+  { href: '/admin/invitations', label: 'Invitaciones',  icon: '✉️',  minRole: 'admin' },
+  { href: '/admin/catalog',     label: 'Catálogo',      icon: '🎁',  minRole: 'admin' },
+  { href: '/admin/promotions',  label: 'Promociones',   icon: '📢',  minRole: 'admin' },
+  { href: '/admin/reports',     label: 'Reportes',      icon: '📈',  minRole: 'admin' },
+  { href: '/admin/audit',       label: 'Auditoría',     icon: '🔍',  minRole: 'admin' },
+  { href: '/admin/settings',    label: 'Configuración', icon: '⚙️',  minRole: 'owner' },
 ]
+
+const ROLE_RANK: Record<string, number> = {
+  employee: 1,
+  admin:    2,
+  owner:    3,
+}
+
+function canSee(role: string, item: NavItem): boolean {
+  if (!item.minRole) return true
+  return (ROLE_RANK[role] ?? 0) >= (ROLE_RANK[item.minRole] ?? 0)
+}
 
 interface Props {
   name: string
@@ -35,10 +53,12 @@ export function AdminSidebarNav({ name, role }: Props) {
     employee: 'Empleado',
   }
 
+  const visibleItems = NAV_ITEMS.filter(item => canSee(role, item))
+
   return (
     <>
       <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
-        {NAV_ITEMS.map(item => {
+        {visibleItems.map(item => {
           const active = pathname === item.href || pathname.startsWith(item.href + '/')
           return (
             <Link

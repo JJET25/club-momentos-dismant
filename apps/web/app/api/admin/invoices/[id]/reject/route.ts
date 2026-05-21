@@ -1,3 +1,4 @@
+import { STAFF_ROLES } from '@/lib/permissions'
 import { NextRequest, NextResponse } from 'next/server'
 import crypto from 'crypto'
 import { getSession } from '@/lib/auth'
@@ -5,11 +6,10 @@ import { createAdminClient } from '@/lib/supabase'
 import { sendEmail, buildInvoiceRejectedEmail } from '@/lib/resend'
 import { sendPushNotification } from '@/lib/firebase-admin'
 
-const ADMIN_ROLES = ['owner', 'admin', 'employee']
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSession()
-  if (!session || !ADMIN_ROLES.includes(session.role)) {
+  if (!session || !STAFF_ROLES.includes(session.role as never)) {
     return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
   }
 

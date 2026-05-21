@@ -1,12 +1,12 @@
+import { STAFF_ROLES, MANAGER_ROLES } from '@/lib/permissions'
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/lib/auth'
 import { createAdminClient } from '@/lib/supabase'
 
-const ADMIN_ROLES = ['owner', 'admin', 'employee']
 
 export async function GET(req: NextRequest) {
   const session = await getSession()
-  if (!session || !ADMIN_ROLES.includes(session.role)) {
+  if (!session || !STAFF_ROLES.includes(session.role as never)) {
     return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
   }
 
@@ -32,7 +32,7 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   const session = await getSession()
-  if (!session || !['owner', 'admin'].includes(session.role)) {
+  if (!session || !MANAGER_ROLES.includes(session.role as never)) {
     return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
   }
 
