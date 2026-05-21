@@ -54,25 +54,60 @@ export function buildOTPEmail(code: string, userName?: string): string {
 
 /** Notificación de factura aprobada */
 export function buildInvoiceApprovedEmail(params: {
-  userName: string
-  uuidCfdi: string
-  points: number
+  userName:   string
+  uuidCfdi:   string
+  totalMxn:   number
+  points:     number
   newBalance: number
 }): string {
+  const fmtMxn = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(params.totalMxn)
+  const fmtPts = (n: number) => n.toLocaleString('es-MX')
   return `
-    <div style="font-family: Inter, sans-serif; max-width: 500px; margin: 0 auto; padding: 32px;">
-      <h2 style="color: #16a34a;">✅ Factura validada exitosamente</h2>
-      <p>Hola ${params.userName},</p>
-      <p>Tu factura fue validada y se acreditaron puntos a tu cuenta.</p>
-      <div style="background: #dcfce7; border-radius: 8px; padding: 16px; margin: 16px 0;">
-        <p style="margin: 4px 0;"><strong>Folio Fiscal:</strong> ${params.uuidCfdi.slice(0, 8)}...</p>
-        <p style="margin: 4px 0;"><strong>Puntos acreditados:</strong> +${params.points} pts</p>
-        <p style="margin: 4px 0;"><strong>Nuevo saldo:</strong> ${params.newBalance} pts</p>
+    <div style="font-family: Inter, sans-serif; max-width: 520px; margin: 0 auto; padding: 32px; background: #ffffff;">
+      <div style="text-align: center; margin-bottom: 28px;">
+        <div style="display: inline-flex; align-items: center; justify-content: center; width: 64px; height: 64px; background: #16a34a; border-radius: 16px;">
+          <span style="font-size: 30px;">✅</span>
+        </div>
+        <h1 style="margin-top: 12px; font-size: 20px; color: #1e3a8a; margin-bottom: 0;">Club Momentos Dismant</h1>
       </div>
-      <a href="${process.env.NEXT_PUBLIC_APP_URL}/catalog"
-         style="display: inline-block; background: #2563eb; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; margin-top: 16px;">
-        Ver catálogo de premios
-      </a>
+
+      <h2 style="color: #15803d; margin-bottom: 8px;">Factura validada exitosamente</h2>
+      <p style="color: #374151;">Hola <strong>${params.userName}</strong>,</p>
+      <p style="color: #374151; line-height: 1.6;">
+        Tu factura fue revisada y aprobada. Los puntos ya están disponibles en tu cuenta.
+      </p>
+
+      <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 10px; padding: 20px; margin: 24px 0;">
+        <table style="width: 100%; border-collapse: collapse;">
+          <tr>
+            <td style="padding: 6px 0; color: #6b7280; font-size: 14px;">Folio Fiscal</td>
+            <td style="padding: 6px 0; text-align: right; font-family: monospace; font-size: 13px; color: #111827;">${params.uuidCfdi}</td>
+          </tr>
+          <tr>
+            <td style="padding: 6px 0; color: #6b7280; font-size: 14px; border-top: 1px solid #dcfce7;">Monto de la factura</td>
+            <td style="padding: 6px 0; text-align: right; font-weight: 600; color: #111827; border-top: 1px solid #dcfce7;">${fmtMxn}</td>
+          </tr>
+          <tr>
+            <td style="padding: 6px 0; color: #6b7280; font-size: 14px; border-top: 1px solid #dcfce7;">Puntos acreditados</td>
+            <td style="padding: 6px 0; text-align: right; font-weight: 700; color: #16a34a; font-size: 18px; border-top: 1px solid #dcfce7;">+${fmtPts(params.points)} pts</td>
+          </tr>
+          <tr>
+            <td style="padding: 6px 0; color: #6b7280; font-size: 14px; border-top: 1px solid #dcfce7;">Saldo total</td>
+            <td style="padding: 6px 0; text-align: right; font-weight: 700; color: #2563eb; font-size: 18px; border-top: 1px solid #dcfce7;">${fmtPts(params.newBalance)} pts</td>
+          </tr>
+        </table>
+      </div>
+
+      <div style="text-align: center; margin: 28px 0;">
+        <a href="${process.env.NEXT_PUBLIC_APP_URL}/catalog"
+           style="display: inline-block; background: #2563eb; color: white; padding: 14px 32px; border-radius: 10px; text-decoration: none; font-weight: 600; font-size: 15px;">
+          Ver premios disponibles →
+        </a>
+      </div>
+
+      <p style="color: #9ca3af; font-size: 12px; text-align: center;">
+        Club Momentos Dismant · Si tienes dudas, contacta a tu ejecutivo de cuenta.
+      </p>
     </div>
   `
 }

@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import crypto from 'crypto'
 import { getSession } from '@/lib/auth'
 import { createAdminClient } from '@/lib/supabase'
+import { sendEmail, buildInvoiceRejectedEmail } from '@/lib/resend'
+import { sendPushNotification } from '@/lib/firebase-admin'
 
 const ADMIN_ROLES = ['owner', 'admin', 'employee']
 
@@ -22,7 +24,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   const { data: invoice } = await supabase
     .from('invoices')
-    .select('id, status, member_id, uuid_cfdi')
+    .select(`
+      id, status, member_id, uuid_cfdi,
+      members!member_id ( id, full_name, email, fcm_token )
+    `)
     .eq('id', invoiceId)
     .single()
 
@@ -32,6 +37,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (invoice.status !== 'pending') {
     return NextResponse.json({ error: 'Solo se pueden rechazar facturas pendientes' }, { status: 409 })
   }
+
+  const member = (invoice.members as unknown) as { id: string; full_name: string; email: string; fcm_token: string | null } | null
 
   await supabase
     .from('invoices')
@@ -46,6 +53,44 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     target_id:   invoiceId,
     metadata:    { reason: reason.trim(), uuid_cfdi: invoice.uuid_cfdi },
   })
+
+  // ── Notificaciones ──
+
+  const notifTitle = 'Factura no procesada'
+  const notifBody  = `Tu factura no pudo ser aprobada. Razón: ${reason.trim()}`
+
+  // 1. Notificación in-app
+  supabase.from('notifications').insert({
+    id:        crypto.randomUUID(),
+    member_id: invoice.member_id,
+    type:      'invoice.rejected',
+    title:     notifTitle,
+    body:      notifBody,
+    metadata:  { invoice_id: invoiceId, uuid_cfdi: invoice.uuid_cfdi, reason: reason.trim() },
+  }).then(() => {}, console.error)
+
+  // 2. Push notification
+  if (member?.fcm_token) {
+    sendPushNotification({
+      fcmToken: member.fcm_token,
+      title:    notifTitle,
+      body:     notifBody,
+      data:     { type: 'invoice.rejected', invoice_id: invoiceId },
+    }).catch(console.error)
+  }
+
+  // 3. Email
+  if (member?.email) {
+    sendEmail({
+      to:      member.email,
+      subject: 'Tu factura no pudo ser procesada — Club Momentos Dismant',
+      html:    buildInvoiceRejectedEmail({
+        userName: member.full_name,
+        uuidCfdi: invoice.uuid_cfdi,
+        reason:   reason.trim(),
+      }),
+    }).catch(console.error)
+  }
 
   return NextResponse.json({ ok: true })
 }

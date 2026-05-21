@@ -73,6 +73,7 @@ model Member {
   createdPromotions PartnerPromotion[] @relation("CreatedPromotions")
   approvedPromotions PartnerPromotion[] @relation("ApprovedPromotions")
   sentInvitations   Invitation[]
+  notifications     Notification[]
 
   @@map("members")
 }
@@ -333,4 +334,24 @@ model AuditLog {
   @@index([actorId, createdAt(sort: Desc)])
   @@index([action])
   @@map("audit_log")
+}
+
+// ─────────────────────────────────────────────────────────────
+// NOTIFICACIONES IN-APP
+// ─────────────────────────────────────────────────────────────
+
+model Notification {
+  id        String    @id @default(uuid())
+  memberId  String    @map("member_id")
+  type      String                         // invoice.approved | invoice.rejected | points.adjustment | redemption.ready
+  title     String
+  body      String
+  metadata  Json?
+  readAt    DateTime? @map("read_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  member    Member    @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@index([memberId, createdAt(sort: Desc)])
+  @@map("notifications")
 }
