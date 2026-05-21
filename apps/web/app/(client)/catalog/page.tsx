@@ -187,6 +187,159 @@ function categoryIcon(category: string | null): string {
   return category ? (map[category] ?? '🎁') : '🎁'
 }
 
+// ── Modal de confirmación ─────────────────────────────────────
+
+function ConfirmModal({
+  sku, balance, processing, error, onConfirm, onClose,
+}: {
+  sku: Sku
+  balance: number
+  processing: boolean
+  error: string | null
+  onConfirm: () => void
+  onClose: () => void
+}) {
+  const remaining = balance - sku.points_cost
+
+  useEffect(() => {
+    const h = (e: KeyboardEvent) => { if (e.key === 'Escape' && !processing) onClose() }
+    window.addEventListener('keydown', h)
+    return () => window.removeEventListener('keydown', h)
+  }, [onClose, processing])
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40"
+      onClick={() => !processing && onClose()}>
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 space-y-5"
+        onClick={e => e.stopPropagation()}>
+
+        <div className="text-center">
+          <div className="text-4xl mb-3">{categoryIcon(sku.category)}</div>
+          <h3 className="text-base font-bold text-foreground">{sku.name}</h3>
+        </div>
+
+        <div className="divide-y divide-border rounded-xl border overflow-hidden">
+          {[
+            { label: 'Costo del canje',  value: `-${sku.points_cost.toLocaleString('es-MX')} pts`, red: true },
+            { label: 'Tu saldo actual',  value: `${balance.toLocaleString('es-MX')} pts` },
+            { label: 'Saldo restante',   value: `${remaining.toLocaleString('es-MX')} pts` },
+          ].map(row => (
+            <div key={row.label} className="flex items-center justify-between px-4 py-3 bg-muted/20">
+              <span className="text-xs text-muted-foreground">{row.label}</span>
+              <span className={`text-sm font-semibold ${row.red ? 'text-red-500' : 'text-foreground'}`}>
+                {row.value}
+              </span>
+            </div>
+          ))}
+        </div>
+
+        {error && (
+          <div className="bg-red-50 border border-red-100 rounded-lg px-4 py-3 text-sm text-red-700">
+            {error}
+          </div>
+        )}
+
+        <div className="flex gap-3">
+          <button
+            onClick={onClose}
+            disabled={processing}
+            className="flex-1 py-2.5 rounded-xl border text-sm font-medium text-muted-foreground hover:bg-muted/50 transition-colors disabled:opacity-50"
+          >
+            Cancelar
+          </button>
+          <button
+            onClick={onConfirm}
+            disabled={processing}
+            className="flex-1 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 transition-colors disabled:opacity-70 flex items-center justify-center gap-2"
+          >
+            {processing && (
+              <span className="w-4 h-4 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
+            )}
+            {processing ? 'Procesando…' : 'Confirmar canje'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Pantalla de voucher ───────────────────────────────────────
+
+interface VoucherData {
+  id:            string
+  voucher_code:  string
+  points_spent:  number
+  balance_after: number
+  sku_name:      string
+  created_at:    string
+}
+
+function VoucherScreen({ voucher, onClose }: { voucher: VoucherData; onClose: () => void }) {
+  const [copied, setCopied] = useState(false)
+
+  async function copyCode() {
+    await navigator.clipboard.writeText(voucher.voucher_code)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 space-y-5">
+
+        {/* Éxito */}
+        <div className="text-center space-y-2">
+          <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center mx-auto">
+            <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
+          </div>
+          <h3 className="text-lg font-bold text-foreground">¡Canje exitoso!</h3>
+          <p className="text-sm text-muted-foreground">{voucher.sku_name}</p>
+        </div>
+
+        {/* Código de voucher */}
+        <div className="bg-muted/30 rounded-xl p-5 text-center space-y-2">
+          <p className="text-xs text-muted-foreground uppercase tracking-wide">Código de voucher</p>
+          <p className="text-3xl font-mono font-bold tracking-widest text-foreground">
+            {voucher.voucher_code}
+          </p>
+          <button
+            onClick={copyCode}
+            className="text-xs text-primary hover:underline font-medium"
+          >
+            {copied ? '✓ Copiado' : 'Copiar código'}
+          </button>
+        </div>
+
+        {/* Resumen */}
+        <div className="divide-y divide-border rounded-xl border overflow-hidden">
+          {[
+            { label: 'Puntos canjeados', value: `-${voucher.points_spent.toLocaleString('es-MX')} pts` },
+            { label: 'Saldo restante',   value: `${voucher.balance_after.toLocaleString('es-MX')} pts` },
+          ].map(row => (
+            <div key={row.label} className="flex items-center justify-between px-4 py-3 bg-muted/20">
+              <span className="text-xs text-muted-foreground">{row.label}</span>
+              <span className="text-xs font-semibold text-foreground">{row.value}</span>
+            </div>
+          ))}
+        </div>
+
+        <p className="text-xs text-muted-foreground text-center">
+          Guarda este código. También puedes verlo en <strong>Mis Canjes</strong>.
+        </p>
+
+        <button
+          onClick={onClose}
+          className="w-full py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 transition-colors"
+        >
+          Listo
+        </button>
+      </div>
+    </div>
+  )
+}
+
 // ── Página principal ──────────────────────────────────────────
 
 export default function CatalogPage() {
@@ -195,6 +348,12 @@ export default function CatalogPage() {
   const [categories, setCategories] = useState<string[]>([])
   const [loading, setLoading]   = useState(true)
   const [selected, setSelected] = useState<Sku | null>(null)
+
+  // Flujo de canje
+  const [confirming, setConfirming] = useState<Sku | null>(null)
+  const [processing, setProcessing] = useState(false)
+  const [redeemError, setRedeemError] = useState<string | null>(null)
+  const [voucher, setVoucher]       = useState<VoucherData | null>(null)
 
   const [filterCat, setFilterCat] = useState('')
   const [sort, setSort]           = useState('cost_asc')
@@ -216,8 +375,38 @@ export default function CatalogPage() {
   useEffect(() => { load() }, [filterCat, sort])
 
   function handleRedeem(sku: Sku) {
-    // US-017 — flujo de canje (próxima historia)
-    alert(`Próximamente: flujo de canje para "${sku.name}"`)
+    setSelected(null)
+    setRedeemError(null)
+    setConfirming(sku)
+  }
+
+  async function confirmRedeem() {
+    if (!confirming) return
+    setProcessing(true)
+    setRedeemError(null)
+
+    const res = await fetch('/api/client/redemptions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sku_id: confirming.id }),
+    })
+    const data = await res.json()
+
+    setProcessing(false)
+
+    if (!res.ok) {
+      setRedeemError(data.error ?? 'Error al procesar el canje.')
+      return
+    }
+
+    setConfirming(null)
+    setVoucher(data.redemption)
+    // Refrescar catálogo para reflejar stock actualizado y nuevo saldo
+    load()
+  }
+
+  function closeVoucher() {
+    setVoucher(null)
   }
 
   return (
@@ -228,8 +417,23 @@ export default function CatalogPage() {
           sku={selected}
           balance={balance}
           onClose={() => setSelected(null)}
-          onRedeem={(sku) => { setSelected(null); handleRedeem(sku) }}
+          onRedeem={handleRedeem}
         />
+      )}
+
+      {confirming && (
+        <ConfirmModal
+          sku={confirming}
+          balance={balance}
+          processing={processing}
+          error={redeemError}
+          onConfirm={confirmRedeem}
+          onClose={() => { setConfirming(null); setRedeemError(null) }}
+        />
+      )}
+
+      {voucher && (
+        <VoucherScreen voucher={voucher} onClose={closeVoucher} />
       )}
 
       <div className="flex items-start justify-between gap-4">
