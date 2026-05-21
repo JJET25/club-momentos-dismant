@@ -85,7 +85,7 @@ export function parseCFDIXml(xml: string): CFDIData | null {
     const uuid    = attr(/UUID="([^"]+)"/i)
     const rfcEmisor   = attr(/cfdi:Emisor[^>]+Rfc="([^"]+)"/i)
     const rfcReceptor = attr(/cfdi:Receptor[^>]+Rfc="([^"]+)"/i)
-    const total   = parseFloat(attr(/cfdi:Comprobante[^>]+Total="([^"]+)"/i) || attr(/Total="([^"]+)"/i))
+    const total   = parseFloat(attr(/\bTotal="([^"]+)"/i))
     const fecha   = attr(/cfdi:Comprobante[^>]+Fecha="([^"]+)"/i) || attr(/Fecha="([^"]+)"/i)
     const version = attr(/cfdi:Comprobante[^>]+Version="([^"]+)"/i) || attr(/Version="([^"]+)"/i)
 

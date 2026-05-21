@@ -147,7 +147,7 @@ export async function GET() {
   const supabase = createAdminClient()
   const { data, error } = await supabase
     .from('invoices')
-    .select('id, uuid_cfdi, total_mxn, issued_at, status, points_generated, created_at, rejection_reason')
+    .select('id, uuid_cfdi, rfc_emisor, rfc_receptor, total_mxn, issued_at, status, points_generated, created_at, rejection_reason, approved_at')
     .eq('member_id', session.sub)
     .order('created_at', { ascending: false })
     .limit(50)
