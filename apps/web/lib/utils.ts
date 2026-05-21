@@ -68,6 +68,35 @@ export function calculatePoints(amountMXN: number, pointsPerAmount = 100): numbe
   return Math.floor(amountMXN / pointsPerAmount)
 }
 
+export interface CFDIData {
+  uuid: string
+  rfcEmisor: string
+  rfcReceptor: string
+  total: number
+  issuedAt: Date
+  version: string
+}
+
+/** Extrae los campos relevantes de un XML de CFDI 3.3 / 4.0 */
+export function parseCFDIXml(xml: string): CFDIData | null {
+  try {
+    const attr = (tag: RegExp) => xml.match(tag)?.[1] ?? ''
+
+    const uuid    = attr(/UUID="([^"]+)"/i)
+    const rfcEmisor   = attr(/cfdi:Emisor[^>]+Rfc="([^"]+)"/i)
+    const rfcReceptor = attr(/cfdi:Receptor[^>]+Rfc="([^"]+)"/i)
+    const total   = parseFloat(attr(/cfdi:Comprobante[^>]+Total="([^"]+)"/i) || attr(/Total="([^"]+)"/i))
+    const fecha   = attr(/cfdi:Comprobante[^>]+Fecha="([^"]+)"/i) || attr(/Fecha="([^"]+)"/i)
+    const version = attr(/cfdi:Comprobante[^>]+Version="([^"]+)"/i) || attr(/Version="([^"]+)"/i)
+
+    if (!uuid || !rfcEmisor || !rfcReceptor || isNaN(total) || !fecha) return null
+
+    return { uuid, rfcEmisor, rfcReceptor, total, issuedAt: new Date(fecha), version }
+  } catch {
+    return null
+  }
+}
+
 /** Verifica si una fecha de factura está dentro del período permitido */
 export function isInvoiceWithinPeriod(issuedAt: Date | string, maxDays = 90): boolean {
   const issued = new Date(issuedAt)
