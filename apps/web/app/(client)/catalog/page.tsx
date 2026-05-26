@@ -16,12 +16,37 @@ interface Sku {
   category:    string | null
 }
 
+interface Review {
+  id:      string
+  rating:  number
+  comment: string | null
+  city:    string | null
+  date:    string
+}
+
+interface ReviewsMeta {
+  reviews:    Review[]
+  totalCount: number
+  avgRating:  number | null
+}
+
 const SORT_OPTIONS = [
   { value: 'cost_asc',  label: 'Menor costo' },
   { value: 'cost_desc', label: 'Mayor costo' },
 ]
 
 // ── Modal de detalle (US-016) ─────────────────────────────────
+
+function StarDisplay({ rating, size = 'sm' }: { rating: number; size?: 'sm' | 'md' }) {
+  const cls = size === 'md' ? 'text-base' : 'text-sm'
+  return (
+    <span className={cls}>
+      {[1,2,3,4,5].map(s => (
+        <span key={s} className={rating >= s ? 'text-amber-400' : 'text-gray-200'}>★</span>
+      ))}
+    </span>
+  )
+}
 
 function RewardDetailModal({
   sku, balance, onClose, onRedeem,
@@ -33,12 +58,19 @@ function RewardDetailModal({
 }) {
   const canAfford = balance >= sku.points_cost
   const hasStock  = sku.stock > 0
+  const [reviewsMeta, setReviewsMeta] = useState<ReviewsMeta | null>(null)
 
   useEffect(() => {
     const h = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
     window.addEventListener('keydown', h)
     return () => window.removeEventListener('keydown', h)
   }, [onClose])
+
+  useEffect(() => {
+    fetch(`/api/client/catalog/${sku.id}/reviews`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d) setReviewsMeta(d) })
+  }, [sku.id])
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40" onClick={onClose}>
@@ -84,6 +116,36 @@ function RewardDetailModal({
               </div>
             ))}
           </div>
+
+          {/* Reseñas (US-020) */}
+          {reviewsMeta && (reviewsMeta.totalCount > 0) && (
+            <div className="space-y-3">
+              <div className="flex items-center gap-3">
+                <StarDisplay rating={Math.round(reviewsMeta.avgRating ?? 0)} size="md" />
+                <span className="text-sm font-semibold text-foreground">
+                  {reviewsMeta.avgRating?.toFixed(1)}
+                </span>
+                <span className="text-xs text-muted-foreground">
+                  ({reviewsMeta.totalCount} reseña{reviewsMeta.totalCount !== 1 ? 's' : ''})
+                </span>
+              </div>
+              <div className="space-y-2 max-h-40 overflow-y-auto">
+                {reviewsMeta.reviews.map(r => (
+                  <div key={r.id} className="bg-muted/20 rounded-lg px-3 py-2.5 space-y-1">
+                    <div className="flex items-center justify-between gap-2">
+                      <StarDisplay rating={r.rating} />
+                      {r.city && (
+                        <span className="text-xs text-muted-foreground">{r.city}</span>
+                      )}
+                    </div>
+                    {r.comment && (
+                      <p className="text-xs text-foreground leading-relaxed">{r.comment}</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Aviso de puntos insuficientes */}
           {!canAfford && (

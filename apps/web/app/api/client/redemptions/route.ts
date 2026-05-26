@@ -149,7 +149,8 @@ export async function GET() {
     .from('redemptions')
     .select(`
       id, points_spent, voucher_code, status, created_at,
-      reward_skus!sku_id ( id, name, image_url, category, is_digital )
+      reward_skus!sku_id ( id, name, image_url, category, is_digital ),
+      reviews!redemption_id ( id )
     `)
     .eq('member_id', session.sub)
     .order('created_at', { ascending: false })
@@ -159,5 +160,10 @@ export async function GET() {
     return NextResponse.json({ error: 'Error al obtener canjes' }, { status: 500 })
   }
 
-  return NextResponse.json({ redemptions: data ?? [] })
+  const redemptions = (data ?? []).map(r => ({
+    ...r,
+    has_review: Array.isArray(r.reviews) ? r.reviews.length > 0 : !!r.reviews,
+  }))
+
+  return NextResponse.json({ redemptions })
 }

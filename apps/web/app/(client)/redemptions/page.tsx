@@ -19,6 +19,7 @@ interface Redemption {
   status:      'active' | 'used' | 'expired'
   created_at:  string
   reward_skus: SkuInfo | null
+  has_review:  boolean
 }
 
 // ── Config ───────────────────────────────────────────────────
@@ -147,12 +148,119 @@ function VoucherModal({ redemption, onClose }: { redemption: Redemption; onClose
   )
 }
 
+// ── Modal de calificación ─────────────────────────────────────
+
+function ReviewModal({ redemption, onClose, onReviewed }: {
+  redemption: Redemption
+  onClose:    () => void
+  onReviewed: () => void
+}) {
+  const [rating, setRating]     = useState(0)
+  const [hover, setHover]       = useState(0)
+  const [comment, setComment]   = useState('')
+  const [submitting, setSubmit] = useState(false)
+  const [error, setError]       = useState('')
+  const [done, setDone]         = useState<{ bonus: boolean } | null>(null)
+
+  const willGetBonus = comment.trim().length >= 20
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    if (!rating) { setError('Selecciona una calificación'); return }
+    setSubmit(true); setError('')
+    const res = await fetch('/api/client/reviews', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ redemptionId: redemption.id, rating, comment }),
+    })
+    setSubmit(false)
+    if (!res.ok) { const d = await res.json(); setError(d.error ?? 'Error'); return }
+    const { bonus_awarded } = await res.json()
+    setDone({ bonus: bonus_awarded })
+  }
+
+  if (done) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40" onClick={onClose}>
+        <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-8 text-center" onClick={e => e.stopPropagation()}>
+          <p className="text-4xl mb-4">⭐</p>
+          <h3 className="text-lg font-bold mb-2">¡Gracias por tu reseña!</h3>
+          {done.bonus && (
+            <p className="text-sm text-green-700 bg-green-50 rounded-lg px-4 py-2 mb-4">
+              +5 puntos acreditados por tu reseña.
+            </p>
+          )}
+          <button onClick={() => { onReviewed(); onClose() }}
+            className="w-full py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90">
+            Cerrar
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40" onClick={onClose}>
+      <form onSubmit={handleSubmit}
+        className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 space-y-4"
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between">
+          <h3 className="font-bold text-base">Calificar premio</h3>
+          <button type="button" onClick={onClose} className="text-muted-foreground hover:text-foreground">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12"/>
+            </svg>
+          </button>
+        </div>
+        <p className="text-sm text-muted-foreground">{redemption.reward_skus?.name}</p>
+
+        {/* Stars */}
+        <div className="flex gap-2 justify-center py-2">
+          {[1,2,3,4,5].map(s => (
+            <button key={s} type="button"
+              onMouseEnter={() => setHover(s)} onMouseLeave={() => setHover(0)}
+              onClick={() => setRating(s)}
+              className={`text-3xl transition-transform hover:scale-110 ${
+                (hover || rating) >= s ? 'text-amber-400' : 'text-gray-200'
+              }`}
+            >★</button>
+          ))}
+        </div>
+
+        {/* Comentario */}
+        <div>
+          <textarea rows={3} value={comment} onChange={e => setComment(e.target.value)}
+            placeholder="Cuéntanos tu experiencia (opcional)…"
+            className="input-field w-full text-sm resize-none"
+          />
+          {!willGetBonus && comment.length > 0 && (
+            <p className="text-xs text-muted-foreground mt-1">{20 - comment.trim().length} caracteres más para recibir 5 puntos extra</p>
+          )}
+          {willGetBonus && (
+            <p className="text-xs text-green-600 mt-1 font-medium">¡Recibirás 5 puntos extra por tu reseña!</p>
+          )}
+        </div>
+
+        {error && <p className="text-sm text-red-600">{error}</p>}
+
+        <button type="submit" disabled={submitting || !rating}
+          className="w-full py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 disabled:opacity-60 flex items-center justify-center gap-2">
+          {submitting && <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />}
+          Enviar calificación
+        </button>
+      </form>
+    </div>
+  )
+}
+
 // ── Página principal ─────────────────────────────────────────
 
 export default function RedemptionsPage() {
   const [redemptions, setRedemptions] = useState<Redemption[]>([])
   const [loading, setLoading]         = useState(true)
   const [viewing, setViewing]         = useState<Redemption | null>(null)
+  const [reviewing, setReviewing]     = useState<Redemption | null>(null)
 
   useEffect(() => {
     fetch('/api/client/redemptions')
@@ -165,6 +273,15 @@ export default function RedemptionsPage() {
 
       {viewing && (
         <VoucherModal redemption={viewing} onClose={() => setViewing(null)} />
+      )}
+      {reviewing && (
+        <ReviewModal
+          redemption={reviewing}
+          onClose={() => setReviewing(null)}
+          onReviewed={() => {
+            setRedemptions(prev => prev.map(r => r.id === reviewing.id ? { ...r, has_review: true } : r))
+          }}
+        />
       )}
 
       <div>
@@ -253,13 +370,16 @@ export default function RedemptionsPage() {
                     </button>
                   )}
 
-                  {r.status === 'active' && (
+                  {!r.has_review && (
                     <button
+                      onClick={() => setReviewing(r)}
                       className="px-3 py-1.5 rounded-lg border border-amber-200 bg-amber-50 text-amber-700 text-xs font-semibold hover:bg-amber-100 transition-colors"
-                      onClick={() => alert('Próximamente: calificación de premios (US-019)')}
                     >
                       Calificar
                     </button>
+                  )}
+                  {r.has_review && (
+                    <span className="text-xs text-muted-foreground">⭐ Calificado</span>
                   )}
                 </div>
               </div>
