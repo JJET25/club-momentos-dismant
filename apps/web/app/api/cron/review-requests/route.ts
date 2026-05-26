@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase'
 import { sendEmail } from '@/lib/resend'
+import { sendPushNotification } from '@/lib/firebase-admin'
 
 function authorized(req: NextRequest): boolean {
   const secret = process.env.CRON_SECRET
@@ -24,7 +25,7 @@ export async function GET(req: NextRequest) {
     .select(`
       id, member_id, created_at,
       reward_skus!sku_id ( name ),
-      members!member_id ( email, full_name ),
+      members!member_id ( email, full_name, fcm_token ),
       reviews!redemption_id ( id )
     `)
     .gte('created_at', from24h.toISOString())
@@ -41,7 +42,7 @@ export async function GET(req: NextRequest) {
     const reviews = r.reviews as unknown as { id: string }[] | null
     if (reviews && reviews.length > 0) continue // already reviewed
 
-    const member = r.members as unknown as { email: string; full_name: string } | null
+    const member = r.members as unknown as { email: string; full_name: string; fcm_token: string | null } | null
     const sku    = r.reward_skus as unknown as { name: string } | null
     if (!member || !sku) continue
 
@@ -63,6 +64,15 @@ export async function GET(req: NextRequest) {
       })
     } catch {
       continue
+    }
+
+    if (member.fcm_token) {
+      sendPushNotification({
+        fcmToken: member.fcm_token,
+        title:    `¿Cómo fue tu canje de ${sku.name}?`,
+        body:     '¡Gana 5 puntos adicionales por dejar una reseña!',
+        data:     { type: 'redemption.review_request', url: '/redemptions' },
+      }).catch(console.error)
     }
 
     notificationRows.push({

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase'
 import { sendEmail } from '@/lib/resend'
+import { sendPushNotification } from '@/lib/firebase-admin'
 
 // Protected by CRON_SECRET env var — set in Vercel cron config
 function authorized(req: NextRequest): boolean {
@@ -23,7 +24,7 @@ export async function GET(req: NextRequest) {
     .from('ledger_entries')
     .select(`
       id, member_id, points, expires_at,
-      members!member_id ( email, full_name )
+      members!member_id ( email, full_name, fcm_token )
     `)
     .gt('points', 0)
     .gte('expires_at', now.toISOString())
@@ -34,14 +35,14 @@ export async function GET(req: NextRequest) {
   }
 
   // Group by member
-  type MemberPoints = { email: string; name: string; points: number; expiresAt: string }
+  type MemberPoints = { email: string; name: string; fcmToken: string | null; points: number; expiresAt: string }
   const byMember: Record<string, MemberPoints> = {}
 
   for (const e of expiring) {
-    const member = e.members as unknown as { email: string; full_name: string } | null
+    const member = e.members as unknown as { email: string; full_name: string; fcm_token: string | null } | null
     if (!member) continue
     if (!byMember[e.member_id]) {
-      byMember[e.member_id] = { email: member.email, name: member.full_name, points: 0, expiresAt: e.expires_at! }
+      byMember[e.member_id] = { email: member.email, name: member.full_name, fcmToken: member.fcm_token, points: 0, expiresAt: e.expires_at! }
     }
     byMember[e.member_id].points += e.points
     // Keep the soonest expiry
@@ -73,10 +74,22 @@ export async function GET(req: NextRequest) {
       continue
     }
 
+    const pushTitle = `${info.points.toLocaleString('es-MX')} puntos por vencer`
+    const pushBody  = `Vencen el ${expiryDate}. ¡Canjéalos en el catálogo!`
+
+    if (info.fcmToken) {
+      sendPushNotification({
+        fcmToken: info.fcmToken,
+        title:    pushTitle,
+        body:     pushBody,
+        data:     { type: 'points.expiring', url: '/catalog' },
+      }).catch(console.error)
+    }
+
     notificationRows.push({
       member_id: memberId,
       type:      'points.expiring',
-      title:     `${info.points.toLocaleString('es-MX')} puntos por vencer`,
+      title:     pushTitle,
       body:      `Tus puntos vencen el ${expiryDate}. ¡Canjéalos antes de perderlos!`,
       metadata:  { points: info.points, expires_at: info.expiresAt },
     })

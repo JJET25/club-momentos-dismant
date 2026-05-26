@@ -4,6 +4,7 @@ import { getSession } from '@/lib/auth'
 import { createAdminClient } from '@/lib/supabase'
 import { uploadFile, R2_PATHS } from '@/lib/r2'
 import { parseCFDIXml, calculatePoints, isInvoiceWithinPeriod, isValidCFDIUUID } from '@/lib/utils'
+import { enqueueInvoiceValidation } from '@/lib/queue'
 
 const MAX_FILE_SIZE = 2 * 1024 * 1024 // 2 MB
 
@@ -134,6 +135,16 @@ export async function POST(req: NextRequest) {
     target_id: invoiceId,
     metadata: { uuid_cfdi: cfdi.uuid, total_mxn: cfdi.total },
   })
+
+  // Encolar validación SAT en background (fire-and-forget si Redis no está configurado)
+  enqueueInvoiceValidation({
+    invoiceId,
+    memberId,
+    uuidCfdi:    cfdi.uuid,
+    rfcEmisor:   cfdi.rfcEmisor,
+    rfcReceptor: cfdi.rfcReceptor,
+    totalMxn:    cfdi.total,
+  }).catch(err => console.error('[invoices] Error al encolar:', err))
 
   return NextResponse.json({ invoice }, { status: 201 })
 }

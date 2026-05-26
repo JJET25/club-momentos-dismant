@@ -1,4 +1,4 @@
-import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3'
+import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand, NoSuchKey } from '@aws-sdk/client-s3'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
 
 const r2 = new S3Client({
@@ -36,6 +36,22 @@ export async function getSignedDownloadUrl(key: string, expiresInSeconds = 3600)
     new GetObjectCommand({ Bucket: BUCKET, Key: key }),
     { expiresIn: expiresInSeconds }
   )
+}
+
+/** Descarga el contenido raw de un objeto. Devuelve null si no existe. */
+export async function downloadFileContent(key: string): Promise<Buffer | null> {
+  try {
+    const res = await r2.send(new GetObjectCommand({ Bucket: BUCKET, Key: key }))
+    if (!res.Body) return null
+    const chunks: Uint8Array[] = []
+    for await (const chunk of res.Body as AsyncIterable<Uint8Array>) {
+      chunks.push(chunk)
+    }
+    return Buffer.concat(chunks)
+  } catch (err) {
+    if (err instanceof NoSuchKey) return null
+    throw err
+  }
 }
 
 /** Elimina un archivo de R2 */

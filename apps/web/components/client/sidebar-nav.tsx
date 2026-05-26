@@ -51,6 +51,13 @@ export function SidebarNav({ name, email, initials }: Props) {
 
   useEffect(() => { fetchNotifications() }, [])
 
+  // Request push permission once, only if not yet decided
+  useEffect(() => {
+    if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'default') {
+      import('@/lib/firebase-client').then(m => m.requestAndSavePushToken()).catch(() => {})
+    }
+  }, [])
+
   async function openNotifications() {
     setNotifOpen(true)
     if (unread > 0) {

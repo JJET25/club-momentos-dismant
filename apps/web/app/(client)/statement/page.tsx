@@ -204,11 +204,21 @@ export default function StatementPage() {
           </p>
         </div>
         <button
-          onClick={() => {
+          onClick={async () => {
             const q = new URLSearchParams()
+            const month = filterFrom?.slice(0, 7) ?? new Date().toISOString().slice(0, 7)
             if (filterFrom) q.set('from', filterFrom)
             if (filterTo)   q.set('to', filterTo)
-            window.open(`/statement/pdf?${q}`, '_blank')
+            q.set('month', month)
+            const res = await fetch(`/api/client/statement/pdf?${q}`)
+            if (!res.ok) return
+            const blob = await res.blob()
+            const url  = URL.createObjectURL(blob)
+            const a    = document.createElement('a')
+            a.href     = url
+            a.download = `estado-cuenta-${month}.pdf`
+            a.click()
+            URL.revokeObjectURL(url)
           }}
           className="flex items-center gap-2 px-4 py-2 rounded-xl border border-border text-sm font-medium text-muted-foreground hover:text-foreground hover:border-primary/40 hover:bg-primary/5 transition-colors shrink-0"
         >
