@@ -334,10 +334,11 @@ function SkuFormModal({ sku, onClose, onSaved }: {
 
 // ── Card de SKU ────────────────────────────────────────────────
 
-function SkuCard({ sku, onEdit, onToggleStatus }: {
+function SkuCard({ sku, onEdit, onToggleStatus, onLoadCodes }: {
   sku:            Sku
   onEdit:         (sku: Sku) => void
   onToggleStatus: (sku: Sku, status: string) => void
+  onLoadCodes:    (sku: Sku) => void
 }) {
   const st = STATUS_CFG[sku.status] ?? STATUS_CFG.active
   const stockLow = sku.stock <= sku.stock_alert_threshold && sku.stock > 0
@@ -383,13 +384,21 @@ function SkuCard({ sku, onEdit, onToggleStatus }: {
       </div>
 
       {/* Actions */}
-      <div className="border-t px-4 py-3 flex gap-2">
+      <div className="border-t px-4 py-3 flex gap-2 flex-wrap">
         <button
           onClick={() => onEdit(sku)}
           className="flex-1 py-1.5 rounded-lg border text-xs font-medium hover:bg-muted/30 transition-colors"
         >
           Editar
         </button>
+        {sku.is_digital && (
+          <button
+            onClick={() => onLoadCodes(sku)}
+            className="py-1.5 px-2 rounded-lg border border-blue-200 text-blue-700 text-xs font-medium hover:bg-blue-50 transition-colors"
+          >
+            Códigos
+          </button>
+        )}
         {sku.status === 'active' ? (
           <button
             onClick={() => onToggleStatus(sku, 'paused')}
@@ -410,6 +419,84 @@ function SkuCard({ sku, onEdit, onToggleStatus }: {
   )
 }
 
+// ── Modal de carga de códigos digitales (US-032) ───────────────
+
+function CodesUploadModal({ sku, onClose }: { sku: Sku; onClose: () => void }) {
+  const [file, setFile]         = useState<File | null>(null)
+  const [result, setResult]     = useState<{ imported: number; new_stock: number } | null>(null)
+  const [loading, setLoading]   = useState(false)
+  const [error, setError]       = useState('')
+  const [stockInfo, setStock]   = useState<{ total: number; available: number } | null>(null)
+
+  useEffect(() => {
+    fetch(`/api/admin/catalog/${sku.id}/codes`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d) setStock(d) })
+  }, [sku.id])
+
+  async function handleUpload() {
+    if (!file) return
+    setLoading(true); setError('')
+    const form = new FormData(); form.append('csv', file)
+    const res  = await fetch(`/api/admin/catalog/${sku.id}/codes`, { method: 'POST', body: form })
+    setLoading(false)
+    if (!res.ok) { const d = await res.json(); setError(d.error ?? 'Error'); return }
+    setResult(await res.json())
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40" onClick={onClose}>
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 space-y-4" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between">
+          <h3 className="font-bold text-base">Cargar códigos digitales</h3>
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12"/></svg>
+          </button>
+        </div>
+        <p className="text-sm text-muted-foreground">{sku.name}</p>
+
+        {stockInfo && (
+          <div className="flex gap-3">
+            <div className="flex-1 bg-muted/30 rounded-lg px-3 py-2 text-center">
+              <p className="text-xs text-muted-foreground">Total</p>
+              <p className="font-bold">{stockInfo.total}</p>
+            </div>
+            <div className="flex-1 bg-green-50 rounded-lg px-3 py-2 text-center">
+              <p className="text-xs text-muted-foreground">Disponibles</p>
+              <p className="font-bold text-green-700">{stockInfo.available}</p>
+            </div>
+          </div>
+        )}
+
+        {result ? (
+          <div className="text-center py-4">
+            <p className="text-3xl mb-2">✅</p>
+            <p className="font-semibold">{result.imported} códigos importados</p>
+            <p className="text-sm text-muted-foreground mt-1">Stock actual: {result.new_stock} disponibles</p>
+            <button onClick={onClose} className="mt-4 px-4 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-semibold">Cerrar</button>
+          </div>
+        ) : (
+          <>
+            <div>
+              <p className="text-xs text-muted-foreground mb-2">
+                Sube un CSV con una columna <code className="font-mono bg-muted px-1 rounded">codigo</code>.
+                Los códigos se agregan al inventario existente (FIFO).
+              </p>
+              <input type="file" accept=".csv,.txt" onChange={e => setFile(e.target.files?.[0] ?? null)}
+                className="w-full text-sm text-muted-foreground file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:bg-muted file:text-foreground file:text-xs file:font-medium hover:file:bg-muted/80 cursor-pointer" />
+            </div>
+            {error && <p className="text-xs text-red-600">{error}</p>}
+            <button onClick={handleUpload} disabled={!file || loading}
+              className="w-full py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 disabled:opacity-60">
+              {loading ? 'Importando…' : 'Importar códigos'}
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+  )
+}
+
 // ── Página principal ───────────────────────────────────────────
 
 export default function AdminCatalogPage() {
@@ -418,6 +505,7 @@ export default function AdminCatalogPage() {
   const [statusFilter, setStatus] = useState('all')
   const [q, setQ]                 = useState('')
   const [editingSku, setEditing]  = useState<Sku | 'new' | null>(null)
+  const [codesForSku, setCodesForSku] = useState<Sku | null>(null)
 
   async function load() {
     setLoading(true)
@@ -458,6 +546,10 @@ export default function AdminCatalogPage() {
           onClose={() => setEditing(null)}
           onSaved={handleSaved}
         />
+      )}
+
+      {codesForSku && (
+        <CodesUploadModal sku={codesForSku} onClose={() => setCodesForSku(null)} />
       )}
 
       {/* Header */}
@@ -536,6 +628,7 @@ export default function AdminCatalogPage() {
               sku={sku}
               onEdit={s => setEditing(s)}
               onToggleStatus={toggleStatus}
+              onLoadCodes={s => setCodesForSku(s)}
             />
           ))}
         </div>

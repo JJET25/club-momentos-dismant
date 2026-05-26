@@ -130,6 +130,125 @@ type UploadState =
   | { status: 'success'; invoice: Invoice }
   | { status: 'error'; message: string }
 
+// ── Formulario UUID manual (US-011) ──────────────────────────
+
+type UuidState =
+  | { status: 'idle' }
+  | { status: 'submitting' }
+  | { status: 'success'; invoice: Invoice }
+  | { status: 'error'; message: string }
+
+function UuidForm({ onSuccess }: { onSuccess: () => void }) {
+  const [uuid, setUuid]         = useState('')
+  const [total, setTotal]       = useState('')
+  const [rfc, setRfc]           = useState('')
+  const [issued, setIssued]     = useState('')
+  const [state, setState]       = useState<UuidState>({ status: 'idle' })
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    setState({ status: 'submitting' })
+    const res = await fetch('/api/client/invoices/uuid', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ uuid: uuid.trim(), totalMxn: Number(total), rfcEmisor: rfc.trim(), issuedAt: issued }),
+    })
+    const data = await res.json()
+    if (!res.ok) { setState({ status: 'error', message: data.error ?? 'Error' }); return }
+    setState({ status: 'success', invoice: data.invoice })
+    onSuccess()
+  }
+
+  if (state.status === 'success') {
+    return (
+      <div className="py-4 text-center">
+        <div className="w-14 h-14 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-4">
+          <svg className="w-7 h-7 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+          </svg>
+        </div>
+        <p className="font-semibold text-foreground mb-1">Factura registrada</p>
+        <p className="text-sm text-muted-foreground font-mono">{state.invoice.uuid_cfdi.slice(0,8)}…</p>
+        {state.invoice.points_generated != null && (
+          <p className="text-sm font-medium text-primary mt-2">
+            +{state.invoice.points_generated.toLocaleString('es-MX')} puntos estimados
+          </p>
+        )}
+        <p className="text-xs text-muted-foreground mt-2">Pendiente de validación.</p>
+        <button onClick={() => setState({ status: 'idle' })} className="mt-4 text-sm text-primary hover:underline">
+          Registrar otra
+        </button>
+      </div>
+    )
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4 px-2 py-4">
+      <div>
+        <label className="block text-xs font-medium text-foreground mb-1">
+          Folio Fiscal (UUID) <span className="text-red-500">*</span>
+        </label>
+        <input
+          type="text"
+          value={uuid}
+          onChange={e => setUuid(e.target.value)}
+          placeholder="XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX"
+          className="w-full px-3 py-2 text-sm font-mono border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30"
+        />
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className="block text-xs font-medium text-foreground mb-1">
+            Monto total (MXN) <span className="text-red-500">*</span>
+          </label>
+          <input
+            type="number"
+            min="0.01"
+            step="0.01"
+            value={total}
+            onChange={e => setTotal(e.target.value)}
+            placeholder="0.00"
+            className="w-full px-3 py-2 text-sm border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30"
+          />
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-foreground mb-1">
+            Fecha de emisión <span className="text-red-500">*</span>
+          </label>
+          <input
+            type="date"
+            value={issued}
+            onChange={e => setIssued(e.target.value)}
+            className="w-full px-3 py-2 text-sm border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30"
+          />
+        </div>
+      </div>
+      <div>
+        <label className="block text-xs font-medium text-foreground mb-1">
+          RFC Emisor (Dismant) <span className="text-red-500">*</span>
+        </label>
+        <input
+          type="text"
+          value={rfc}
+          onChange={e => setRfc(e.target.value.toUpperCase())}
+          placeholder="RFC del emisor"
+          className="w-full px-3 py-2 text-sm font-mono border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30"
+        />
+      </div>
+      {state.status === 'error' && (
+        <p className="text-xs text-red-600 bg-red-50 px-3 py-2 rounded-lg">{state.message}</p>
+      )}
+      <button
+        type="submit"
+        disabled={state.status === 'submitting'}
+        className="w-full py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 disabled:opacity-60"
+      >
+        {state.status === 'submitting' ? 'Registrando…' : 'Registrar factura por UUID'}
+      </button>
+    </form>
+  )
+}
+
 // ── Página principal ─────────────────────────────────────────
 
 export default function InvoicesPage() {
@@ -138,6 +257,7 @@ export default function InvoicesPage() {
   const [upload, setUpload] = useState<UploadState>({ status: 'idle' })
   const [selected, setSelected] = useState<Invoice | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
+  const [inputMode, setInputMode] = useState<'xml' | 'uuid'>('xml')
 
   // Filtros
   const [filterStatus, setFilterStatus] = useState('')
@@ -225,14 +345,37 @@ export default function InvoicesPage() {
         </p>
       </div>
 
-      {/* Zona de carga */}
-      <div
-        onDrop={onDrop}
-        onDragOver={onDragOver}
-        onDragLeave={onDragLeave}
-        className={`rounded-2xl border-2 border-dashed transition-colors p-10 text-center
-          ${isDragging ? 'border-primary bg-primary/5' : 'border-border bg-card hover:border-primary/50'}`}
-      >
+      {/* Selector de modo */}
+      <div className="bg-card border border-border rounded-2xl overflow-hidden">
+        <div className="flex border-b border-border">
+          {([
+            { key: 'xml' as const,  label: 'Subir XML',        icon: '📎' },
+            { key: 'uuid' as const, label: 'Ingresar UUID manual', icon: '🔢' },
+          ] as const).map(tab => (
+            <button
+              key={tab.key}
+              onClick={() => { setInputMode(tab.key); resetUpload() }}
+              className={`flex-1 flex items-center justify-center gap-2 py-3 text-sm font-medium transition-colors ${
+                inputMode === tab.key
+                  ? 'bg-primary/5 text-primary border-b-2 border-primary'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-muted/30'
+              }`}
+            >
+              {tab.icon} {tab.label}
+            </button>
+          ))}
+        </div>
+
+        {inputMode === 'uuid' ? (
+          <UuidForm onSuccess={loadInvoices} />
+        ) : (
+          <div
+            onDrop={onDrop}
+            onDragOver={onDragOver}
+            onDragLeave={onDragLeave}
+            className={`m-4 rounded-2xl border-2 border-dashed transition-colors p-10 text-center
+              ${isDragging ? 'border-primary bg-primary/5' : 'border-border bg-card hover:border-primary/50'}`}
+          >
         {(upload.status === 'idle' || upload.status === 'dragging') && (
           <>
             <div className="w-14 h-14 rounded-full bg-muted flex items-center justify-center mx-auto mb-4">
@@ -297,6 +440,8 @@ export default function InvoicesPage() {
             <p className="text-base font-semibold text-foreground mb-2">No se pudo registrar la factura</p>
             <p className="text-sm text-red-600 mb-4">{upload.message}</p>
             <button onClick={resetUpload} className="btn-secondary text-sm">Intentar con otro archivo</button>
+          </div>
+        )}
           </div>
         )}
       </div>

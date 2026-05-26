@@ -320,6 +320,117 @@ function MemberDetailModal({ detail, onClose, onUpdated, currentUserRole }: {
   )
 }
 
+// ── Modal de carga masiva de puntos (US-029) ──────────────────
+
+type BulkRow = { line: number; rfc: string; puntos: number; razon: string; name: string | null; error: string | null }
+
+function BulkPointsModal({ onClose }: { onClose: () => void }) {
+  const [file, setFile]       = useState<File | null>(null)
+  const [preview, setPreview] = useState<BulkRow[] | null>(null)
+  const [result, setResult]   = useState<{ processed: number; skipped: number } | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError]     = useState('')
+
+  function downloadTemplate() {
+    const csv  = 'rfc,puntos,razon\nDIMXXXXXX001,500,Liquidación Q1\nDIMXXXXXX002,-100,Ajuste por error\n'
+    const blob = new Blob([csv], { type: 'text/csv' })
+    const url  = URL.createObjectURL(blob)
+    const a    = document.createElement('a'); a.href = url; a.download = 'plantilla-puntos.csv'; a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  async function handlePreview() {
+    if (!file) return
+    setLoading(true); setError('')
+    const form = new FormData(); form.append('csv', file)
+    const res  = await fetch('/api/admin/members/bulk-points', { method: 'POST', body: form })
+    setLoading(false)
+    if (!res.ok) { const d = await res.json(); setError(d.error ?? 'Error'); return }
+    const { preview: rows, parseErrors } = await res.json()
+    if (parseErrors?.length) { setError(parseErrors[0]); return }
+    setPreview(rows)
+  }
+
+  async function handleConfirm() {
+    if (!file) return
+    setLoading(true); setError('')
+    const form = new FormData(); form.append('csv', file); form.append('confirm', 'true')
+    const res  = await fetch('/api/admin/members/bulk-points', { method: 'POST', body: form })
+    setLoading(false)
+    if (!res.ok) { const d = await res.json(); setError(d.error ?? 'Error'); return }
+    const { processed, skipped } = await res.json()
+    setResult({ processed, skipped })
+  }
+
+  const validRows = preview?.filter(r => !r.error) ?? []
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40" onClick={onClose}>
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto p-6 space-y-4" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between">
+          <h3 className="font-bold text-base">Carga masiva de puntos</h3>
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12"/></svg>
+          </button>
+        </div>
+
+        {result ? (
+          <div className="text-center py-6">
+            <p className="text-4xl mb-3">✅</p>
+            <p className="font-semibold text-lg">{result.processed} registros procesados</p>
+            {result.skipped > 0 && <p className="text-sm text-muted-foreground mt-1">{result.skipped} omitidos por errores</p>}
+            <button onClick={onClose} className="mt-4 px-4 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-semibold">Cerrar</button>
+          </div>
+        ) : preview ? (
+          <>
+            <p className="text-sm text-muted-foreground">
+              {validRows.length} de {preview.length} filas válidas. Revisa antes de confirmar.
+            </p>
+            <div className="max-h-48 overflow-y-auto rounded-xl border">
+              <table className="w-full text-xs">
+                <thead><tr className="bg-muted/30">{['RFC','Pts','Razón','Nombre','Estado'].map(h=><th key={h} className="px-3 py-2 text-left font-medium text-muted-foreground">{h}</th>)}</tr></thead>
+                <tbody>
+                  {preview.map(r => (
+                    <tr key={r.line} className={`border-t ${r.error ? 'bg-red-50' : ''}`}>
+                      <td className="px-3 py-2 font-mono">{r.rfc}</td>
+                      <td className={`px-3 py-2 font-semibold ${r.puntos > 0 ? 'text-green-700' : 'text-red-600'}`}>{r.puntos > 0 ? '+':''}{r.puntos}</td>
+                      <td className="px-3 py-2 text-muted-foreground">{r.razon}</td>
+                      <td className="px-3 py-2">{r.name ?? '—'}</td>
+                      <td className="px-3 py-2">{r.error ? <span className="text-red-600">✗</span> : <span className="text-green-600">✓</span>}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {error && <p className="text-xs text-red-600">{error}</p>}
+            <div className="flex gap-3">
+              <button onClick={() => setPreview(null)} className="flex-1 py-2.5 rounded-xl border text-sm font-medium text-muted-foreground hover:bg-muted/50">Cambiar archivo</button>
+              <button onClick={handleConfirm} disabled={loading || validRows.length === 0}
+                className="flex-1 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 disabled:opacity-60">
+                {loading ? 'Procesando…' : `Confirmar (${validRows.length} filas)`}
+              </button>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="flex items-center justify-between">
+              <p className="text-xs text-muted-foreground">Columnas requeridas: <code className="font-mono bg-muted px-1 rounded">rfc, puntos, razon</code></p>
+              <button onClick={downloadTemplate} className="text-xs text-primary hover:underline">Descargar plantilla</button>
+            </div>
+            <input type="file" accept=".csv,.txt" onChange={e => setFile(e.target.files?.[0] ?? null)}
+              className="w-full text-sm text-muted-foreground file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:bg-muted file:text-foreground file:text-xs file:font-medium hover:file:bg-muted/80 cursor-pointer" />
+            {error && <p className="text-xs text-red-600">{error}</p>}
+            <button onClick={handlePreview} disabled={!file || loading}
+              className="w-full py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 disabled:opacity-60">
+              {loading ? 'Cargando…' : 'Previsualizar'}
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+  )
+}
+
 // ── Página ────────────────────────────────────────────────────
 
 export default function MembersPage() {
@@ -329,6 +440,7 @@ export default function MembersPage() {
   const [detail, setDetail]     = useState<MemberDetail | null>(null)
   const [loadingDetail, setLoadingDetail] = useState(false)
   const [currentUserRole, setCurrentUserRole] = useState('')
+  const [bulkOpen, setBulkOpen] = useState(false)
 
   useEffect(() => {
     fetch('/api/admin/me').then(r => r.json()).then(d => setCurrentUserRole(d.role ?? ''))
@@ -369,10 +481,22 @@ export default function MembersPage() {
           currentUserRole={currentUserRole}
         />
       )}
+      {bulkOpen && <BulkPointsModal onClose={() => setBulkOpen(false)} />}
 
-      <div>
-        <h1 className="text-2xl font-bold text-foreground">Miembros</h1>
-        <p className="text-muted-foreground text-sm mt-1">Gestión de cuentas del programa.</p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">Miembros</h1>
+          <p className="text-muted-foreground text-sm mt-1">Gestión de cuentas del programa.</p>
+        </div>
+        <button
+          onClick={() => setBulkOpen(true)}
+          className="flex items-center gap-2 px-4 py-2 rounded-xl border border-border text-sm font-medium text-muted-foreground hover:text-foreground hover:border-primary/40 hover:bg-primary/5 transition-colors shrink-0"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/>
+          </svg>
+          Carga masiva de puntos
+        </button>
       </div>
 
       <div className="flex gap-3 items-center">
