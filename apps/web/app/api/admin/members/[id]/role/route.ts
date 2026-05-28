@@ -17,7 +17,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     return NextResponse.json({ error: 'No puedes cambiar tu propio rol' }, { status: 400 })
   }
 
-  const { newRole } = await req.json()
+  const { role: newRole } = await req.json()
 
   if (!CHANGEABLE_ROLES.includes(newRole)) {
     return NextResponse.json({ error: 'Solo se puede asignar el rol admin o employee' }, { status: 400 })
