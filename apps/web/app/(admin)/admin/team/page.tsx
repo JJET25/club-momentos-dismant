@@ -148,19 +148,38 @@ export default function TeamPage() {
   async function handleEdit() {
     if (!editTarget) return
     setSubmitting(true)
-    const res = await fetch(`/api/admin/members/${editTarget.id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(editForm),
-    })
+
+    const calls: Promise<Response>[] = []
+
+    const nameOrEmailChanged = editForm.full_name !== editTarget.full_name || editForm.email !== editTarget.email
+    if (nameOrEmailChanged) {
+      calls.push(fetch(`/api/admin/members/${editTarget.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ full_name: editForm.full_name, email: editForm.email }),
+      }))
+    }
+
+    const roleChanged = editForm.role && editForm.role !== editTarget.role
+    if (roleChanged) {
+      calls.push(fetch(`/api/admin/members/${editTarget.id}/role`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ role: editForm.role }),
+      }))
+    }
+
+    const results = await Promise.all(calls)
     setSubmitting(false)
-    if (res.ok) {
+
+    const failed = results.find(r => !r.ok)
+    if (failed) {
+      const err = await failed.json().catch(() => ({}))
+      showToast(err.error ?? 'Error al actualizar.', 'err')
+    } else {
       setStaff(prev => prev.map(m => m.id === editTarget.id ? { ...m, ...editForm } : m))
       setEditTarget(null)
       showToast('Información actualizada.')
-    } else {
-      const err = await res.json().catch(() => ({}))
-      showToast(err.error ?? 'Error al actualizar.', 'err')
     }
   }
 
@@ -374,7 +393,7 @@ export default function TeamPage() {
                         {/* Editar */}
                         {canEdit && (
                           <button
-                            onClick={() => { setEditTarget(m); setEditForm({ full_name: m.full_name, email: m.email }) }}
+                            onClick={() => { setEditTarget(m); setEditForm({ full_name: m.full_name, email: m.email, role: m.role }) }}
                             title="Editar"
                             className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
                           >
@@ -458,6 +477,17 @@ export default function TeamPage() {
           <div className="space-y-4">
             <Field label="Nombre completo" value={editForm.full_name ?? ''} onChange={v => setEditForm(p => ({ ...p, full_name: v }))} />
             <Field label="Correo electrónico" type="email" value={editForm.email ?? ''} onChange={v => setEditForm(p => ({ ...p, email: v }))} />
+            <div>
+              <label className="block text-xs font-medium text-muted-foreground mb-1.5">Rol</label>
+              <select
+                value={editForm.role ?? 'employee'}
+                onChange={e => setEditForm(p => ({ ...p, role: e.target.value }))}
+                className="w-full text-sm border border-border rounded-lg px-3 py-2.5 bg-background focus:outline-none focus:ring-2 focus:ring-brand-500/30"
+              >
+                <option value="employee">Empleado</option>
+                <option value="admin">Administrador</option>
+              </select>
+            </div>
             <div className="flex gap-3 pt-1">
               <button onClick={() => setEditTarget(null)} className="flex-1 py-2.5 rounded-lg border border-border text-sm font-medium text-foreground hover:bg-muted transition-colors">
                 Cancelar
