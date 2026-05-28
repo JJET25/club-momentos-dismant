@@ -1,5 +1,6 @@
 import { MANAGER_ROLES } from '@/lib/permissions'
 import { NextRequest, NextResponse } from 'next/server'
+import crypto from 'crypto'
 import { getSession } from '@/lib/auth'
 import { createAdminClient } from '@/lib/supabase'
 
@@ -55,6 +56,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   // Audit stock changes
   if (stock !== undefined && stock !== current.stock) {
     await supabase.from('audit_log').insert({
+      id:          crypto.randomUUID(),
       actor_id:    session.sub,
       action:      'catalog.stock_updated',
       target_type: 'reward_sku',

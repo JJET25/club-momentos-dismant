@@ -85,6 +85,7 @@ export async function POST(
     .eq('id', skuId)
 
   await supabase.from('audit_log').insert({
+    id:          crypto.randomUUID(),
     actor_id:    session.sub,
     action:      'catalog.codes_uploaded',
     target_type: 'reward_sku',

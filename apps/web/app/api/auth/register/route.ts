@@ -75,20 +75,22 @@ export async function POST(req: NextRequest) {
   // Bono de bienvenida en el ledger
   const welcomePoints = parseInt(process.env.WELCOME_BONUS_POINTS ?? '100')
   await supabase.from('ledger_entries').insert({
-    member_id: member.id,
-    type: 'welcome_bonus',
-    points: welcomePoints,
+    id:            crypto.randomUUID(),
+    member_id:     member.id,
+    type:          'welcome_bonus',
+    points:        welcomePoints,
     balance_after: welcomePoints,
-    description: 'Bono de bienvenida al Club Momentos Dismant',
+    description:   'Bono de bienvenida al Club Momentos Dismant',
   })
 
   // Registrar en audit_log
   await supabase.from('audit_log').insert({
-    actor_id: member.id,
-    action: 'member.registered',
+    id:          crypto.randomUUID(),
+    actor_id:    member.id,
+    action:      'member.registered',
     target_type: 'member',
-    target_id: member.id,
-    metadata: { invite_used: invitation.id },
+    target_id:   member.id,
+    metadata:    { invite_used: invitation.id },
   })
 
   // Crear sesión JWT

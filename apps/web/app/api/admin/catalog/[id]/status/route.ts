@@ -1,5 +1,6 @@
 import { MANAGER_ROLES } from '@/lib/permissions'
 import { NextRequest, NextResponse } from 'next/server'
+import crypto from 'crypto'
 import { getSession } from '@/lib/auth'
 import { createAdminClient } from '@/lib/supabase'
 
@@ -28,6 +29,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (error || !data) return NextResponse.json({ error: 'Error al actualizar estatus' }, { status: 500 })
 
   await supabase.from('audit_log').insert({
+    id:          crypto.randomUUID(),
     actor_id:    session.sub,
     action:      `catalog.sku_${status}`,
     target_type: 'reward_sku',

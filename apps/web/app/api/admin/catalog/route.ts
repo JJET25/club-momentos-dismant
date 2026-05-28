@@ -1,5 +1,6 @@
 import { STAFF_ROLES, MANAGER_ROLES } from '@/lib/permissions'
 import { NextRequest, NextResponse } from 'next/server'
+import crypto from 'crypto'
 import { getSession } from '@/lib/auth'
 import { createAdminClient } from '@/lib/supabase'
 
@@ -51,6 +52,7 @@ export async function POST(req: NextRequest) {
   const { data, error } = await supabase
     .from('reward_skus')
     .insert({
+      id:                    crypto.randomUUID(),
       name:                  name.trim(),
       description:           description?.trim() || null,
       image_url:             image_url?.trim() || null,
@@ -70,6 +72,7 @@ export async function POST(req: NextRequest) {
   if (error) return NextResponse.json({ error: 'Error al crear premio' }, { status: 500 })
 
   await supabase.from('audit_log').insert({
+    id:          crypto.randomUUID(),
     actor_id:    session.sub,
     action:      'catalog.sku_created',
     target_type: 'reward_sku',

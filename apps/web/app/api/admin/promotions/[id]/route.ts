@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import crypto from 'crypto'
 import { getSession } from '@/lib/auth'
 import { createAdminClient } from '@/lib/supabase'
 import { MANAGER_ROLES } from '@/lib/permissions'
@@ -36,6 +37,7 @@ export async function PATCH(
     if (error) return NextResponse.json({ error: 'Error al aprobar promoción' }, { status: 500 })
 
     await supabase.from('audit_log').insert({
+      id:          crypto.randomUUID(),
       actor_id:    session.sub,
       action:      'promotion.approved',
       target_type: 'partner_promotion',
@@ -59,6 +61,7 @@ export async function PATCH(
     if (error) return NextResponse.json({ error: 'Error al rechazar promoción' }, { status: 500 })
 
     await supabase.from('audit_log').insert({
+      id:          crypto.randomUUID(),
       actor_id:    session.sub,
       action:      'promotion.rejected',
       target_type: 'partner_promotion',
@@ -101,6 +104,7 @@ export async function PATCH(
   if (error) return NextResponse.json({ error: 'Error al actualizar promoción' }, { status: 500 })
 
   await supabase.from('audit_log').insert({
+    id:          crypto.randomUUID(),
     actor_id:    session.sub,
     action:      'promotion.updated',
     target_type: 'partner_promotion',
@@ -127,6 +131,7 @@ export async function DELETE(
   if (error) return NextResponse.json({ error: 'Error al eliminar promoción' }, { status: 500 })
 
   await supabase.from('audit_log').insert({
+    id:          crypto.randomUUID(),
     actor_id:    session.sub,
     action:      'promotion.deleted',
     target_type: 'partner_promotion',

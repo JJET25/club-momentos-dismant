@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import crypto from 'crypto'
 import { getSession } from '@/lib/auth'
 import { createAdminClient } from '@/lib/supabase'
 import { MANAGER_ROLES } from '@/lib/permissions'
@@ -103,6 +104,7 @@ export async function POST(req: NextRequest) {
   }
 
   await supabase.from('audit_log').insert({
+    id:          crypto.randomUUID(),
     actor_id:    session.sub,
     action:      'points.bulk_adjustment',
     target_type: 'ledger',

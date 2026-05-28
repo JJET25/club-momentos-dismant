@@ -98,6 +98,7 @@ export async function POST(req: NextRequest) {
   }
 
   await supabase.from('audit_log').insert({
+    id:          crypto.randomUUID(),
     actor_id:    memberId,
     action:      'invoice.uploaded_uuid',
     target_type: 'invoice',

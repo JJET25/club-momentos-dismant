@@ -74,10 +74,12 @@ export async function POST(req: NextRequest) {
   }
 
   await supabase.from('audit_log').insert({
-    actor_id: session.sub,
-    action: 'invitation.sent',
+    id:          crypto.randomUUID(),
+    actor_id:    session.sub,
+    action:      'invitation.sent',
     target_type: 'invitation',
-    metadata: { email: normalizedEmail },
+    target_id:   id,
+    metadata:    { email: normalizedEmail },
   })
 
   return NextResponse.json({ success: true, email: normalizedEmail })

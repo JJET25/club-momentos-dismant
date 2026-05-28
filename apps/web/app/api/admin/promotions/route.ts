@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import crypto from 'crypto'
 import { getSession } from '@/lib/auth'
 import { createAdminClient } from '@/lib/supabase'
 import { MANAGER_ROLES } from '@/lib/permissions'
@@ -55,6 +56,7 @@ export async function POST(req: NextRequest) {
   const { data, error } = await supabase
     .from('partner_promotions')
     .insert({
+      id:              crypto.randomUUID(),
       partner_id,
       title:           title.trim(),
       description:     description?.trim() || null,
@@ -75,6 +77,7 @@ export async function POST(req: NextRequest) {
   if (error) return NextResponse.json({ error: 'Error al crear promoción' }, { status: 500 })
 
   await supabase.from('audit_log').insert({
+    id:          crypto.randomUUID(),
     actor_id:    session.sub,
     action:      'promotion.created',
     target_type: 'partner_promotion',
