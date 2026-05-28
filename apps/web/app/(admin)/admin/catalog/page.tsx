@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { Trash2 } from 'lucide-react'
+import { Trash2, Pencil, PauseCircle, PlayCircle, Upload } from 'lucide-react'
 
 // ── Tipos ─────────────────────────────────────────────────────
 
@@ -447,34 +447,38 @@ function SkuCard({ sku, onEdit, onToggleStatus, onLoadCodes, onDelete }: {
       </div>
 
       {/* Actions */}
-      <div className="border-t px-4 py-3 flex gap-2 flex-wrap">
+      <div className="border-t px-4 py-3 flex items-center justify-end gap-1">
         <button
           onClick={() => onEdit(sku)}
-          className="flex-1 py-1.5 rounded-lg border text-xs font-medium hover:bg-muted/30 transition-colors"
+          title="Editar premio"
+          className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
         >
-          Editar
+          <Pencil className="w-3.5 h-3.5" />
         </button>
         {sku.is_digital && (
           <button
             onClick={() => onLoadCodes(sku)}
-            className="py-1.5 px-2 rounded-lg border border-blue-200 text-blue-700 text-xs font-medium hover:bg-blue-50 transition-colors"
+            title="Cargar códigos digitales"
+            className="p-1.5 rounded-lg text-muted-foreground hover:text-blue-600 hover:bg-blue-50 transition-colors"
           >
-            Códigos
+            <Upload className="w-3.5 h-3.5" />
           </button>
         )}
         {sku.status === 'active' ? (
           <button
             onClick={() => onToggleStatus(sku, 'paused')}
-            className="flex-1 py-1.5 rounded-lg border border-amber-200 text-amber-700 text-xs font-medium hover:bg-amber-50 transition-colors"
+            title="Pausar premio"
+            className="p-1.5 rounded-lg text-muted-foreground hover:text-amber-600 hover:bg-amber-50 transition-colors"
           >
-            Pausar
+            <PauseCircle className="w-3.5 h-3.5" />
           </button>
         ) : sku.status === 'paused' ? (
           <button
             onClick={() => onToggleStatus(sku, 'active')}
-            className="flex-1 py-1.5 rounded-lg border border-green-200 text-green-700 text-xs font-medium hover:bg-green-50 transition-colors"
+            title="Reactivar premio"
+            className="p-1.5 rounded-lg text-muted-foreground hover:text-green-600 hover:bg-green-50 transition-colors"
           >
-            Reactivar
+            <PlayCircle className="w-3.5 h-3.5" />
           </button>
         ) : null}
         <button
