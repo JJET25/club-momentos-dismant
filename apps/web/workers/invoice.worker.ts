@@ -40,7 +40,7 @@ export function startInvoiceWorker() {
         // Mark as SAT-rejected
         await supabase
           .from('invoices')
-          .update({ status: 'rejected', rejection_reason: `SAT: ${verification.message}` })
+          .update({ status: 'rejected', sat_status: verification.status, rejection_reason: `SAT: ${verification.message}` })
           .eq('id', invoiceId)
 
         await supabase.from('audit_log').insert({
@@ -80,10 +80,10 @@ export function startInvoiceWorker() {
         return
       }
 
-      // SAT says it's valid — mark as sat_validated
+      // SAT says it's valid — record sat_status, keep pending unless auto-approving
       await supabase
         .from('invoices')
-        .update({ status: AUTO_APPROVE ? 'approved' : 'sat_validated' })
+        .update({ sat_status: 'vigente', status: AUTO_APPROVE ? 'approved' : 'pending' })
         .eq('id', invoiceId)
 
       if (!AUTO_APPROVE) {
