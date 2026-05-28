@@ -9,13 +9,17 @@ export async function POST(req: NextRequest) {
   const code = await generateAndStoreOTP(email.toLowerCase().trim())
 
   if (process.env.RESEND_API_KEY) {
-    await sendEmail({
-      to: email,
-      subject: 'Tu código de verificación — Club Momentos Dismant',
-      html: buildOTPEmail(code, name),
-    })
+    try {
+      await sendEmail({
+        to: email,
+        subject: 'Tu código de verificación — Club Momentos Dismant',
+        html: buildOTPEmail(code, name),
+      })
+    } catch {
+      // Dominio no verificado o error de Resend en dev — mostrar en consola
+      console.log(`[DEV] OTP para ${email}: ${code}`)
+    }
   } else {
-    // En desarrollo sin Resend configurado, mostrar en consola
     console.log(`[DEV] OTP para ${email}: ${code}`)
   }
 

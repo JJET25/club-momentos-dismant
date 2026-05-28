@@ -67,9 +67,9 @@ function LoginForm() {
 
   return (
     <>
-      <h2 className="text-xl font-semibold text-foreground mb-1">Bienvenido</h2>
+      <h2 className="text-xl font-semibold text-foreground mb-1">Iniciar sesión</h2>
       <p className="text-muted-foreground text-sm mb-6">
-        Te enviaremos un enlace de acceso. Sin contraseñas.
+        Ingresa tu correo y te enviaremos un enlace de acceso.
       </p>
 
       {error && (
@@ -97,7 +97,7 @@ function LoginForm() {
           disabled={loading || !email}
           className="w-full btn-primary"
         >
-          {loading ? 'Enviando...' : 'Enviar enlace de acceso'}
+          {loading ? 'Enviando...' : 'Iniciar sesión'}
         </button>
       </form>
 

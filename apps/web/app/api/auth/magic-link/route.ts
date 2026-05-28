@@ -23,11 +23,16 @@ export async function POST(req: NextRequest) {
   const magicLink = `${process.env.NEXT_PUBLIC_APP_URL}/api/auth/verify-magic-link?token=${token}`
 
   if (process.env.RESEND_API_KEY) {
-    await sendEmail({
-      to: member.email,
-      subject: 'Tu enlace de acceso — Club Momentos Dismant',
-      html: buildMagicLinkEmail(magicLink, member.full_name),
-    })
+    try {
+      await sendEmail({
+        to: member.email,
+        subject: 'Tu enlace de acceso — Club Momentos Dismant',
+        html: buildMagicLinkEmail(magicLink, member.full_name),
+      })
+    } catch {
+      // Dominio no verificado o error de Resend en dev — mostrar en consola
+      console.log(`[DEV] Magic Link para ${member.email}: ${magicLink}`)
+    }
   } else {
     console.log(`[DEV] Magic Link para ${member.email}: ${magicLink}`)
   }
