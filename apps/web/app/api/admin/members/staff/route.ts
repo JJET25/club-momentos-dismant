@@ -53,13 +53,16 @@ export async function POST(req: NextRequest) {
 
   const supabase = createAdminClient()
 
-  const { data: roleRow } = await supabase
+  const { data: roleRow, error: roleError } = await supabase
     .from('roles')
     .select('id')
     .eq('name', role)
     .single()
 
-  if (!roleRow) return NextResponse.json({ error: 'Rol no encontrado' }, { status: 400 })
+  if (roleError || !roleRow) {
+    console.error('[POST /staff] roles query error:', roleError)
+    return NextResponse.json({ error: 'Rol no encontrado en la base de datos' }, { status: 400 })
+  }
 
   // RFC único auto-generado para cuentas internas (no son clientes)
   const internalRfc = `STFF${crypto.randomUUID().replace(/-/g, '').slice(0, 9).toUpperCase()}`
@@ -67,6 +70,7 @@ export async function POST(req: NextRequest) {
   const { data: member, error } = await supabase
     .from('members')
     .insert({
+      id:             crypto.randomUUID(),
       email:          email.toLowerCase().trim(),
       full_name:      full_name.trim(),
       company_name:   'Dismant',
@@ -80,10 +84,11 @@ export async function POST(req: NextRequest) {
     .single()
 
   if (error) {
+    console.error('[POST /staff] insert error:', error)
     if (error.code === '23505') {
       return NextResponse.json({ error: 'Ya existe una cuenta con ese correo.' }, { status: 409 })
     }
-    return NextResponse.json({ error: 'Error al crear el miembro' }, { status: 500 })
+    return NextResponse.json({ error: `Error al crear el miembro: ${error.message}` }, { status: 500 })
   }
 
   await supabase.from('audit_log').insert({

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase'
 import { createSessionToken } from '@/lib/auth'
+import crypto from 'crypto'
 
 export async function POST(req: NextRequest) {
   const { email, fullName, companyName, rfc, locationState, locationCity, inviteToken } =
@@ -45,13 +46,14 @@ export async function POST(req: NextRequest) {
   const { data: member, error } = await supabase
     .from('members')
     .insert({
-      email: email.toLowerCase().trim(),
-      full_name: fullName.trim(),
+      id:           crypto.randomUUID(),
+      email:        email.toLowerCase().trim(),
+      full_name:    fullName.trim(),
       company_name: companyName.trim(),
-      rfc: rfc.toUpperCase().trim(),
+      rfc:          rfc.toUpperCase().trim(),
       location_state: locationState,
-      location_city: locationCity.trim(),
-      role_id: role.id,
+      location_city:  locationCity.trim(),
+      role_id:      role.id,
     })
     .select('id, email, full_name')
     .single()
