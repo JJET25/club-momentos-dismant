@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, useRef } from 'react'
-import { UserPlus, Pencil, Send, PowerOff, Power, Trash2, X, ChevronDown } from 'lucide-react'
+import { UserPlus, Pencil, Send, PowerOff, Power, Trash2, X } from 'lucide-react'
 
 interface StaffMember {
   id:            string
@@ -28,7 +28,7 @@ const ROLE_LABEL: Record<string, string> = {
 const ROLE_BADGE: Record<string, string> = {
   owner:    'bg-purple-100 text-purple-700 ring-purple-200',
   admin:    'bg-blue-100 text-blue-700 ring-blue-200',
-  employee: 'bg-slate-100 text-slate-600 ring-slate-200',
+  employee: 'bg-emerald-100 text-emerald-700 ring-emerald-200',
 }
 
 function initials(name: string) {
@@ -183,21 +183,6 @@ export default function TeamPage() {
     }
   }
 
-  // ── Cambiar rol ──────────────────────────────────────────
-  async function handleRoleChange(memberId: string, newRole: string) {
-    const res = await fetch(`/api/admin/members/${memberId}/role`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ role: newRole }),
-    })
-    if (res.ok) {
-      setStaff(prev => prev.map(m => m.id === memberId ? { ...m, role: newRole } : m))
-      showToast('Rol actualizado.')
-    } else {
-      showToast('Error al cambiar el rol.', 'err')
-    }
-  }
-
   // ── Enviar enlace de acceso ──────────────────────────────
   async function handleSendLink(email: string, name: string) {
     const res = await fetch('/api/auth/magic-link', {
@@ -342,24 +327,9 @@ export default function TeamPage() {
 
                     {/* Rol */}
                     <td className="px-4 py-4">
-                      {canEdit ? (
-                        <div className="relative">
-                          <select
-                            value={m.role}
-                            onChange={e => handleRoleChange(m.id, e.target.value)}
-                            className="appearance-none text-xs font-semibold pl-2.5 pr-7 py-1.5 rounded-full border border-border bg-background
-                              focus:outline-none focus:ring-2 focus:ring-brand-500/30 cursor-pointer"
-                          >
-                            <option value="admin">Administrador</option>
-                            <option value="employee">Empleado</option>
-                          </select>
-                          <ChevronDown className="w-3 h-3 text-muted-foreground absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
-                        </div>
-                      ) : (
-                        <span className={`inline-flex text-xs font-semibold px-2.5 py-1 rounded-full ring-1 ${ROLE_BADGE[m.role] ?? 'bg-gray-100 text-gray-600 ring-gray-200'}`}>
-                          {ROLE_LABEL[m.role] ?? m.role}
-                        </span>
-                      )}
+                      <span className={`inline-flex text-xs font-semibold px-2.5 py-1 rounded-full ring-1 ${ROLE_BADGE[m.role] ?? 'bg-gray-100 text-gray-600 ring-gray-200'}`}>
+                        {ROLE_LABEL[m.role] ?? m.role}
+                      </span>
                     </td>
 
                     {/* Último acceso */}
