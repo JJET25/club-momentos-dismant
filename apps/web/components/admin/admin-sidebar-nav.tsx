@@ -12,6 +12,7 @@ import {
   BarChart2,
   ShieldCheck,
   Settings,
+  UserCog,
   LogOut,
   type LucideIcon,
 } from 'lucide-react'
@@ -55,7 +56,8 @@ const NAV_GROUPS: NavGroup[] = [
   {
     label: 'Sistema',
     items: [
-      { href: '/admin/settings', label: 'Configuración', icon: Settings, minRole: 'owner' },
+      { href: '/admin/team',     label: 'Equipo',         icon: UserCog, minRole: 'owner' },
+      { href: '/admin/settings', label: 'Configuración',  icon: Settings, minRole: 'owner' },
     ],
   },
 ]
