@@ -2,35 +2,75 @@
 
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
+import {
+  LayoutDashboard,
+  Users,
+  FileText,
+  Mail,
+  Gift,
+  Megaphone,
+  BarChart2,
+  ShieldCheck,
+  Settings,
+  LogOut,
+  type LucideIcon,
+} from 'lucide-react'
 
 interface NavItem {
-  href:      string
-  label:     string
-  icon:      string
-  minRole?:  'employee' | 'admin' | 'owner'  // mínimo rol requerido (default: employee)
+  href:     string
+  label:    string
+  icon:     LucideIcon
+  minRole?: 'employee' | 'admin' | 'owner'
 }
 
-const NAV_ITEMS: NavItem[] = [
-  { href: '/admin/dashboard',   label: 'Dashboard',     icon: '📊' },
-  { href: '/admin/members',     label: 'Miembros',      icon: '👥' },
-  { href: '/admin/invoices',    label: 'Facturas',      icon: '📄' },
-  { href: '/admin/invitations', label: 'Invitaciones',  icon: '✉️',  minRole: 'admin' },
-  { href: '/admin/catalog',     label: 'Catálogo',      icon: '🎁',  minRole: 'admin' },
-  { href: '/admin/promotions',  label: 'Promociones',   icon: '📢',  minRole: 'admin' },
-  { href: '/admin/reports',     label: 'Reportes',      icon: '📈',  minRole: 'admin' },
-  { href: '/admin/audit',       label: 'Auditoría',     icon: '🔍',  minRole: 'admin' },
-  { href: '/admin/settings',    label: 'Configuración', icon: '⚙️',  minRole: 'owner' },
+interface NavGroup {
+  label: string
+  items: NavItem[]
+}
+
+const NAV_GROUPS: NavGroup[] = [
+  {
+    label: 'Principal',
+    items: [
+      { href: '/admin/dashboard', label: 'Dashboard',  icon: LayoutDashboard },
+      { href: '/admin/members',   label: 'Miembros',   icon: Users },
+      { href: '/admin/invoices',  label: 'Facturas',   icon: FileText },
+    ],
+  },
+  {
+    label: 'Gestión',
+    items: [
+      { href: '/admin/invitations', label: 'Invitaciones', icon: Mail,      minRole: 'admin' },
+      { href: '/admin/catalog',     label: 'Catálogo',     icon: Gift,      minRole: 'admin' },
+      { href: '/admin/promotions',  label: 'Promociones',  icon: Megaphone, minRole: 'admin' },
+    ],
+  },
+  {
+    label: 'Análisis',
+    items: [
+      { href: '/admin/reports', label: 'Reportes',  icon: BarChart2,  minRole: 'admin' },
+      { href: '/admin/audit',   label: 'Auditoría', icon: ShieldCheck, minRole: 'admin' },
+    ],
+  },
+  {
+    label: 'Sistema',
+    items: [
+      { href: '/admin/settings', label: 'Configuración', icon: Settings, minRole: 'owner' },
+    ],
+  },
 ]
 
-const ROLE_RANK: Record<string, number> = {
-  employee: 1,
-  admin:    2,
-  owner:    3,
-}
+const ROLE_RANK: Record<string, number> = { employee: 1, admin: 2, owner: 3 }
 
 function canSee(role: string, item: NavItem): boolean {
   if (!item.minRole) return true
   return (ROLE_RANK[role] ?? 0) >= (ROLE_RANK[item.minRole] ?? 0)
+}
+
+const ROLE_LABEL: Record<string, string> = {
+  owner:    'Propietario',
+  admin:    'Administrador',
+  employee: 'Empleado',
 }
 
 interface Props {
@@ -47,48 +87,66 @@ export function AdminSidebarNav({ name, role }: Props) {
     router.push('/login')
   }
 
-  const roleLabel: Record<string, string> = {
-    owner:    'Propietario',
-    admin:    'Administrador',
-    employee: 'Empleado',
-  }
-
-  const visibleItems = NAV_ITEMS.filter(item => canSee(role, item))
+  const initials = name
+    .split(' ')
+    .slice(0, 2)
+    .map(w => w[0])
+    .join('')
+    .toUpperCase()
 
   return (
     <>
-      <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
-        {visibleItems.map(item => {
-          const active = pathname === item.href || pathname.startsWith(item.href + '/')
+      {/* Nav groups */}
+      <nav className="flex-1 px-3 py-4 space-y-5 overflow-y-auto">
+        {NAV_GROUPS.map(group => {
+          const visible = group.items.filter(item => canSee(role, item))
+          if (!visible.length) return null
           return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors
-                ${active
-                  ? 'bg-white/15 text-white font-medium'
-                  : 'text-brand-300 hover:text-white hover:bg-white/10'}`}
-            >
-              <span>{item.icon}</span>
-              {item.label}
-            </Link>
+            <div key={group.label}>
+              <p className="px-3 mb-1.5 text-[10px] font-semibold uppercase tracking-widest text-brand-500 select-none">
+                {group.label}
+              </p>
+              <div className="space-y-0.5">
+                {visible.map(item => {
+                  const active = pathname === item.href || pathname.startsWith(item.href + '/')
+                  const Icon   = item.icon
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all
+                        ${active
+                          ? 'bg-white/10 text-white'
+                          : 'text-brand-400 hover:text-white hover:bg-white/5'
+                        }`}
+                    >
+                      <Icon className={`w-4 h-4 shrink-0 ${active ? 'text-white' : 'text-brand-500'}`} />
+                      {item.label}
+                    </Link>
+                  )
+                })}
+              </div>
+            </div>
           )
         })}
       </nav>
 
-      <div className="p-4 border-t border-brand-800 space-y-1">
-        <div className="px-3 py-2.5">
-          <p className="text-sm font-medium text-white truncate">{name}</p>
-          <p className="text-xs text-brand-400">{roleLabel[role] ?? role}</p>
+      {/* Footer: user + logout */}
+      <div className="px-3 py-4 border-t border-brand-800">
+        <div className="flex items-center gap-3 px-2 py-2 mb-1">
+          <div className="w-7 h-7 rounded-full bg-brand-700 flex items-center justify-center shrink-0">
+            <span className="text-[11px] font-bold text-white">{initials}</span>
+          </div>
+          <div className="min-w-0">
+            <p className="text-sm font-medium text-white leading-none truncate">{name}</p>
+            <p className="text-[11px] text-brand-400 mt-0.5">{ROLE_LABEL[role] ?? role}</p>
+          </div>
         </div>
         <button
           onClick={handleLogout}
-          className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-brand-400 hover:text-white hover:bg-white/10 transition-colors w-full"
+          className="flex items-center gap-3 w-full px-3 py-2 rounded-lg text-sm font-medium text-brand-400 hover:text-white hover:bg-white/5 transition-all"
         >
-          <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-              d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-          </svg>
+          <LogOut className="w-4 h-4 shrink-0" />
           Cerrar sesión
         </button>
       </div>
