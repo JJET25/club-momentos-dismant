@@ -67,3 +67,48 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
   return NextResponse.json({ sku: data })
 }
+
+export async function DELETE(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const session = await getSession()
+  if (!session || session.role !== 'owner') {
+    return NextResponse.json({ error: 'Solo el Propietario puede eliminar premios' }, { status: 403 })
+  }
+
+  const { id } = await params
+  const supabase = createAdminClient()
+
+  const { data: sku } = await supabase
+    .from('reward_skus')
+    .select('id, name')
+    .eq('id', id)
+    .single()
+
+  if (!sku) return NextResponse.json({ error: 'Premio no encontrado' }, { status: 404 })
+
+  const { count: redemptionCount } = await supabase
+    .from('redemptions')
+    .select('id', { count: 'exact', head: true })
+    .eq('sku_id', id)
+
+  if ((redemptionCount ?? 0) > 0) {
+    return NextResponse.json({
+      error: 'Este premio tiene canjes registrados. Descontinúalo en lugar de eliminarlo para conservar la trazabilidad.',
+      canDiscontinue: true,
+    }, { status: 409 })
+  }
+
+  const { error } = await supabase.from('reward_skus').delete().eq('id', id)
+
+  if (error) return NextResponse.json({ error: 'Error al eliminar el premio' }, { status: 500 })
+
+  await supabase.from('audit_log').insert({
+    id:          crypto.randomUUID(),
+    actor_id:    session.sub,
+    action:      'catalog.sku_deleted',
+    target_type: 'reward_sku',
+    target_id:   id,
+    metadata:    { sku_name: sku.name },
+  })
+
+  return NextResponse.json({ ok: true })
+}

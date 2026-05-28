@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { Trash2 } from 'lucide-react'
 
 // ── Tipos ─────────────────────────────────────────────────────
 
@@ -332,13 +333,75 @@ function SkuFormModal({ sku, onClose, onSaved }: {
   )
 }
 
+// ── Modal de eliminación ───────────────────────────────────────
+
+function DeleteSkuModal({ sku, onClose, onDeleted, onDiscontinue }: {
+  sku:           Sku
+  onClose:       () => void
+  onDeleted:     (id: string) => void
+  onDiscontinue: (sku: Sku) => void
+}) {
+  const [loading, setLoading] = useState(false)
+  const [error, setError]     = useState('')
+
+  async function handleDelete() {
+    setLoading(true)
+    const res = await fetch(`/api/admin/catalog/${sku.id}`, { method: 'DELETE' })
+    setLoading(false)
+    if (res.ok) { onDeleted(sku.id); onClose(); return }
+    const d = await res.json().catch(() => ({}))
+    if (d.canDiscontinue) {
+      onClose()
+      onDiscontinue(sku)
+    } else {
+      setError(d.error ?? 'Error al eliminar')
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40" onClick={onClose}>
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 space-y-4" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-full bg-red-50 flex items-center justify-center shrink-0">
+            <Trash2 className="w-5 h-5 text-red-600" />
+          </div>
+          <div>
+            <h3 className="font-bold text-base text-foreground">Eliminar premio</h3>
+            <p className="text-xs text-muted-foreground">Esta acción es irreversible</p>
+          </div>
+        </div>
+
+        <div className="bg-red-50 rounded-lg px-4 py-3 text-sm text-red-700">
+          ¿Eliminar <strong>{sku.name}</strong>? Si tiene canjes registrados el sistema te pedirá descontinuarlo en su lugar.
+        </div>
+
+        {error && <p className="text-xs text-red-600">{error}</p>}
+
+        <div className="flex gap-3">
+          <button onClick={onClose} className="flex-1 py-2.5 rounded-xl border text-sm font-medium hover:bg-muted/50">
+            Cancelar
+          </button>
+          <button
+            onClick={handleDelete}
+            disabled={loading}
+            className="flex-1 py-2.5 rounded-xl bg-red-600 text-white text-sm font-semibold hover:bg-red-700 disabled:opacity-60"
+          >
+            {loading ? 'Eliminando…' : 'Eliminar'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ── Card de SKU ────────────────────────────────────────────────
 
-function SkuCard({ sku, onEdit, onToggleStatus, onLoadCodes }: {
+function SkuCard({ sku, onEdit, onToggleStatus, onLoadCodes, onDelete }: {
   sku:            Sku
   onEdit:         (sku: Sku) => void
   onToggleStatus: (sku: Sku, status: string) => void
   onLoadCodes:    (sku: Sku) => void
+  onDelete:       (sku: Sku) => void
 }) {
   const st = STATUS_CFG[sku.status] ?? STATUS_CFG.active
   const stockLow = sku.stock <= sku.stock_alert_threshold && sku.stock > 0
@@ -414,6 +477,13 @@ function SkuCard({ sku, onEdit, onToggleStatus, onLoadCodes }: {
             Reactivar
           </button>
         ) : null}
+        <button
+          onClick={() => onDelete(sku)}
+          title="Eliminar premio"
+          className="p-1.5 rounded-lg text-muted-foreground hover:text-red-600 hover:bg-red-50 transition-colors"
+        >
+          <Trash2 className="w-3.5 h-3.5" />
+        </button>
       </div>
     </div>
   )
@@ -506,6 +576,7 @@ export default function AdminCatalogPage() {
   const [q, setQ]                 = useState('')
   const [editingSku, setEditing]  = useState<Sku | 'new' | null>(null)
   const [codesForSku, setCodesForSku] = useState<Sku | null>(null)
+  const [deletingSku, setDeletingSku] = useState<Sku | null>(null)
 
   async function load() {
     setLoading(true)
@@ -532,6 +603,14 @@ export default function AdminCatalogPage() {
     load()
   }
 
+  function handleDeleted(id: string) {
+    setSkus(prev => prev.filter(s => s.id !== id))
+  }
+
+  function handleDiscontinue(sku: Sku) {
+    toggleStatus(sku, 'discontinued')
+  }
+
   const tabs = [
     { value: 'all',    label: 'Todos' },
     { value: 'active', label: 'Activos' },
@@ -550,6 +629,15 @@ export default function AdminCatalogPage() {
 
       {codesForSku && (
         <CodesUploadModal sku={codesForSku} onClose={() => setCodesForSku(null)} />
+      )}
+
+      {deletingSku && (
+        <DeleteSkuModal
+          sku={deletingSku}
+          onClose={() => setDeletingSku(null)}
+          onDeleted={handleDeleted}
+          onDiscontinue={handleDiscontinue}
+        />
       )}
 
       {/* Header */}
@@ -629,6 +717,7 @@ export default function AdminCatalogPage() {
               onEdit={s => setEditing(s)}
               onToggleStatus={toggleStatus}
               onLoadCodes={s => setCodesForSku(s)}
+              onDelete={s => setDeletingSku(s)}
             />
           ))}
         </div>
