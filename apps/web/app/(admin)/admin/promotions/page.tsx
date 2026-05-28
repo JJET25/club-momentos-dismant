@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { Trash2 } from 'lucide-react'
 
 // ── Tipos ─────────────────────────────────────────────────────
 
@@ -114,6 +115,67 @@ function RejectModal({ promo, onClose, onRejected }: {
           </button>
         </div>
       </form>
+    </div>
+  )
+}
+
+// ── Modal de eliminación ──────────────────────────────────────
+
+function DeleteModal({ promo, onClose, onDeleted }: {
+  promo:     Promotion
+  onClose:   () => void
+  onDeleted: (id: string) => void
+}) {
+  const [loading, setLoading] = useState(false)
+  const [error, setError]     = useState('')
+
+  async function handleDelete() {
+    setLoading(true)
+    const res = await fetch(`/api/admin/promotions/${promo.id}`, { method: 'DELETE' })
+    setLoading(false)
+    if (!res.ok) { const d = await res.json().catch(() => ({})); setError(d.error ?? 'Error al eliminar'); return }
+    onDeleted(promo.id)
+    onClose()
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40" onClick={onClose}>
+      <div
+        className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 space-y-4"
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-full bg-red-50 flex items-center justify-center shrink-0">
+            <Trash2 className="w-5 h-5 text-red-600" />
+          </div>
+          <div>
+            <h3 className="font-bold text-base text-foreground">Eliminar promoción</h3>
+            <p className="text-xs text-muted-foreground">Esta acción es irreversible</p>
+          </div>
+        </div>
+
+        <div className="bg-red-50 rounded-lg px-4 py-3 text-sm text-red-700">
+          ¿Eliminar <strong>{promo.title}</strong>? Se borrará permanentemente del sistema.
+        </div>
+
+        {error && <p className="text-xs text-red-600">{error}</p>}
+
+        <div className="flex gap-3">
+          <button
+            onClick={onClose}
+            className="flex-1 py-2.5 rounded-xl border text-sm font-medium text-muted-foreground hover:bg-muted/50"
+          >
+            Cancelar
+          </button>
+          <button
+            onClick={handleDelete}
+            disabled={loading}
+            className="flex-1 py-2.5 rounded-xl bg-red-600 text-white text-sm font-semibold hover:bg-red-700 disabled:opacity-60"
+          >
+            {loading ? 'Eliminando…' : 'Eliminar'}
+          </button>
+        </div>
+      </div>
     </div>
   )
 }
@@ -389,13 +451,15 @@ function CreateModal({ partners, onClose, onCreated }: {
 // ── Tarjeta de promoción ───────────────────────────────────────
 
 function PromotionRow({
-  promo, isPending, onApprove, onReject, onToggleFeatured,
+  promo, isPending, isOwner, onApprove, onReject, onToggleFeatured, onDelete,
 }: {
   promo:            Promotion
   isPending:        boolean
+  isOwner:          boolean
   onApprove:        (id: string) => void
   onReject:         (promo: Promotion) => void
   onToggleFeatured: (id: string, current: boolean) => void
+  onDelete:         (promo: Promotion) => void
 }) {
   const [approving, setApproving] = useState(false)
   const cfg = STATUS_CFG[promo.status] ?? { label: promo.status, className: 'bg-gray-100 text-gray-500' }
@@ -484,6 +548,16 @@ function PromotionRow({
             {promo.featured ? 'Quitar destacada' : 'Destacar'}
           </button>
         )}
+
+        {isOwner && (
+          <button
+            onClick={() => onDelete(promo)}
+            title="Eliminar promoción"
+            className="p-1.5 rounded-lg text-muted-foreground hover:text-red-600 hover:bg-red-50 transition-colors"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+          </button>
+        )}
       </div>
     </div>
   )
@@ -499,17 +573,21 @@ export default function AdminPromotionsPage() {
   const [loading, setLoading]       = useState(true)
   const [tab, setTab]               = useState<Tab>('pending')
   const [rejecting, setRejecting]   = useState<Promotion | null>(null)
+  const [deleting, setDeleting]     = useState<Promotion | null>(null)
   const [creating, setCreating]     = useState(false)
   const [statusFilter, setStatusFilter] = useState('all')
+  const [isOwner, setIsOwner]       = useState(false)
 
   async function load() {
     setLoading(true)
-    const [promoRes, partnerRes] = await Promise.all([
+    const [promoRes, partnerRes, meRes] = await Promise.all([
       fetch('/api/admin/promotions'),
       fetch('/api/admin/partners'),
+      fetch('/api/admin/me'),
     ])
     if (promoRes.ok)   { const d = await promoRes.json();   setPromotions(d.promotions ?? []) }
     if (partnerRes.ok) { const d = await partnerRes.json(); setPartners(d.partners ?? []) }
+    if (meRes.ok)      { const d = await meRes.json();      setIsOwner(d.role === 'owner') }
     setLoading(false)
   }
 
@@ -542,6 +620,10 @@ export default function AdminPromotionsPage() {
     setPromotions(prev => [promo as Promotion, ...prev])
   }
 
+  function handleDeleted(id: string) {
+    setPromotions(prev => prev.filter(p => p.id !== id))
+  }
+
   const pending = promotions.filter(p => PENDING_STATUSES.includes(p.status))
   const history = promotions.filter(p => HISTORY_STATUSES.includes(p.status))
 
@@ -558,6 +640,14 @@ export default function AdminPromotionsPage() {
           promo={rejecting}
           onClose={() => setRejecting(null)}
           onRejected={handleRejected}
+        />
+      )}
+
+      {deleting && (
+        <DeleteModal
+          promo={deleting}
+          onClose={() => setDeleting(null)}
+          onDeleted={handleDeleted}
         />
       )}
 
@@ -664,9 +754,11 @@ export default function AdminPromotionsPage() {
               key={p.id}
               promo={p}
               isPending={tab === 'pending'}
+              isOwner={isOwner}
               onApprove={handleApproved}
               onReject={setRejecting}
               onToggleFeatured={handleToggleFeatured}
+              onDelete={setDeleting}
             />
           ))}
         </div>
