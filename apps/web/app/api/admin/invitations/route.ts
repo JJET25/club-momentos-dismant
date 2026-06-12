@@ -82,7 +82,7 @@ export async function POST(req: NextRequest) {
     metadata:    { email: normalizedEmail },
   })
 
-  return NextResponse.json({ success: true, email: normalizedEmail })
+  return NextResponse.json({ success: true, email: normalizedEmail, inviteLink })
 }
 
 export async function GET(req: NextRequest) {

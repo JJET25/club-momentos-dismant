@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { Copy, Check } from 'lucide-react'
 
 interface Invitation {
   id: string
@@ -39,6 +40,8 @@ export default function InvitationsPage() {
   const [sending, setSending] = useState(false)
   const [success, setSuccess] = useState('')
   const [error, setError] = useState('')
+  const [lastInviteLink, setLastInviteLink] = useState<string | null>(null)
+  const [copied, setCopied] = useState(false)
   const [invitations, setInvitations] = useState<Invitation[]>([])
   const [loadingList, setLoadingList] = useState(true)
 
@@ -78,7 +81,10 @@ export default function InvitationsPage() {
       return
     }
 
+    const data = await res.json()
     setSuccess(`Invitación enviada a ${email.trim()}`)
+    setLastInviteLink(data.inviteLink ?? null)
+    setCopied(false)
     setEmail('')
     setRecipientName('')
     loadInvitations()
@@ -106,7 +112,35 @@ export default function InvitationsPage() {
         <h2 className="text-base font-semibold text-foreground mb-4">Nueva invitación</h2>
 
         {success && (
-          <div className="mb-4 p-3 rounded-lg bg-green-500/10 border border-green-500/20 text-green-600 dark:text-green-400 text-sm">{success}</div>
+          <div className="mb-4 space-y-3">
+            <div className="p-3 rounded-lg bg-green-500/10 border border-green-500/20 text-green-600 dark:text-green-400 text-sm">
+              {success}
+            </div>
+            {lastInviteLink && (
+              <div className="p-3 rounded-lg bg-muted border border-border">
+                <p className="text-xs text-muted-foreground mb-2 font-medium">
+                  Link de registro (cópialo si no se envía por email):
+                </p>
+                <div className="flex items-center gap-2">
+                  <code className="flex-1 text-xs text-foreground bg-background border border-border rounded px-2 py-1.5 overflow-x-auto whitespace-nowrap select-all">
+                    {lastInviteLink}
+                  </code>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      navigator.clipboard.writeText(lastInviteLink)
+                      setCopied(true)
+                      setTimeout(() => setCopied(false), 2000)
+                    }}
+                    className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium border border-border bg-background hover:bg-muted transition-colors"
+                  >
+                    {copied ? <Check className="w-3.5 h-3.5 text-green-600" /> : <Copy className="w-3.5 h-3.5" />}
+                    {copied ? 'Copiado' : 'Copiar'}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
         )}
         {error && (
           <div className="mb-4 p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-600 dark:text-red-400 text-sm">{error}</div>
