@@ -24,10 +24,15 @@ export async function POST(req: NextRequest) {
 
   if (!member) return NextResponse.json({ error: 'Usuario no encontrado' }, { status: 404 })
 
-  if (member.password_hash) {
-    const valid = await bcrypt.compare(currentPassword, member.password_hash)
-    if (!valid) return NextResponse.json({ error: 'La contraseña actual es incorrecta' }, { status: 400 })
+  if (!member.password_hash) {
+    return NextResponse.json(
+      { error: 'No tienes contraseña configurada. Usa "Olvidé mi contraseña" para establecer una.' },
+      { status: 400 }
+    )
   }
+
+  const valid = await bcrypt.compare(currentPassword, member.password_hash)
+  if (!valid) return NextResponse.json({ error: 'La contraseña actual es incorrecta' }, { status: 400 })
 
   const newHash = await bcrypt.hash(newPassword, 12)
   await supabase.from('members').update({ password_hash: newHash }).eq('id', session.sub)

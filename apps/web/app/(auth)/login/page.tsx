@@ -100,14 +100,6 @@ function LoginForm() {
 
   async function handleForgotVerifyOtp(e: React.FormEvent) {
     e.preventDefault()
-    setError(''); setLoading(true)
-    const res = await fetch('/api/auth/send-otp', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email }),
-    })
-    // Just validate OTP exists — we verify it on the next step with the password reset
-    setLoading(false)
     setStep('forgot-newpw')
   }
 

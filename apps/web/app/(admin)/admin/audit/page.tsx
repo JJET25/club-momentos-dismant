@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback, useRef } from 'react'
+import React, { useEffect, useState, useCallback, useRef } from 'react'
 import {
   ChevronLeft, ChevronRight, CheckCircle2, XCircle, UserMinus, UserCheck,
   Zap, Package, Shield, FileText, Gift, Search, X, ChevronDown, User,
@@ -469,8 +469,20 @@ export default function AuditPage() {
     setLoading(false)
   }, [page, filters])
 
-  useEffect(() => { load(1); setPage(1) }, [filters])
-  useEffect(() => { load(page) }, [page])
+  const filtersResetRef = useRef(false)
+
+  useEffect(() => {
+    filtersResetRef.current = true
+    setPage(1)
+    load(1)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filters])
+
+  useEffect(() => {
+    if (filtersResetRef.current) { filtersResetRef.current = false; return }
+    load(page)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page])
 
   const hasFilters = !!(filters.action || filters.actorId || filters.targetType || filters.from || filters.to)
 
@@ -630,9 +642,8 @@ export default function AuditPage() {
                 : null
 
               return (
-                <>
+                <React.Fragment key={entry.id}>
                   <tr
-                    key={entry.id}
                     onClick={() => metaFields.length > 0 ? setExpanded(isExpanded ? null : entry.id) : undefined}
                     className={`transition-colors ${metaFields.length > 0 ? 'cursor-pointer hover:bg-muted/20' : ''}`}
                   >
@@ -722,7 +733,7 @@ export default function AuditPage() {
                       </td>
                     </tr>
                   )}
-                </>
+                </React.Fragment>
               )
             })}
           </tbody>

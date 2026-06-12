@@ -25,7 +25,15 @@ export async function POST(req: NextRequest) {
   if (!member) return NextResponse.json({ error: 'Cuenta no encontrada' }, { status: 404 })
 
   const newHash = await bcrypt.hash(newPassword, 12)
-  await supabase.from('members').update({ password_hash: newHash }).eq('id', member.id)
+  const { error: updateError } = await supabase
+    .from('members')
+    .update({ password_hash: newHash })
+    .eq('id', member.id)
+
+  if (updateError) {
+    console.error('[reset-password] Error al actualizar contraseña:', updateError)
+    return NextResponse.json({ error: 'Error al guardar la contraseña. Intenta de nuevo.' }, { status: 500 })
+  }
 
   return NextResponse.json({ success: true })
 }

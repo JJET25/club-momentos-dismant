@@ -56,7 +56,10 @@ export default function ProfilePage() {
 
   useEffect(() => {
     fetch('/api/client/profile')
-      .then(r => r.json())
+      .then(async r => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`)
+        return r.json()
+      })
       .then(({ profile: p }) => {
         setProfile(p)
         setForm({
@@ -68,6 +71,7 @@ export default function ProfilePage() {
           rfc:           p.rfc,
         })
       })
+      .catch(() => setError('No se pudo cargar el perfil. Recarga la página.'))
       .finally(() => setLoading(false))
   }, [])
 

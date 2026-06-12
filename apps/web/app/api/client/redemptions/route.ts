@@ -90,7 +90,11 @@ export async function POST(req: NextRequest) {
     .select('id, voucher_code, points_spent, created_at').single()
 
   if (redemptionError || !redemption) {
-    await supabase.from('reward_skus').update({ stock: sku.stock }).eq('id', sku_id)
+    // Rollback: releer stock actual para evitar usar valor obsoleto
+    const { data: currentSku } = await supabase.from('reward_skus').select('stock').eq('id', sku_id).single()
+    if (currentSku) {
+      await supabase.from('reward_skus').update({ stock: currentSku.stock + 1 }).eq('id', sku_id)
+    }
     return NextResponse.json({ error: 'Error al procesar el canje. Intenta de nuevo.' }, { status: 500 })
   }
 
