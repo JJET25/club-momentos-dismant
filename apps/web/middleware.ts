@@ -4,15 +4,31 @@ import { jwtVerify } from 'jose'
 import { canAccessAdminRoute, STAFF_ROLES } from './lib/permissions'
 
 // Rutas que NO requieren autenticación
-const PUBLIC_ROUTES = ['/login', '/register', '/verify', '/api/auth']
+const PUBLIC_ROUTES = ['/login', '/register', '/verify', '/api/auth', '/api/banner', '/api/dev']
 
 // Rutas solo para miembros del club (portal cliente)
 const CLIENT_ROUTES = ['/dashboard', '/catalog', '/redemptions', '/statement', '/promotions', '/invoices', '/profile']
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
+  const secret = new TextEncoder().encode(process.env.JWT_SECRET!)
 
-  // Permitir rutas públicas sin verificación
+  // Si ya tiene sesión activa y visita login o registro, redirigir a su área
+  if (pathname === '/login' || pathname.startsWith('/register')) {
+    const existing = request.cookies.get('session')?.value
+    if (existing) {
+      try {
+        const { payload } = await jwtVerify(existing, secret)
+        const dest = (payload.role as string) === 'member' ? '/dashboard' : '/admin/dashboard'
+        return NextResponse.redirect(new URL(dest, request.url))
+      } catch {
+        // Sesión inválida o expirada — dejar pasar al login normalmente
+      }
+    }
+    return NextResponse.next()
+  }
+
+  // Permitir el resto de rutas públicas sin verificación
   if (PUBLIC_ROUTES.some(route => pathname.startsWith(route))) {
     return NextResponse.next()
   }
@@ -27,7 +43,6 @@ export async function middleware(request: NextRequest) {
   }
 
   try {
-    const secret = new TextEncoder().encode(process.env.JWT_SECRET!)
     const { payload } = await jwtVerify(sessionToken, secret)
     const role = payload.role as string
 

@@ -42,11 +42,35 @@ export async function GET(req: NextRequest) {
       .from('members')
       .select('*', { count: 'exact', head: true })
 
+    // Invoice stats for the period
+    const { data: invoicesInPeriod } = await supabase
+      .from('invoices')
+      .select('status, created_at')
+      .gte('created_at', from)
+      .lte('created_at', to + 'T23:59:59')
+
+    const invByMonth: Record<string, { facturas: number; aprobadas: number }> = {}
+    let totalInv = 0, approvedInv = 0
+    for (const inv of invoicesInPeriod ?? []) {
+      const key = inv.created_at.slice(0, 7)
+      if (!invByMonth[key]) invByMonth[key] = { facturas: 0, aprobadas: 0 }
+      invByMonth[key].facturas++
+      totalInv++
+      if (inv.status === 'approved') { invByMonth[key].aprobadas++; approvedInv++ }
+    }
+
     return NextResponse.json({
       byMonth: Object.entries(byMonth).map(([month, v]) => ({ month, ...v })),
       totalActive:   totalActive ?? 0,
       totalMembers:  totalMembers ?? 0,
       activationRate: totalMembers ? Math.round(((totalActive ?? 0) / totalMembers) * 100) : 0,
+      invoiceStats: {
+        total: totalInv,
+        approved: approvedInv,
+        approvalRate: totalInv ? Math.round((approvedInv / totalInv) * 100) : 0,
+        byMonth: Object.entries(invByMonth).map(([month, v]) => ({ month, ...v })),
+      },
+      newInPeriod: Object.values(byMonth).reduce((s, v) => s + v.nuevos, 0),
     })
   }
 

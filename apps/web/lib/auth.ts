@@ -51,6 +51,7 @@ export async function generateAndStoreOTP(email: string): Promise<string> {
   const expiresAt = new Date(Date.now() + 10 * 60 * 1000) // 10 minutos
 
   await supabase.from('otp_tokens').insert({
+    id: crypto.randomUUID(),
     email,
     code_hash: codeHash,
     expires_at: expiresAt.toISOString(),

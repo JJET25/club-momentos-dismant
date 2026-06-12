@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
+import { CheckCircle2, Check, X } from 'lucide-react'
 
 // ── Tipos ────────────────────────────────────────────────────
 
@@ -114,7 +115,7 @@ function MemberDetailModal({ detail, onClose, onUpdated, currentUserRole }: {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40" onClick={onClose}>
       <div
-        className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col"
+        className="bg-card rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col"
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}
@@ -366,7 +367,7 @@ function BulkPointsModal({ onClose }: { onClose: () => void }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40" onClick={onClose}>
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto p-6 space-y-4" onClick={e => e.stopPropagation()}>
+      <div className="bg-card rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto p-6 space-y-4" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between">
           <h3 className="font-bold text-base">Carga masiva de puntos</h3>
           <button onClick={onClose} className="text-muted-foreground hover:text-foreground">
@@ -376,7 +377,7 @@ function BulkPointsModal({ onClose }: { onClose: () => void }) {
 
         {result ? (
           <div className="text-center py-6">
-            <p className="text-4xl mb-3">✅</p>
+            <CheckCircle2 className="w-12 h-12 text-green-600 mx-auto mb-3" />
             <p className="font-semibold text-lg">{result.processed} registros procesados</p>
             {result.skipped > 0 && <p className="text-sm text-muted-foreground mt-1">{result.skipped} omitidos por errores</p>}
             <button onClick={onClose} className="mt-4 px-4 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-semibold">Cerrar</button>
@@ -396,7 +397,7 @@ function BulkPointsModal({ onClose }: { onClose: () => void }) {
                       <td className={`px-3 py-2 font-semibold ${r.puntos > 0 ? 'text-green-700' : 'text-red-600'}`}>{r.puntos > 0 ? '+':''}{r.puntos}</td>
                       <td className="px-3 py-2 text-muted-foreground">{r.razon}</td>
                       <td className="px-3 py-2">{r.name ?? '—'}</td>
-                      <td className="px-3 py-2">{r.error ? <span className="text-red-600">✗</span> : <span className="text-green-600">✓</span>}</td>
+                      <td className="px-3 py-2">{r.error ? <X className="w-3.5 h-3.5 text-red-500" /> : <Check className="w-3.5 h-3.5 text-green-600" />}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -576,7 +577,7 @@ export default function MembersPage() {
 
       {loadingDetail && (
         <div className="fixed inset-0 bg-black/20 z-40 flex items-center justify-center">
-          <div className="bg-white rounded-xl p-6 text-sm text-muted-foreground">
+          <div className="bg-card rounded-xl p-6 text-sm text-muted-foreground">
             Cargando detalle…
           </div>
         </div>

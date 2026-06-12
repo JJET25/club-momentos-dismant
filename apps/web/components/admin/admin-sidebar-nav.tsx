@@ -14,8 +14,10 @@ import {
   Settings,
   UserCog,
   LogOut,
+  Ticket,
   type LucideIcon,
 } from 'lucide-react'
+import { ThemeToggle } from './theme-toggle'
 
 interface NavItem {
   href:     string
@@ -44,6 +46,7 @@ const NAV_GROUPS: NavGroup[] = [
       { href: '/admin/invitations', label: 'Invitaciones', icon: Mail,      minRole: 'admin' },
       { href: '/admin/catalog',     label: 'Catálogo',     icon: Gift,      minRole: 'admin' },
       { href: '/admin/promotions',  label: 'Promociones',  icon: Megaphone, minRole: 'admin' },
+      { href: '/admin/redemptions', label: 'Canjes',       icon: Ticket,    minRole: 'employee' },
     ],
   },
   {
@@ -144,6 +147,7 @@ export function AdminSidebarNav({ name, role }: Props) {
             <p className="text-[11px] text-brand-400 mt-0.5">{ROLE_LABEL[role] ?? role}</p>
           </div>
         </div>
+        <ThemeToggle />
         <button
           onClick={handleLogout}
           className="flex items-center gap-3 w-full px-3 py-2 rounded-lg text-sm font-medium text-brand-400 hover:text-white hover:bg-white/5 transition-all"

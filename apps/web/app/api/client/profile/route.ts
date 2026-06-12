@@ -12,7 +12,7 @@ export async function GET() {
   const supabase = createAdminClient()
   const { data, error } = await supabase
     .from('members')
-    .select('id, full_name, email, company_name, rfc, location_state, location_city, created_at')
+    .select('id, full_name, email, company_name, rfc, location_state, location_city, phone, created_at')
     .eq('id', session.sub)
     .single()
 
@@ -30,22 +30,27 @@ export async function PATCH(req: NextRequest) {
   }
 
   const body = await req.json()
-  const { fullName, locationState, locationCity } = body
+  const { fullName, locationState, locationCity, phone, companyName, rfc } = body
 
   if (!fullName?.trim() || !locationState?.trim() || !locationCity?.trim()) {
     return NextResponse.json({ error: 'Nombre, estado y ciudad son obligatorios' }, { status: 400 })
   }
 
   const supabase = createAdminClient()
+  const update: Record<string, string> = {
+    full_name:      fullName.trim(),
+    location_state: locationState.trim(),
+    location_city:  locationCity.trim(),
+  }
+  if (phone      !== undefined) update.phone        = phone?.trim() ?? ''
+  if (companyName !== undefined) update.company_name = companyName.trim()
+  if (rfc        !== undefined) update.rfc           = rfc.toUpperCase().trim()
+
   const { data, error } = await supabase
     .from('members')
-    .update({
-      full_name: fullName.trim(),
-      location_state: locationState.trim(),
-      location_city: locationCity.trim(),
-    })
+    .update(update)
     .eq('id', session.sub)
-    .select('id, full_name, email, company_name, rfc, location_state, location_city, created_at')
+    .select('id, full_name, email, company_name, rfc, location_state, location_city, phone, created_at')
     .single()
 
   if (error || !data) {

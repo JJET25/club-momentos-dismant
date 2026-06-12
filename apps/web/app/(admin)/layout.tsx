@@ -1,5 +1,6 @@
 import { getSession } from '@/lib/auth'
 import { AdminSidebarNav } from '@/components/admin/admin-sidebar-nav'
+import { GlobalBanner } from '@/components/GlobalBanner'
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const session = await getSession()
@@ -7,7 +8,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   const role = session?.role ?? 'admin'
 
   return (
-    <div className="min-h-screen bg-[#f5f6fa] flex">
+    <div className="min-h-screen bg-background flex">
 
       {/* Sidebar */}
       <aside className="w-60 bg-[#0f172a] flex flex-col fixed h-full">
@@ -29,8 +30,9 @@ export default async function AdminLayout({ children }: { children: React.ReactN
       </aside>
 
       {/* Main content */}
-      <main className="ml-60 flex-1 min-h-screen">
-        <div className="max-w-6xl mx-auto px-8 py-8">
+      <main className="ml-60 flex-1 min-h-screen flex flex-col">
+        <GlobalBanner />
+        <div className="max-w-6xl mx-auto w-full px-8 py-8">
           {children}
         </div>
       </main>

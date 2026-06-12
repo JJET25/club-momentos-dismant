@@ -42,8 +42,10 @@ export const MANAGER_ONLY_ROUTES = [
 export const PERMISSIONS = {
   // Facturas
   VIEW_INVOICES:    STAFF_ROLES,
+  REGISTER_INVOICE: STAFF_ROLES,   // cualquier staff puede registrar manualmente
   APPROVE_INVOICE:  STAFF_ROLES,
   REJECT_INVOICE:   STAFF_ROLES,
+  VERIFY_INVOICE:   MANAGER_ROLES, // solo owner/admin verifican y acreditan puntos
 
   // Miembros
   VIEW_MEMBERS:     STAFF_ROLES,

@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Shield, Users, Coins, Clock, Star, FileText, Settings2 } from 'lucide-react'
+import { Shield, Users, Coins, Clock, Star, FileText, Settings2, Check } from 'lucide-react'
 
 interface StaffMember {
   id:           string
@@ -227,7 +227,7 @@ export default function SettingsPage() {
                   {[emp, adm, own].map((v, i) => (
                     <td key={i} className="text-center px-4 py-3">
                       {v
-                        ? <span className="text-green-600 font-bold">✓</span>
+                        ? <Check className="w-4 h-4 text-green-600 mx-auto" />
                         : <span className="text-muted-foreground/40">—</span>
                       }
                     </td>

@@ -3,14 +3,56 @@
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
+import {
+  LayoutDashboard,
+  Gift,
+  FileText,
+  ShoppingBag,
+  BarChart2,
+  Megaphone,
+  Bell,
+  User,
+  LogOut,
+  CheckCircle2,
+  XCircle,
+  Zap,
+  type LucideIcon,
+} from 'lucide-react'
+import { ThemeToggle } from '@/components/admin/theme-toggle'
 
-const NAV_ITEMS = [
-  { href: '/dashboard',   label: 'Inicio',          icon: '🏠' },
-  { href: '/catalog',     label: 'Catálogo',         icon: '🎁' },
-  { href: '/invoices',    label: 'Mis Facturas',     icon: '📄' },
-  { href: '/redemptions', label: 'Mis Canjes',       icon: '🎫' },
-  { href: '/statement',   label: 'Estado de Cuenta', icon: '📊' },
-  { href: '/promotions',  label: 'Promociones',      icon: '📢' },
+interface NavItem {
+  href:  string
+  label: string
+  icon:  LucideIcon
+}
+
+interface NavGroup {
+  label: string
+  items: NavItem[]
+}
+
+const NAV_GROUPS: NavGroup[] = [
+  {
+    label: 'Principal',
+    items: [
+      { href: '/dashboard',   label: 'Inicio',           icon: LayoutDashboard },
+      { href: '/statement',   label: 'Estado de Cuenta', icon: BarChart2 },
+    ],
+  },
+  {
+    label: 'Tienda',
+    items: [
+      { href: '/catalog',    label: 'Catálogo',    icon: Gift },
+      { href: '/promotions', label: 'Promociones', icon: Megaphone },
+    ],
+  },
+  {
+    label: 'Historial',
+    items: [
+      { href: '/invoices',    label: 'Mis Facturas', icon: FileText },
+      { href: '/redemptions', label: 'Mis Canjes',   icon: ShoppingBag },
+    ],
+  },
 ]
 
 interface Notification {
@@ -33,10 +75,10 @@ export function SidebarNav({ name, email, initials }: Props) {
   const pathname = usePathname()
   const router   = useRouter()
 
-  const [notifOpen, setNotifOpen]   = useState(false)
-  const [notifs, setNotifs]         = useState<Notification[]>([])
-  const [unread, setUnread]         = useState(0)
-  const [loadingN, setLoadingN]     = useState(false)
+  const [notifOpen, setNotifOpen] = useState(false)
+  const [notifs, setNotifs]       = useState<Notification[]>([])
+  const [unread, setUnread]       = useState(0)
+  const [loadingN, setLoadingN]   = useState(false)
 
   async function fetchNotifications() {
     setLoadingN(true)
@@ -51,7 +93,6 @@ export function SidebarNav({ name, email, initials }: Props) {
 
   useEffect(() => { fetchNotifications() }, [])
 
-  // Request push permission once, only if not yet decided
   useEffect(() => {
     if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'default') {
       import('@/lib/firebase-client').then(m => m.requestAndSavePushToken()).catch(() => {})
@@ -61,7 +102,11 @@ export function SidebarNav({ name, email, initials }: Props) {
   async function openNotifications() {
     setNotifOpen(true)
     if (unread > 0) {
-      await fetch('/api/client/notifications', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ids: [] }) })
+      await fetch('/api/client/notifications', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: [] }),
+      })
       setNotifs(prev => prev.map(n => ({ ...n, read_at: n.read_at ?? new Date().toISOString() })))
       setUnread(0)
     }
@@ -73,131 +118,159 @@ export function SidebarNav({ name, email, initials }: Props) {
   }
 
   function fmtDate(iso: string) {
-    return new Date(iso).toLocaleDateString('es-MX', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })
+    return new Date(iso).toLocaleDateString('es-MX', {
+      day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit',
+    })
   }
 
-  const typeIcon: Record<string, string> = {
-    'invoice.approved': '✅',
-    'invoice.rejected': '❌',
-    'points.adjustment': '⚡',
-    'redemption.ready': '🎁',
+  type NotifIcon = { Icon: LucideIcon; bg: string; color: string }
+  const NOTIF_ICONS: Record<string, NotifIcon> = {
+    'invoice.approved':  { Icon: CheckCircle2, bg: 'bg-emerald-500/10', color: 'text-emerald-500' },
+    'invoice.rejected':  { Icon: XCircle,      bg: 'bg-red-500/10',     color: 'text-red-500'     },
+    'points.adjustment': { Icon: Zap,          bg: 'bg-blue-500/10',    color: 'text-blue-500'    },
+    'redemption.ready':  { Icon: Gift,         bg: 'bg-orange-500/10',  color: 'text-orange-500'  },
   }
 
   return (
     <>
-      <nav className="flex-1 p-4 space-y-1">
-        {NAV_ITEMS.map((item) => {
-          const active = pathname === item.href || pathname.startsWith(item.href + '/')
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors
-                ${active
-                  ? 'bg-primary/10 text-primary font-medium'
-                  : 'text-muted-foreground hover:text-foreground hover:bg-accent'}`}
-            >
-              <span>{item.icon}</span>
-              {item.label}
-            </Link>
-          )
-        })}
+      {/* Nav groups */}
+      <nav className="flex-1 px-3 py-4 space-y-5 overflow-y-auto">
+        {NAV_GROUPS.map(group => (
+          <div key={group.label}>
+            <p className="px-3 mb-1.5 text-[10px] font-semibold uppercase tracking-widest text-brand-500 select-none">
+              {group.label}
+            </p>
+            <div className="space-y-0.5">
+              {group.items.map(item => {
+                const active = pathname === item.href || pathname.startsWith(item.href + '/')
+                const Icon   = item.icon
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all
+                      ${active
+                        ? 'bg-white/10 text-white'
+                        : 'text-brand-400 hover:text-white hover:bg-white/5'
+                      }`}
+                  >
+                    <Icon className={`w-4 h-4 shrink-0 ${active ? 'text-white' : 'text-brand-500'}`} />
+                    {item.label}
+                  </Link>
+                )
+              })}
+            </div>
+          </div>
+        ))}
       </nav>
 
-      {/* Notificaciones + Perfil + logout */}
-      <div className="p-4 border-t space-y-1">
+      {/* Footer: notificaciones + usuario + logout */}
+      <div className="px-3 py-4 border-t border-brand-800 space-y-0.5">
 
         {/* Campana de notificaciones */}
         <button
           onClick={openNotifications}
-          className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-muted-foreground hover:text-foreground hover:bg-accent transition-colors w-full relative"
+          className="flex items-center gap-3 w-full px-3 py-2 rounded-lg text-sm font-medium text-brand-400 hover:text-white hover:bg-white/5 transition-all"
         >
           <span className="relative">
-            🔔
+            <Bell className="w-4 h-4 shrink-0 text-brand-500" />
             {unread > 0 && (
-              <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center leading-none">
+              <span className="absolute -top-1.5 -right-1.5 w-3.5 h-3.5 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center leading-none">
                 {unread > 9 ? '9+' : unread}
               </span>
             )}
           </span>
           Notificaciones
           {unread > 0 && (
-            <span className="ml-auto text-xs font-medium text-red-500">{unread} nueva{unread !== 1 ? 's' : ''}</span>
+            <span className="ml-auto text-xs font-medium text-red-400">{unread}</span>
           )}
         </button>
 
-        {/* Panel de notificaciones */}
-        {notifOpen && (
-          <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/40" onClick={() => setNotifOpen(false)}>
-            <div
-              className="bg-white rounded-2xl shadow-xl w-full max-w-sm max-h-[70vh] flex flex-col"
-              onClick={e => e.stopPropagation()}
-            >
-              <div className="flex items-center justify-between px-5 py-4 border-b">
-                <h3 className="font-bold text-base">Notificaciones</h3>
-                <button onClick={() => setNotifOpen(false)} className="text-muted-foreground hover:text-foreground">
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12"/>
-                  </svg>
-                </button>
-              </div>
-
-              <div className="overflow-y-auto flex-1">
-                {loadingN ? (
-                  <div className="p-8 text-center text-muted-foreground text-sm">Cargando…</div>
-                ) : notifs.length === 0 ? (
-                  <div className="p-10 text-center">
-                    <p className="text-3xl mb-3">🔔</p>
-                    <p className="text-sm text-muted-foreground">Sin notificaciones por ahora.</p>
-                  </div>
-                ) : notifs.map(n => (
-                  <div
-                    key={n.id}
-                    className={`px-5 py-4 border-b last:border-b-0 ${!n.read_at ? 'bg-blue-50/40' : ''}`}
-                  >
-                    <div className="flex gap-3">
-                      <span className="text-lg shrink-0">{typeIcon[n.type] ?? '📩'}</span>
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm font-semibold text-foreground leading-snug">{n.title}</p>
-                        <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{n.body}</p>
-                        <p className="text-xs text-muted-foreground/60 mt-1">{fmtDate(n.created_at)}</p>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Avatar / Perfil */}
+        {/* Usuario — clic lleva al perfil */}
         <Link
           href="/profile"
-          className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors group
-            ${pathname === '/profile'
-              ? 'bg-primary/10 text-primary'
-              : 'hover:bg-accent'}`}
+          className={`flex items-center gap-3 px-2 py-2 rounded-lg transition-all group ${
+            pathname === '/profile' ? 'bg-white/10' : 'hover:bg-white/5'
+          }`}
         >
-          <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center shrink-0 group-hover:ring-2 group-hover:ring-primary/30 transition-all">
-            <span className="text-xs font-bold text-primary-foreground">{initials}</span>
+          <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ring-2 transition-all ${
+            pathname === '/profile' ? 'bg-brand-500 ring-brand-400' : 'bg-brand-700 ring-transparent group-hover:ring-brand-600'
+          }`}>
+            <span className="text-[11px] font-bold text-white">{initials}</span>
           </div>
-          <div className="min-w-0">
-            <p className="text-sm font-medium text-foreground truncate">{name}</p>
-            <p className="text-xs text-muted-foreground truncate">{email}</p>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-medium text-white leading-none truncate">{name}</p>
+            <p className="text-[11px] text-brand-400 mt-0.5 truncate">{email}</p>
           </div>
         </Link>
 
+        <ThemeToggle />
+
         <button
           onClick={handleLogout}
-          className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors w-full"
+          className="flex items-center gap-3 w-full px-3 py-2 rounded-lg text-sm font-medium text-brand-400 hover:text-white hover:bg-white/5 transition-all"
         >
-          <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-              d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-          </svg>
+          <LogOut className="w-4 h-4 shrink-0" />
           Cerrar sesión
         </button>
       </div>
+
+      {/* Panel de notificaciones */}
+      {notifOpen && (
+        <div
+          className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/40"
+          onClick={() => setNotifOpen(false)}
+        >
+          <div
+            className="bg-background border border-border rounded-2xl shadow-2xl w-full sm:max-w-sm max-h-[70vh] flex flex-col"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+              <h3 className="font-bold text-base text-foreground">Notificaciones</h3>
+              <button onClick={() => setNotifOpen(false)} className="text-muted-foreground hover:text-foreground">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+              </button>
+            </div>
+
+            <div className="overflow-y-auto flex-1">
+              {loadingN ? (
+                <div className="p-8 text-center text-muted-foreground text-sm">Cargando…</div>
+              ) : notifs.length === 0 ? (
+                <div className="p-10 text-center">
+                  <Bell className="w-8 h-8 text-muted-foreground mx-auto mb-3" />
+                  <p className="text-sm text-muted-foreground">Sin notificaciones por ahora.</p>
+                </div>
+              ) : notifs.map(n => (
+                <div
+                  key={n.id}
+                  className={`px-5 py-4 border-b border-border last:border-b-0 ${!n.read_at ? 'bg-blue-500/5' : ''}`}
+                >
+                  <div className="flex gap-3">
+                    {(() => {
+                      const cfg = NOTIF_ICONS[n.type]
+                      const Icon = cfg?.Icon ?? Bell
+                      const bg   = cfg?.bg   ?? 'bg-muted'
+                      const col  = cfg?.color ?? 'text-muted-foreground'
+                      return (
+                        <div className={`w-8 h-8 rounded-xl ${bg} flex items-center justify-center shrink-0 mt-0.5`}>
+                          <Icon className={`w-4 h-4 ${col}`} />
+                        </div>
+                      )
+                    })()}
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-semibold text-foreground leading-snug">{n.title}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{n.body}</p>
+                      <p className="text-xs text-muted-foreground/60 mt-1">{fmtDate(n.created_at)}</p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </>
   )
 }

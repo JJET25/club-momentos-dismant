@@ -11,10 +11,13 @@ import { MEXICAN_STATES } from '@dismant/types'
 interface FormData {
   fullName: string
   email: string
+  password: string
+  confirmPassword: string
   companyName: string
   rfc: string
   locationState: string
   locationCity: string
+  phone: string
   acceptTerms: boolean
   acceptPrivacy: boolean
 }
@@ -59,6 +62,16 @@ function Step1({
 
     if (!data.fullName.trim()) newErrors.fullName = 'Campo obligatorio'
     if (!data.email.trim()) newErrors.email = 'Campo obligatorio'
+    if (!data.password) {
+      newErrors.password = 'Campo obligatorio'
+    } else if (data.password.length < 8) {
+      newErrors.password = 'Mínimo 8 caracteres'
+    }
+    if (!data.confirmPassword) {
+      newErrors.confirmPassword = 'Campo obligatorio'
+    } else if (data.password !== data.confirmPassword) {
+      newErrors.confirmPassword = 'Las contraseñas no coinciden'
+    }
     if (!data.companyName.trim()) newErrors.companyName = 'Campo obligatorio'
     if (!data.rfc.trim()) {
       newErrors.rfc = 'Campo obligatorio'
@@ -136,6 +149,30 @@ function Step1({
           <p className="text-xs text-muted-foreground mt-1">Correo vinculado a tu invitación</p>
         )}
         {errors.email && <p className="text-danger text-xs mt-1">{errors.email}</p>}
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-foreground mb-1.5">Contraseña *</label>
+        <input
+          type="password"
+          value={data.password}
+          onChange={(e) => onChange('password', e.target.value)}
+          placeholder="Mínimo 8 caracteres"
+          className="input-field"
+        />
+        {errors.password && <p className="text-danger text-xs mt-1">{errors.password}</p>}
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-foreground mb-1.5">Confirmar contraseña *</label>
+        <input
+          type="password"
+          value={data.confirmPassword}
+          onChange={(e) => onChange('confirmPassword', e.target.value)}
+          placeholder="Repite tu contraseña"
+          className="input-field"
+        />
+        {errors.confirmPassword && <p className="text-danger text-xs mt-1">{errors.confirmPassword}</p>}
       </div>
 
       <div>
@@ -355,6 +392,19 @@ function Step3({
         {errors.locationCity && <p className="text-danger text-xs mt-1">{errors.locationCity}</p>}
       </div>
 
+      <div>
+        <label className="block text-sm font-medium text-foreground mb-1.5">Celular</label>
+        <input
+          type="tel"
+          value={data.phone}
+          onChange={(e) => onChange('phone', e.target.value)}
+          placeholder="55 1234 5678"
+          maxLength={15}
+          className="input-field"
+        />
+        <p className="text-xs text-muted-foreground mt-1">Opcional — para notificaciones importantes</p>
+      </div>
+
       <div className="space-y-3 pt-2">
         <label className="flex items-start gap-3 cursor-pointer">
           <input
@@ -421,10 +471,13 @@ function RegisterContent() {
   const [formData, setFormData] = useState<FormData>({
     fullName: '',
     email: '',
+    password: '',
+    confirmPassword: '',
     companyName: '',
     rfc: '',
     locationState: '',
     locationCity: '',
+    phone: '',
     acceptTerms: false,
     acceptPrivacy: false,
   })
@@ -474,6 +527,8 @@ function RegisterContent() {
         rfc: formData.rfc,
         locationState: formData.locationState,
         locationCity: formData.locationCity,
+        phone: formData.phone,
+        password: formData.password,
         inviteToken,
       }),
     })

@@ -60,13 +60,16 @@ export async function POST(_: NextRequest, { params }: { params: Promise<{ id: s
     operator_id:   session.sub,
   })
 
-  // Actualizar factura
+  // Actualizar factura — también marca como verificada porque los puntos ya se acreditaron
   await supabase
     .from('invoices')
     .update({
-      status:      'approved',
-      approved_by: session.sub,
-      approved_at: new Date().toISOString(),
+      status:              'approved',
+      approved_by:         session.sub,
+      approved_at:         new Date().toISOString(),
+      verification_status: 'verified',
+      verified_by:         session.sub,
+      verified_at:         new Date().toISOString(),
     })
     .eq('id', invoiceId)
 

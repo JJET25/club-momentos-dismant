@@ -18,8 +18,9 @@ export async function GET(req: NextRequest) {
   const { data, error } = await supabase
     .from('invoices')
     .select(`
-      id, uuid_cfdi, rfc_emisor, rfc_receptor, total_mxn, issued_at,
-      status, points_generated, rejection_reason, approved_at, created_at,
+      id, uuid_cfdi, folio_referencia, evidence_key, rfc_emisor, rfc_receptor, total_mxn, issued_at,
+      status, verification_status, points_generated, rejection_reason,
+      approved_at, verified_at, registered_by, created_at,
       members!member_id ( id, full_name, company_name, rfc )
     `)
     .eq('status', status)

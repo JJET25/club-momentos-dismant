@@ -18,7 +18,7 @@ export async function GET(req: NextRequest) {
   let query = supabase
     .from('partner_promotions')
     .select(`
-      id, title, description, image_url, destination_url,
+      id, title, description, image_url, banner_key, destination_url,
       geo_type, geo_states, geo_cities, valid_from, valid_until,
       status, featured, created_at,
       partners!partner_id ( id, name, logo_url, is_verified )

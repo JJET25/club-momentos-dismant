@@ -10,10 +10,11 @@ export async function GET(req: NextRequest) {
   }
 
   const { searchParams } = new URL(req.url)
-  const actorId  = searchParams.get('actor_id') ?? ''
-  const action   = searchParams.get('action') ?? ''
-  const from     = searchParams.get('from') ?? ''
-  const to       = searchParams.get('to') ?? ''
+  const actorId     = searchParams.get('actor_id') ?? ''
+  const action      = searchParams.get('action') ?? ''
+  const targetType  = searchParams.get('target_type') ?? ''
+  const from        = searchParams.get('from') ?? ''
+  const to          = searchParams.get('to') ?? ''
   const page     = Math.max(1, parseInt(searchParams.get('page') ?? '1'))
   const pageSize = 50
 
@@ -28,9 +29,10 @@ export async function GET(req: NextRequest) {
     .order('created_at', { ascending: false })
     .range((page - 1) * pageSize, page * pageSize - 1)
 
-  if (actorId)             query = query.eq('actor_id', actorId)
-  if (action)              query = query.ilike('action', `%${action}%`)
-  if (from)                query = query.gte('created_at', from)
+  if (actorId)    query = query.eq('actor_id', actorId)
+  if (action)     query = query.ilike('action', `%${action}%`)
+  if (targetType) query = query.eq('target_type', targetType)
+  if (from)       query = query.gte('created_at', from)
   if (to) {
     const toEnd = new Date(to)
     toEnd.setHours(23, 59, 59, 999)

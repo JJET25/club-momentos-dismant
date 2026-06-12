@@ -63,10 +63,14 @@ export async function deleteFile(key: string): Promise<void> {
 export const R2_PATHS = {
   invoice: (memberId: string, uuidCfdi: string) =>
     `invoices/${memberId}/${uuidCfdi}.xml`,
+  invoiceEvidence: (invoiceId: string, ext: string) =>
+    `invoices/${invoiceId}/evidence.${ext}`,
   rewardCover: (skuId: string) =>
     `rewards/${skuId}/cover.webp`,
-  promotionBanner: (promotionId: string) =>
-    `promotions/${promotionId}/banner.webp`,
+  promotionBanner: (promotionId: string, ext = 'webp') =>
+    `promotions/${promotionId}/banner.${ext}`,
   statement: (memberId: string, yearMonth: string) =>
     `statements/${memberId}/${yearMonth}.pdf`,
+  prizeFile: (redemptionId: string, ext: string) =>
+    `prizes/${redemptionId}/file.${ext}`,
 }

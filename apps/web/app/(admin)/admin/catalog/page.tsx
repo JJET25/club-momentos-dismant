@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { Trash2, Pencil, PauseCircle, PlayCircle, Upload } from 'lucide-react'
+import { Trash2, Pencil, PauseCircle, PlayCircle, Upload, Gift, CheckCircle2, Paperclip, Smartphone, Package } from 'lucide-react'
 
 // ── Tipos ─────────────────────────────────────────────────────
 
@@ -147,10 +147,10 @@ function SkuFormModal({ sku, onClose, onSaved }: {
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/40" onClick={onClose}>
       <form
         onSubmit={submit}
-        className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto"
+        className="bg-card rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto"
         onClick={e => e.stopPropagation()}
       >
-        <div className="sticky top-0 bg-white rounded-t-2xl border-b px-6 py-4 flex items-center justify-between">
+        <div className="sticky top-0 bg-card rounded-t-2xl border-b px-6 py-4 flex items-center justify-between">
           <h3 className="text-base font-bold">{sku ? 'Editar premio' : 'Nuevo premio'}</h3>
           <button type="button" onClick={onClose} className="text-muted-foreground hover:text-foreground">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -219,14 +219,55 @@ function SkuFormModal({ sku, onClose, onSaved }: {
             />
           </div>
 
-          {/* Tipo (físico / digital) */}
-          <div className="flex items-center gap-3">
-            <input
-              type="checkbox" id="is_digital" checked={form.is_digital}
-              onChange={e => set('is_digital', e.target.checked)}
-              className="w-4 h-4 rounded accent-primary"
-            />
-            <label htmlFor="is_digital" className="text-sm text-foreground">Premio digital (voucher/código)</label>
+          {/* Tipo: físico vs digital */}
+          <div>
+            <label className="text-xs font-medium text-muted-foreground">Tipo de entrega *</label>
+            <div className="grid grid-cols-2 gap-3 mt-2">
+              <button
+                type="button"
+                onClick={() => set('is_digital', false)}
+                className={`flex items-center gap-3 p-3 rounded-xl border-2 transition-all text-left ${
+                  !form.is_digital
+                    ? 'border-primary bg-primary/5 text-foreground'
+                    : 'border-border text-muted-foreground hover:border-border/80'
+                }`}
+              >
+                <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${!form.is_digital ? 'bg-primary/10' : 'bg-muted'}`}>
+                  <Package className={`w-4 h-4 ${!form.is_digital ? 'text-primary' : 'text-muted-foreground'}`} />
+                </div>
+                <div>
+                  <p className="text-xs font-semibold">Físico</p>
+                  <p className="text-[10px] leading-snug opacity-70">Envío a domicilio o entrega presencial</p>
+                </div>
+              </button>
+              <button
+                type="button"
+                onClick={() => set('is_digital', true)}
+                className={`flex items-center gap-3 p-3 rounded-xl border-2 transition-all text-left ${
+                  form.is_digital
+                    ? 'border-blue-500 bg-blue-500/5 text-foreground'
+                    : 'border-border text-muted-foreground hover:border-border/80'
+                }`}
+              >
+                <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${form.is_digital ? 'bg-blue-500/10' : 'bg-muted'}`}>
+                  <Smartphone className={`w-4 h-4 ${form.is_digital ? 'text-blue-500' : 'text-muted-foreground'}`} />
+                </div>
+                <div>
+                  <p className="text-xs font-semibold">Digital</p>
+                  <p className="text-[10px] leading-snug opacity-70">Código o voucher electrónico</p>
+                </div>
+              </button>
+            </div>
+            {form.is_digital && (
+              <p className="text-xs text-blue-600 mt-2 bg-blue-500/5 rounded-lg px-3 py-2">
+                Deberás cargar un CSV con los códigos desde el detalle del premio una vez creado.
+              </p>
+            )}
+            {!form.is_digital && (
+              <p className="text-xs text-muted-foreground mt-2">
+                Al canjear, el usuario debe ingresar su dirección de envío.
+              </p>
+            )}
           </div>
 
           {/* Cobertura geográfica */}
@@ -285,8 +326,8 @@ function SkuFormModal({ sku, onClose, onSaved }: {
             )}
             {imageFile && (
               <div className="mt-2 flex items-center gap-2 text-sm text-foreground">
-                <span className="text-lg">📎</span> {imageFile.name}
-                <button type="button" onClick={() => setImageFile(null)} className="text-red-500 text-xs">✕</button>
+                <Paperclip className="w-4 h-4 text-muted-foreground shrink-0" /> {imageFile.name}
+                <button type="button" onClick={() => setImageFile(null)} className="text-red-500 text-xs hover:text-red-700">Quitar</button>
               </div>
             )}
             <div className="mt-2 flex gap-2">
@@ -316,7 +357,7 @@ function SkuFormModal({ sku, onClose, onSaved }: {
           )}
         </div>
 
-        <div className="sticky bottom-0 bg-white rounded-b-2xl border-t px-6 py-4 flex gap-3">
+        <div className="sticky bottom-0 bg-card rounded-b-2xl border-t px-6 py-4 flex gap-3">
           <button type="button" onClick={onClose} className="flex-1 py-2.5 rounded-xl border text-sm font-medium hover:bg-muted/30 transition-colors">
             Cancelar
           </button>
@@ -360,7 +401,7 @@ function DeleteSkuModal({ sku, onClose, onDeleted, onDiscontinue }: {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40" onClick={onClose}>
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 space-y-4" onClick={e => e.stopPropagation()}>
+      <div className="bg-card rounded-2xl shadow-xl w-full max-w-sm p-6 space-y-4" onClick={e => e.stopPropagation()}>
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-full bg-red-50 flex items-center justify-center shrink-0">
             <Trash2 className="w-5 h-5 text-red-600" />
@@ -413,7 +454,7 @@ function SkuCard({ sku, onEdit, onToggleStatus, onLoadCodes, onDelete }: {
       <div className="aspect-video bg-muted/30 relative overflow-hidden">
         {sku.image_url
           ? <img src={sku.image_url} alt={sku.name} className="w-full h-full object-cover" />
-          : <div className="w-full h-full flex items-center justify-center text-4xl text-muted-foreground/30">🎁</div>
+          : <div className="w-full h-full flex items-center justify-center"><Gift className="w-12 h-12 text-muted-foreground/20" /></div>
         }
         <span className={`absolute top-2 right-2 px-2 py-0.5 rounded-full text-xs font-medium ${st.className}`}>
           {st.label}
@@ -520,7 +561,7 @@ function CodesUploadModal({ sku, onClose }: { sku: Sku; onClose: () => void }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40" onClick={onClose}>
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 space-y-4" onClick={e => e.stopPropagation()}>
+      <div className="bg-card rounded-2xl shadow-xl w-full max-w-sm p-6 space-y-4" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between">
           <h3 className="font-bold text-base">Cargar códigos digitales</h3>
           <button onClick={onClose} className="text-muted-foreground hover:text-foreground">
@@ -544,7 +585,7 @@ function CodesUploadModal({ sku, onClose }: { sku: Sku; onClose: () => void }) {
 
         {result ? (
           <div className="text-center py-4">
-            <p className="text-3xl mb-2">✅</p>
+            <CheckCircle2 className="w-10 h-10 text-green-600 mx-auto mb-2" />
             <p className="font-semibold">{result.imported} códigos importados</p>
             <p className="text-sm text-muted-foreground mt-1">Stock actual: {result.new_stock} disponibles</p>
             <button onClick={onClose} className="mt-4 px-4 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-semibold">Cerrar</button>
@@ -699,7 +740,7 @@ export default function AdminCatalogPage() {
         </div>
       ) : skus.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 text-center">
-          <p className="text-4xl mb-4">🎁</p>
+          <Gift className="w-14 h-14 text-muted-foreground/20 mx-auto mb-4" />
           <p className="text-muted-foreground">
             {q ? 'No se encontraron premios con ese nombre.' : 'No hay premios en este estatus.'}
           </p>

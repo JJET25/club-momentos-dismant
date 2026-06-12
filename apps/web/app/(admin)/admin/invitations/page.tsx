@@ -102,14 +102,14 @@ export default function InvitationsPage() {
       </div>
 
       {/* Formulario de nueva invitación */}
-      <div className="bg-white rounded-xl border border-border p-6 mb-8">
+      <div className="bg-card rounded-xl border border-border p-6 mb-8">
         <h2 className="text-base font-semibold text-foreground mb-4">Nueva invitación</h2>
 
         {success && (
-          <div className="mb-4 p-3 rounded-lg bg-green-50 text-green-700 text-sm">{success}</div>
+          <div className="mb-4 p-3 rounded-lg bg-green-500/10 border border-green-500/20 text-green-600 dark:text-green-400 text-sm">{success}</div>
         )}
         {error && (
-          <div className="mb-4 p-3 rounded-lg bg-red-50 text-red-700 text-sm">{error}</div>
+          <div className="mb-4 p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-600 dark:text-red-400 text-sm">{error}</div>
         )}
 
         <form onSubmit={handleSend} className="space-y-4">
@@ -153,7 +153,7 @@ export default function InvitationsPage() {
       </div>
 
       {/* Listado de invitaciones */}
-      <div className="bg-white rounded-xl border border-border">
+      <div className="bg-card rounded-xl border border-border">
         <div className="px-6 py-4 border-b border-border">
           <h2 className="text-base font-semibold text-foreground">Historial de invitaciones</h2>
         </div>

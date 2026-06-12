@@ -2,13 +2,18 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase'
 import { createSessionToken } from '@/lib/auth'
 import crypto from 'crypto'
+import bcrypt from 'bcryptjs'
 
 export async function POST(req: NextRequest) {
-  const { email, fullName, companyName, rfc, locationState, locationCity, inviteToken } =
+  const { email, fullName, companyName, rfc, locationState, locationCity, phone, password, inviteToken } =
     await req.json()
 
-  if (!email || !fullName || !companyName || !rfc || !locationState || !locationCity) {
+  if (!email || !fullName || !companyName || !rfc || !locationState || !locationCity || !password) {
     return NextResponse.json({ error: 'Faltan campos obligatorios' }, { status: 400 })
+  }
+
+  if (password.length < 8) {
+    return NextResponse.json({ error: 'La contraseña debe tener al menos 8 caracteres' }, { status: 400 })
   }
 
   if (!inviteToken) {
@@ -42,18 +47,22 @@ export async function POST(req: NextRequest) {
 
   if (!role) return NextResponse.json({ error: 'Error de configuración del sistema' }, { status: 500 })
 
+  const passwordHash = await bcrypt.hash(password, 12)
+
   // Crear el miembro
   const { data: member, error } = await supabase
     .from('members')
     .insert({
-      id:           crypto.randomUUID(),
-      email:        email.toLowerCase().trim(),
-      full_name:    fullName.trim(),
-      company_name: companyName.trim(),
-      rfc:          rfc.toUpperCase().trim(),
+      id:            crypto.randomUUID(),
+      email:         email.toLowerCase().trim(),
+      full_name:     fullName.trim(),
+      company_name:  companyName.trim(),
+      rfc:           rfc.toUpperCase().trim(),
       location_state: locationState,
       location_city:  locationCity.trim(),
-      role_id:      role.id,
+      phone:          phone?.trim() || null,
+      password_hash:  passwordHash,
+      role_id:       role.id,
     })
     .select('id, email, full_name')
     .single()

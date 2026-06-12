@@ -38,13 +38,17 @@ export default function ArcoPage() {
   if (folio) {
     return (
       <div className="max-w-lg space-y-6">
-        <div className="bg-green-50 border border-green-200 rounded-2xl p-8 text-center">
-          <p className="text-4xl mb-4">✅</p>
-          <h2 className="text-xl font-bold text-green-800 mb-2">Solicitud enviada</h2>
-          <p className="text-green-700 text-sm mb-4">
-            Hemos registrado tu solicitud. Recibirás una respuesta en un plazo máximo de <strong>20 días hábiles</strong>.
+        <div className="bg-emerald-500/5 border border-emerald-500/30 rounded-2xl p-8 text-center">
+          <div className="w-14 h-14 rounded-full bg-emerald-500/15 flex items-center justify-center mx-auto mb-4">
+            <svg className="w-7 h-7 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7"/>
+            </svg>
+          </div>
+          <h2 className="text-xl font-bold text-foreground mb-2">Solicitud enviada</h2>
+          <p className="text-sm text-muted-foreground mb-5">
+            Hemos registrado tu solicitud. Recibirás una respuesta en un plazo máximo de <strong className="text-foreground">20 días hábiles</strong>.
           </p>
-          <div className="bg-white rounded-xl border border-green-200 px-6 py-4 inline-block">
+          <div className="bg-card border border-border rounded-xl px-6 py-4 inline-block">
             <p className="text-xs text-muted-foreground mb-1">Número de folio</p>
             <p className="font-mono font-bold text-lg text-foreground">{folio}</p>
           </div>
@@ -126,7 +130,7 @@ export default function ArcoPage() {
         </div>
 
         {error && (
-          <p className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg px-4 py-3">{error}</p>
+          <p className="text-sm text-red-600 bg-red-500/5 border border-red-500/20 rounded-xl px-4 py-3">{error}</p>
         )}
 
         <button
