@@ -1,6 +1,10 @@
 import type { NextConfig } from 'next'
+import path from 'path'
 
 const nextConfig: NextConfig = {
+  // Necesario en monorepos para que Next.js encuentre la raíz correcta del workspace
+  outputFileTracingRoot: path.join(__dirname, '../../'),
+
   // Paquetes que corren solo en el servidor y NO deben bundlearse por webpack.
   // @prisma/client — requiere binarios nativos.
   // @react-pdf/renderer — inicializa su propio fiber renderer; si webpack lo bundlea
