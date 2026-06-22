@@ -14,14 +14,23 @@
     "format": "prettier --write \"**/*.{ts,tsx,md,json}\"",
     "db:generate": "turbo db:generate",
     "db:migrate": "turbo db:migrate",
-    "db:studio": "turbo db:studio"
+    "db:studio": "turbo db:studio",
+    "test": "turbo test"
   },
   "devDependencies": {
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
     "turbo": "^2.0.0",
     "prettier": "^3.3.0",
     "typescript": "^5.5.0"
   },
   "packageManager": "npm@10.9.4",
+  "overrides": {
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0"
+  },
   "engines": {
     "node": ">=20.0.0",
     "npm": ">=10.0.0"

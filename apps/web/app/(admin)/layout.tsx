@@ -1,59 +1,42 @@
-// Layout del panel de administración — con sidebar izquierdo
+import { getSession } from '@/lib/auth'
+import { AdminSidebarNav } from '@/components/admin/admin-sidebar-nav'
+import { GlobalBanner } from '@/components/GlobalBanner'
 
-export default function AdminLayout({ children }: { children: React.ReactNode }) {
+export default async function AdminLayout({ children }: { children: React.ReactNode }) {
+  const session = await getSession()
+  const name = session?.name ?? 'Admin'
+  const role = session?.role ?? 'admin'
+
   return (
-    <div className="min-h-screen bg-muted/30 flex">
-      {/* Sidebar Admin */}
-      <aside className="w-64 bg-brand-950 flex flex-col fixed h-full">
-        {/* Logo */}
-        <div className="p-6 border-b border-brand-800">
+    <div className="min-h-screen bg-background flex">
+
+      {/* Sidebar */}
+      <aside className="w-60 bg-[#0f172a] flex flex-col fixed h-full">
+
+        {/* Logo / Brand */}
+        <div className="px-5 py-5 border-b border-white/5">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-lg bg-white/10 flex items-center justify-center">
+            <div className="w-8 h-8 rounded-lg bg-brand-600 flex items-center justify-center shrink-0">
               <span className="text-sm font-bold text-white">D</span>
             </div>
-            <div>
-              <p className="text-sm font-semibold text-white">Club Momentos</p>
-              <p className="text-xs text-brand-400">Panel Admin</p>
+            <div className="min-w-0">
+              <p className="text-[13px] font-semibold text-white leading-none">Club Momentos</p>
+              <p className="text-[11px] text-slate-500 mt-0.5 font-medium uppercase tracking-wide">Panel Admin</p>
             </div>
           </div>
         </div>
 
-        {/* Navegación */}
-        <nav className="flex-1 p-4 space-y-1">
-          {[
-            { href: '/admin/dashboard', label: 'Dashboard', icon: '📊' },
-            { href: '/admin/members', label: 'Miembros', icon: '👥' },
-            { href: '/admin/invoices', label: 'Facturas', icon: '📄' },
-            { href: '/admin/catalog', label: 'Catálogo', icon: '🎁' },
-            { href: '/admin/promotions', label: 'Promociones', icon: '📢' },
-            { href: '/admin/reports', label: 'Reportes', icon: '📈' },
-            { href: '/admin/audit', label: 'Auditoría', icon: '🔍' },
-            { href: '/admin/settings', label: 'Configuración', icon: '⚙️' },
-          ].map((item) => (
-            <a
-              key={item.href}
-              href={item.href}
-              className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-brand-300 hover:text-white hover:bg-white/10 transition-colors"
-            >
-              <span>{item.icon}</span>
-              {item.label}
-            </a>
-          ))}
-        </nav>
-
-        {/* Footer */}
-        <div className="p-4 border-t border-brand-800">
-          <button className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-brand-400 hover:text-white hover:bg-white/10 transition-colors w-full">
-            <span>🚪</span>
-            Cerrar sesión
-          </button>
-        </div>
+        <AdminSidebarNav name={name} role={role} />
       </aside>
 
-      {/* Contenido principal */}
-      <main className="ml-64 flex-1 p-8">
-        {children}
+      {/* Main content */}
+      <main className="ml-60 flex-1 min-h-screen flex flex-col">
+        <GlobalBanner />
+        <div className="max-w-6xl mx-auto w-full px-8 py-8">
+          {children}
+        </div>
       </main>
+
     </div>
   )
 }

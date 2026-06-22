@@ -1,4 +1,4 @@
-import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3'
+import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand, NoSuchKey } from '@aws-sdk/client-s3'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
 
 const r2 = new S3Client({
@@ -38,6 +38,22 @@ export async function getSignedDownloadUrl(key: string, expiresInSeconds = 3600)
   )
 }
 
+/** Descarga el contenido raw de un objeto. Devuelve null si no existe. */
+export async function downloadFileContent(key: string): Promise<Buffer | null> {
+  try {
+    const res = await r2.send(new GetObjectCommand({ Bucket: BUCKET, Key: key }))
+    if (!res.Body) return null
+    const chunks: Uint8Array[] = []
+    for await (const chunk of res.Body as AsyncIterable<Uint8Array>) {
+      chunks.push(chunk)
+    }
+    return Buffer.concat(chunks)
+  } catch (err) {
+    if (err instanceof NoSuchKey) return null
+    throw err
+  }
+}
+
 /** Elimina un archivo de R2 */
 export async function deleteFile(key: string): Promise<void> {
   await r2.send(new DeleteObjectCommand({ Bucket: BUCKET, Key: key }))
@@ -47,10 +63,14 @@ export async function deleteFile(key: string): Promise<void> {
 export const R2_PATHS = {
   invoice: (memberId: string, uuidCfdi: string) =>
     `invoices/${memberId}/${uuidCfdi}.xml`,
+  invoiceEvidence: (invoiceId: string, ext: string) =>
+    `invoices/${invoiceId}/evidence.${ext}`,
   rewardCover: (skuId: string) =>
     `rewards/${skuId}/cover.webp`,
-  promotionBanner: (promotionId: string) =>
-    `promotions/${promotionId}/banner.webp`,
+  promotionBanner: (promotionId: string, ext = 'webp') =>
+    `promotions/${promotionId}/banner.${ext}`,
   statement: (memberId: string, yearMonth: string) =>
     `statements/${memberId}/${yearMonth}.pdf`,
+  prizeFile: (redemptionId: string, ext: string) =>
+    `prizes/${redemptionId}/file.${ext}`,
 }

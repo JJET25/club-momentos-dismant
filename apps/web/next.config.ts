@@ -1,8 +1,23 @@
 import type { NextConfig } from 'next'
+import path from 'path'
 
 const nextConfig: NextConfig = {
   // Paquetes que corren solo en el servidor (no se bundlean para el cliente)
-  serverExternalPackages: ['@prisma/client'],
+  // @react-pdf/renderer must stay external — its module-level fiber renderer init
+  // conflicts with Next.js's web React renderer during static page generation
+  serverExternalPackages: ['@prisma/client', '@react-pdf/renderer'],
+
+  // Force all packages to use the same React 19 instance.
+  // Without this, root node_modules/react@18 coexists with apps/web's React 19
+  // and causes "Objects are not valid as a React child" (error #31) during SSG.
+  webpack(config) {
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      react:     path.resolve(__dirname, 'node_modules/react'),
+      'react-dom': path.resolve(__dirname, 'node_modules/react-dom'),
+    }
+    return config
+  },
 
   // Imágenes: dominios permitidos para next/image
   images: {

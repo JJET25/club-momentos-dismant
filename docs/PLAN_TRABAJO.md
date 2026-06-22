@@ -54,8 +54,8 @@ npm run dev
 | Tarea | Estado |
 |---|---|
 | TT-001 — Monorepo, Next.js, Prisma, middleware RBAC, librerías base | ✅ Completado |
-| TT-002 — Setup de Supabase y variables de entorno | ⏳ Pendiente |
-| TT-003 — Primera migración + RLS + seed | ⏳ Pendiente |
+| TT-002 — Setup de Supabase y variables de entorno | ✅ Completado |
+| TT-003 — Primera migración + RLS + seed | ✅ Completado |
 
 ---
 

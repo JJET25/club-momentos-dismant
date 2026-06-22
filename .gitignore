@@ -36,4 +36,4 @@ yarn-error.log*
 .turbo
 
 # Prisma
-packages/database/prisma/migrations/
+packages/database/.env

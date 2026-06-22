@@ -52,6 +52,9 @@ model Member {
   rfc             String    @unique
   locationState   String    @map("location_state")  // Estado de México
   locationCity    String    @map("location_city")   // Ciudad
+  phone           String?   @map("phone")           // Celular del miembro
+  passwordHash    String?   @map("password_hash")   // Contraseña hasheada (bcrypt)
+  affiliate       String    @default("dismant") @map("affiliate") // dismant | lauti
   invitationCode  String?   @map("invitation_code")
   fcmToken        String?   @map("fcm_token")       // Token de Firebase push
   status          String    @default("active")       // active | suspended
@@ -68,10 +71,14 @@ model Member {
   reviews         Review[]
   otpTokens       OtpToken[]
   auditLogs       AuditLog[]  @relation("ActorLogs")
-  approvedInvoices Invoice[]  @relation("ApprovedInvoices")
+  approvedInvoices  Invoice[]  @relation("ApprovedInvoices")
+  verifiedInvoices  Invoice[]  @relation("VerifiedInvoices")
+  registeredInvoices Invoice[] @relation("RegisteredInvoices")
   ledgerOperations LedgerEntry[] @relation("OperatorLedger")
   createdPromotions PartnerPromotion[] @relation("CreatedPromotions")
   approvedPromotions PartnerPromotion[] @relation("ApprovedPromotions")
+  sentInvitations   Invitation[]
+  notifications     Notification[]
 
   @@map("members")
 }
@@ -137,20 +144,43 @@ model Invoice {
   paidAt           DateTime? @map("paid_at")      // fecha de pago registrada
   pointsGenerated  Int?      @map("points_generated")
   status           String    @default("pending")  // pending | approved | rejected | cancelled
-  satStatus        String?   @map("sat_status")   // vigente | cancelada | no_encontrada
-  rejectionReason  String?   @map("rejection_reason")
-  approvedBy       String?   @map("approved_by")
-  approvedAt       DateTime? @map("approved_at")
-  xmlStorageKey    String?   @map("xml_storage_key")  // path en Cloudflare R2
-  createdAt        DateTime  @default(now()) @map("created_at")
+  satStatus           String?   @map("sat_status")   // vigente | cancelada | no_encontrada
+  rejectionReason     String?   @map("rejection_reason")
+  approvedBy          String?   @map("approved_by")
+  approvedAt          DateTime? @map("approved_at")
+  xmlStorageKey       String?   @map("xml_storage_key")  // path en Cloudflare R2
+  folioReferencia     String?   @map("folio_referencia")  // folio legible del doc físico (ej. FA-1234)
+  evidenceKey         String?   @map("evidence_key")       // R2 key de la foto/PDF del documento físico
+  // ── Flujo de verificación en dos pasos ──────────────────
+  verificationStatus  String    @default("pending") @map("verification_status") // pending | verified
+  verifiedBy          String?   @map("verified_by")
+  verifiedAt          DateTime? @map("verified_at")
+  registeredBy        String?   @map("registered_by") // empleado que registró manualmente
+  createdAt           DateTime  @default(now()) @map("created_at")
 
   member           Member    @relation(fields: [memberId], references: [id])
   approver         Member?   @relation("ApprovedInvoices", fields: [approvedBy], references: [id])
+  verifier         Member?   @relation("VerifiedInvoices", fields: [verifiedBy], references: [id])
+  registrar        Member?   @relation("RegisteredInvoices", fields: [registeredBy], references: [id])
   ledgerEntries    LedgerEntry[]
 
   @@index([memberId, status])
   @@index([uuidCfdi])
   @@map("invoices")
+}
+
+// ─────────────────────────────────────────────────────────────
+// BANNER GLOBAL DE ANUNCIOS (singleton — solo un registro activo)
+// ─────────────────────────────────────────────────────────────
+
+model GlobalBanner {
+  id        String   @id @default(uuid())
+  message   String
+  isActive  Boolean  @default(false) @map("is_active")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  updatedBy String?  @map("updated_by")
+
+  @@map("global_banners")
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -228,9 +258,13 @@ model Redemption {
   memberId     String   @map("member_id")
   skuId        String   @map("sku_id")
   pointsSpent  Int      @map("points_spent")
-  voucherCode  String?  @map("voucher_code")
-  status       String   @default("active")  // active | used | expired
-  createdAt    DateTime @default(now()) @map("created_at")
+  voucherCode      String?  @map("voucher_code")
+  status           String   @default("active")  // active | shipped | used | expired
+  deliveryAddress  Json?    @map("delivery_address")  // { full_name, phone, street, colony, city, state, zip, notes? }
+  prizeContent     String?  @map("prize_content")     // código/boleto/acceso ingresado por admin al entregar
+  prizeFileKey     String?  @map("prize_file_key")    // clave R2 del archivo adjunto (boleto PDF, imagen, etc.)
+  shippingInfo     Json?    @map("shipping_info")     // { carrier, tracking_number, tracking_url?, estimated_date?, shipped_at }
+  createdAt        DateTime @default(now()) @map("created_at")
 
   member       Member      @relation(fields: [memberId], references: [id])
   sku          RewardSku   @relation(fields: [skuId], references: [id])
@@ -274,6 +308,7 @@ model PartnerPromotion {
   title          String
   description    String?
   imageUrl       String?  @map("image_url")
+  bannerKey      String?  @map("banner_key")
   destinationUrl String?  @map("destination_url")
   geoType        String   @default("national") @map("geo_type")  // national | local
   geoStates      String[] @map("geo_states")
@@ -295,6 +330,27 @@ model PartnerPromotion {
 }
 
 // ─────────────────────────────────────────────────────────────
+// INVITACIONES
+// ─────────────────────────────────────────────────────────────
+
+model Invitation {
+  id        String    @id @default(uuid())
+  email     String
+  token     String    @unique
+  sentBy    String?   @map("sent_by")
+  affiliate String    @default("dismant") @map("affiliate")
+  used      Boolean   @default(false)
+  usedAt    DateTime? @map("used_at")
+  expiresAt DateTime  @map("expires_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  sender    Member?   @relation(fields: [sentBy], references: [id])
+
+  @@index([email])
+  @@map("invitations")
+}
+
+// ─────────────────────────────────────────────────────────────
 // AUDITORÍA (APPEND-ONLY — NUNCA ACTUALIZAR/ELIMINAR)
 // ─────────────────────────────────────────────────────────────
 
@@ -312,4 +368,24 @@ model AuditLog {
   @@index([actorId, createdAt(sort: Desc)])
   @@index([action])
   @@map("audit_log")
+}
+
+// ─────────────────────────────────────────────────────────────
+// NOTIFICACIONES IN-APP
+// ─────────────────────────────────────────────────────────────
+
+model Notification {
+  id        String    @id @default(uuid())
+  memberId  String    @map("member_id")
+  type      String                         // invoice.approved | invoice.rejected | points.adjustment | redemption.ready
+  title     String
+  body      String
+  metadata  Json?
+  readAt    DateTime? @map("read_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  member    Member    @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@index([memberId, createdAt(sort: Desc)])
+  @@map("notifications")
 }

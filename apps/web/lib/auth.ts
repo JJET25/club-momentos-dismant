@@ -1,6 +1,7 @@
 import { SignJWT, jwtVerify } from 'jose'
 import { cookies } from 'next/headers'
 import { createAdminClient } from './supabase'
+import crypto from 'crypto'
 
 const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET!)
 const SESSION_COOKIE = 'session'
@@ -42,17 +43,17 @@ export async function getSession(): Promise<SessionPayload | null> {
   return verifySessionToken(token)
 }
 
-/** Genera un OTP de 6 dígitos y lo guarda en la base de datos */
+/** Genera un OTP de 6 dígitos, lo hashea y lo guarda en la base de datos */
 export async function generateAndStoreOTP(email: string): Promise<string> {
   const code = Math.floor(100000 + Math.random() * 900000).toString()
+  const codeHash = crypto.createHash('sha256').update(code).digest('hex')
   const supabase = createAdminClient()
-
-  // Guardar el hash del código (en producción usar bcrypt)
   const expiresAt = new Date(Date.now() + 10 * 60 * 1000) // 10 minutos
 
   await supabase.from('otp_tokens').insert({
+    id: crypto.randomUUID(),
     email,
-    code_hash: code, // TODO: hashear con bcrypt en producción
+    code_hash: codeHash,
     expires_at: expiresAt.toISOString(),
   })
 
@@ -62,27 +63,43 @@ export async function generateAndStoreOTP(email: string): Promise<string> {
 /** Verifica un OTP ingresado por el usuario */
 export async function verifyOTP(email: string, code: string): Promise<boolean> {
   const supabase = createAdminClient()
+  const codeHash = crypto.createHash('sha256').update(code).digest('hex')
 
   const { data } = await supabase
     .from('otp_tokens')
-    .select('id, code_hash, used, expires_at')
+    .select('id, used, expires_at')
     .eq('email', email)
-    .eq('code_hash', code)
+    .eq('code_hash', codeHash)
     .eq('used', false)
     .gt('expires_at', new Date().toISOString())
     .order('created_at', { ascending: false })
     .limit(1)
-    .single()
+    .maybeSingle()
 
   if (!data) return false
 
-  // Marcar como usado
-  await supabase
-    .from('otp_tokens')
-    .update({ used: true })
-    .eq('id', data.id)
-
+  await supabase.from('otp_tokens').update({ used: true }).eq('id', data.id)
   return true
+}
+
+/** Crea un token JWT de un solo uso para Magic Link (expira en 15 min) */
+export async function createMagicLinkToken(memberId: string, email: string): Promise<string> {
+  return new SignJWT({ sub: memberId, email, purpose: 'magic-link' })
+    .setProtectedHeader({ alg: 'HS256' })
+    .setIssuedAt()
+    .setExpirationTime('15m')
+    .sign(JWT_SECRET)
+}
+
+/** Verifica un token de Magic Link */
+export async function verifyMagicLinkToken(token: string): Promise<{ sub: string; email: string } | null> {
+  try {
+    const { payload } = await jwtVerify(token, JWT_SECRET)
+    if (payload.purpose !== 'magic-link') return null
+    return { sub: payload.sub as string, email: payload.email as string }
+  } catch {
+    return null
+  }
 }
 
 /** Establece la cookie de sesión (HttpOnly + Secure) */

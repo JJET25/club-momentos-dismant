@@ -40,10 +40,10 @@ export async function createServerComponentClient() {
       getAll() {
         return cookieStore.getAll()
       },
-      setAll(cookiesToSet) {
+      setAll(cookiesToSet: { name: string; value: string; options?: object }[]) {
         try {
           cookiesToSet.forEach(({ name, value, options }) =>
-            cookieStore.set(name, value, options)
+            cookieStore.set(name, value, options ?? {})
           )
         } catch {
           // El setter puede fallar en Server Components (read-only)
