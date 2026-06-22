@@ -11,7 +11,6 @@ import {
   BarChart2,
   Megaphone,
   Bell,
-  User,
   LogOut,
   CheckCircle2,
   XCircle,

@@ -2,7 +2,9 @@ import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
   // Paquetes que corren solo en el servidor (no se bundlean para el cliente)
-  serverExternalPackages: ['@prisma/client'],
+  // @react-pdf/renderer must stay external — its module-level fiber renderer init
+  // conflicts with Next.js's web React renderer during static page generation
+  serverExternalPackages: ['@prisma/client', '@react-pdf/renderer'],
 
   // Imágenes: dominios permitidos para next/image
   images: {
