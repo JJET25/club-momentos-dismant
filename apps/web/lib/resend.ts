@@ -139,19 +139,41 @@ export function buildInvoiceRejectedEmail(params: {
   `
 }
 
+// ── Config por afiliado ──────────────────────────────────────
+
+const AFFILIATE_CONFIG: Record<string, { clubName: string; brand: string; color: string; colorDark: string; initial: string }> = {
+  dismant: {
+    clubName:  'Club Momentos Dismant',
+    brand:     'Dismant',
+    color:     '#2563eb',
+    colorDark: '#1e3a8a',
+    initial:   'D',
+  },
+  lauti: {
+    clubName:  'Club Momentos Lauti',
+    brand:     'Lauti',
+    color:     '#d97706',
+    colorDark: '#92400e',
+    initial:   'L',
+  },
+}
+
 /** Email de invitación al club */
 export function buildInvitationEmail(params: {
   inviteLink: string
   recipientName?: string
   senderName?: string
+  affiliate?: string
 }): string {
+  const cfg = AFFILIATE_CONFIG[params.affiliate ?? 'dismant'] ?? AFFILIATE_CONFIG.dismant
+
   return `
     <div style="font-family: Inter, sans-serif; max-width: 500px; margin: 0 auto; padding: 32px;">
       <div style="text-align: center; margin-bottom: 32px;">
-        <div style="display: inline-flex; align-items: center; justify-content: center; width: 64px; height: 64px; background: #2563eb; border-radius: 16px;">
-          <span style="font-size: 28px; font-weight: 700; color: white;">D</span>
+        <div style="display: inline-flex; align-items: center; justify-content: center; width: 64px; height: 64px; background: ${cfg.color}; border-radius: 16px;">
+          <span style="font-size: 28px; font-weight: 700; color: white;">${cfg.initial}</span>
         </div>
-        <h1 style="margin-top: 12px; font-size: 20px; color: #1e3a8a; margin-bottom: 0;">Club Momentos Dismant</h1>
+        <h1 style="margin-top: 12px; font-size: 20px; color: ${cfg.colorDark}; margin-bottom: 0;">${cfg.clubName}</h1>
       </div>
 
       <h2 style="color: #111827; margin-bottom: 8px;">
@@ -159,7 +181,7 @@ export function buildInvitationEmail(params: {
       </h2>
       <p style="color: #374151; line-height: 1.6;">
         ${params.senderName ? `<strong>${params.senderName}</strong> te ha invitado a` : 'Has sido invitado a'} unirte al
-        <strong>Club Momentos Dismant</strong>, el programa de lealtad exclusivo para clientes de Dismant.
+        <strong>${cfg.clubName}</strong>, el programa de lealtad exclusivo para clientes de ${cfg.brand}.
       </p>
       <p style="color: #374151; line-height: 1.6;">
         Acumula puntos con cada compra y canjéalos por premios exclusivos en tu zona.
@@ -167,7 +189,7 @@ export function buildInvitationEmail(params: {
 
       <div style="text-align: center; margin: 36px 0;">
         <a href="${params.inviteLink}"
-           style="display: inline-block; background: #2563eb; color: white; padding: 16px 40px;
+           style="display: inline-block; background: ${cfg.color}; color: white; padding: 16px 40px;
                   border-radius: 10px; text-decoration: none; font-weight: 600; font-size: 16px;">
           Crear mi cuenta
         </a>
@@ -181,7 +203,7 @@ export function buildInvitationEmail(params: {
           Si el botón no funciona, copia y pega este enlace en tu navegador:
         </p>
         <p style="margin: 6px 0 0; font-size: 11px; word-break: break-all;">
-          <a href="${params.inviteLink}" style="color: #2563eb;">${params.inviteLink}</a>
+          <a href="${params.inviteLink}" style="color: ${cfg.color};">${params.inviteLink}</a>
         </p>
       </div>
 

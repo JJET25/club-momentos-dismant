@@ -7,7 +7,7 @@ import { canAccessAdminRoute, STAFF_ROLES } from './lib/permissions'
 const PUBLIC_ROUTES = ['/login', '/register', '/verify', '/api/auth', '/api/banner', '/api/dev']
 
 // Rutas solo para miembros del club (portal cliente)
-const CLIENT_ROUTES = ['/dashboard', '/catalog', '/redemptions', '/statement', '/promotions', '/invoices', '/profile']
+const CLIENT_ROUTES = ['/dashboard', '/catalog', '/redemptions', '/statement', '/promotions', '/invoices', '/profile', '/arco']
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl

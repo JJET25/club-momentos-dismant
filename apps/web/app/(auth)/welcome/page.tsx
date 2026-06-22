@@ -2,10 +2,25 @@ import Link from 'next/link'
 import { getSession } from '@/lib/auth'
 import { redirect } from 'next/navigation'
 
+const AFFILIATE_CLUB: Record<string, string> = {
+  dismant: 'Club Momentos Dismant',
+  lauti:   'Club Momentos Lauti',
+}
+
 export default async function WelcomePage() {
   const session = await getSession()
   if (!session) redirect('/login')
 
+  // Leer el afiliado del perfil del miembro recién registrado
+  const { createAdminClient } = await import('@/lib/supabase')
+  const supabase = createAdminClient()
+  const { data: member } = await supabase
+    .from('members')
+    .select('affiliate')
+    .eq('id', session.sub)
+    .single()
+
+  const clubName = AFFILIATE_CLUB[member?.affiliate ?? 'dismant'] ?? 'Club Momentos Dismant'
   const welcomePoints = parseInt(process.env.WELCOME_BONUS_POINTS ?? '100')
   const firstName = session.name.split(' ')[0]
 
@@ -24,7 +39,7 @@ export default async function WelcomePage() {
             ¡Bienvenido, {firstName}!
           </h1>
           <p className="text-muted-foreground mb-6">
-            Tu cuenta está lista. Ya eres parte del Club Momentos Dismant.
+            Tu cuenta está lista. Ya eres parte del {clubName}.
           </p>
 
           <div className="bg-brand-50 rounded-xl p-5 mb-8">

@@ -22,8 +22,13 @@ export async function POST(req: NextRequest) {
     .eq('email', normalizedEmail)
     .maybeSingle()
 
-  if (!member || member.status === 'suspended') {
-    return NextResponse.json({ error: 'Cuenta no encontrada o suspendida' }, { status: 403 })
+  // Sin miembro = contexto de registro: email verificado antes de crear la cuenta
+  if (!member) {
+    return NextResponse.json({ success: true })
+  }
+
+  if (member.status === 'suspended') {
+    return NextResponse.json({ error: 'Cuenta suspendida. Contacta a Dismant.' }, { status: 403 })
   }
 
   await supabase

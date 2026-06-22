@@ -464,6 +464,7 @@ function RegisterContent() {
   const inviteToken = searchParams.get('token')
 
   const [tokenState, setTokenState] = useState<'loading' | 'valid' | 'invalid'>('loading')
+  const [affiliate, setAffiliate] = useState<string>('dismant')
   const [step, setStep] = useState(1)
   const [registering, setRegistering] = useState(false)
   const [error, setError] = useState('')
@@ -494,6 +495,7 @@ function RegisterContent() {
       .then((data) => {
         if (data.valid) {
           setFormData((prev) => ({ ...prev, email: data.email }))
+          setAffiliate(data.affiliate ?? 'dismant')
           setTokenState('valid')
         } else {
           const reasonMap: Record<string, string> = {
@@ -544,6 +546,12 @@ function RegisterContent() {
     router.push('/welcome')
   }
 
+  const AFFILIATE_META: Record<string, { clubName: string; initial: string }> = {
+    dismant: { clubName: 'Club Momentos Dismant', initial: 'D' },
+    lauti:   { clubName: 'Club Momentos Lauti',   initial: 'L' },
+  }
+  const affiliateMeta = AFFILIATE_META[affiliate] ?? AFFILIATE_META.dismant
+
   const titles = ['Crea tu cuenta', 'Verifica tu correo', 'Configura tu perfil']
 
   return (
@@ -551,9 +559,9 @@ function RegisterContent() {
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-white/10 mb-4">
-            <span className="text-2xl font-bold text-white">D</span>
+            <span className="text-2xl font-bold text-white">{affiliateMeta.initial}</span>
           </div>
-          <h1 className="text-2xl font-bold text-white">Club Momentos Dismant</h1>
+          <h1 className="text-2xl font-bold text-white">{affiliateMeta.clubName}</h1>
         </div>
 
         <div className="bg-white rounded-2xl shadow-2xl p-8">

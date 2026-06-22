@@ -26,15 +26,18 @@ export const EMPLOYEE_ROUTES = [
   '/admin/dashboard',
   '/admin/members',
   '/admin/invoices',
+  '/admin/redemptions',
 ]
 
 /** Rutas de /admin exclusivas para owner y admin (no employee) */
 export const MANAGER_ONLY_ROUTES = [
   '/admin/catalog',
   '/admin/invitations',
+  '/admin/promotions',
   '/admin/reports',
   '/admin/audit',
   '/admin/settings',
+  '/admin/team',
 ]
 
 // ── Acciones específicas por endpoint ────────────────────────
@@ -57,7 +60,7 @@ export const PERMISSIONS = {
   MANAGE_CATALOG:   MANAGER_ROLES,
 
   // Invitaciones
-  MANAGE_INVITATIONS: STAFF_ROLES,
+  MANAGE_INVITATIONS: MANAGER_ROLES,
 
   // Reportes y auditoría
   VIEW_REPORTS:     MANAGER_ROLES,

@@ -12,11 +12,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
   }
 
-  const { email, recipientName } = await req.json()
+  const { email, recipientName, affiliate } = await req.json()
 
   if (!email || typeof email !== 'string') {
     return NextResponse.json({ error: 'Correo requerido' }, { status: 400 })
   }
+
+  const VALID_AFFILIATES = ['dismant', 'lauti']
+  const normalizedAffiliate = VALID_AFFILIATES.includes(affiliate) ? affiliate : 'dismant'
 
   const normalizedEmail = email.toLowerCase().trim()
   const supabase = createAdminClient()
@@ -48,6 +51,7 @@ export async function POST(req: NextRequest) {
     email: normalizedEmail,
     token,
     sent_by: session.sub,
+    affiliate: normalizedAffiliate,
     expires_at: expiresAt.toISOString(),
   })
 
@@ -59,18 +63,25 @@ export async function POST(req: NextRequest) {
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
   const inviteLink = `${appUrl}/register?token=${token}`
 
+  const AFFILIATE_NAMES: Record<string, string> = {
+    dismant: 'Club Momentos Dismant',
+    lauti:   'Club Momentos Lauti',
+  }
+  const clubName = AFFILIATE_NAMES[normalizedAffiliate] ?? 'Club Momentos Dismant'
+
   if (process.env.RESEND_API_KEY) {
     await sendEmail({
       to: normalizedEmail,
-      subject: `${session.name} te invita al Club Momentos Dismant`,
+      subject: `${session.name} te invita al ${clubName}`,
       html: buildInvitationEmail({
         inviteLink,
         recipientName: recipientName?.trim() || undefined,
         senderName: session.name,
+        affiliate: normalizedAffiliate,
       }),
     })
   } else {
-    console.log('[DEV] Invitation link:', inviteLink)
+    console.log(`[DEV] Invitation link (${normalizedAffiliate}):`, inviteLink)
   }
 
   await supabase.from('audit_log').insert({
@@ -79,7 +90,7 @@ export async function POST(req: NextRequest) {
     action:      'invitation.sent',
     target_type: 'invitation',
     target_id:   id,
-    metadata:    { email: normalizedEmail },
+    metadata:    { email: normalizedEmail, affiliate: normalizedAffiliate },
   })
 
   return NextResponse.json({ success: true, email: normalizedEmail, inviteLink })
@@ -101,7 +112,7 @@ export async function GET(req: NextRequest) {
 
   const { data, error } = await supabase
     .from('invitations')
-    .select('id, email, used, used_at, expires_at, created_at, sent_by')
+    .select('id, email, affiliate, used, used_at, expires_at, created_at, sent_by')
     .order('created_at', { ascending: false })
     .range(offset, offset + limit - 1)
 

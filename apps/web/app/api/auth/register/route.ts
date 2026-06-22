@@ -25,7 +25,7 @@ export async function POST(req: NextRequest) {
   // Validar el token de invitación
   const { data: invitation } = await supabase
     .from('invitations')
-    .select('id, email, used, expires_at')
+    .select('id, email, used, expires_at, affiliate')
     .eq('token', inviteToken)
     .maybeSingle()
 
@@ -62,6 +62,7 @@ export async function POST(req: NextRequest) {
       location_city:  locationCity.trim(),
       phone:          phone?.trim() || null,
       password_hash:  passwordHash,
+      affiliate:      invitation.affiliate ?? 'dismant',
       role_id:       role.id,
     })
     .select('id, email, full_name')
@@ -83,13 +84,18 @@ export async function POST(req: NextRequest) {
 
   // Bono de bienvenida en el ledger
   const welcomePoints = parseInt(process.env.WELCOME_BONUS_POINTS ?? '100')
+  const CLUB_NAMES: Record<string, string> = {
+    dismant: 'Club Momentos Dismant',
+    lauti:   'Club Momentos Lauti',
+  }
+  const clubName = CLUB_NAMES[invitation.affiliate ?? 'dismant'] ?? 'Club Momentos Dismant'
   await supabase.from('ledger_entries').insert({
     id:            crypto.randomUUID(),
     member_id:     member.id,
     type:          'welcome_bonus',
     points:        welcomePoints,
     balance_after: welcomePoints,
-    description:   'Bono de bienvenida al Club Momentos Dismant',
+    description:   `Bono de bienvenida al ${clubName}`,
   })
 
   // Registrar en audit_log
@@ -114,7 +120,7 @@ export async function POST(req: NextRequest) {
   response.cookies.set('session', token, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
-    sameSite: 'strict',
+    sameSite: 'lax',
     maxAge: 60 * 60 * 24 * 7,
     path: '/',
   })

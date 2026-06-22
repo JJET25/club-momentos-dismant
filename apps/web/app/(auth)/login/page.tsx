@@ -98,11 +98,6 @@ function LoginForm() {
     setStep('forgot-otp')
   }
 
-  async function handleForgotVerifyOtp(e: React.FormEvent) {
-    e.preventDefault()
-    setStep('forgot-newpw')
-  }
-
   async function handleResetPassword(e: React.FormEvent) {
     e.preventDefault()
     if (newPw !== confirmPw) { setError('Las contraseñas no coinciden'); return }
@@ -114,7 +109,19 @@ function LoginForm() {
       body: JSON.stringify({ email, otp: code, newPassword: newPw }),
     })
     setLoading(false)
-    if (!res.ok) { const d = await res.json(); setError(d.error ?? 'Error al restablecer'); return }
+    if (!res.ok) {
+      const d = await res.json()
+      const msg = d.error ?? 'Error al restablecer'
+      // Si el OTP es inválido o expiró, regresar al paso de código
+      if (msg.includes('Código') || msg.includes('expirad')) {
+        setCode('')
+        setNewPw('')
+        setConfirmPw('')
+        setStep('forgot-otp')
+      }
+      setError(msg)
+      return
+    }
     setStep('credentials')
     setCode(''); setNewPw(''); setConfirmPw('')
     setError('')

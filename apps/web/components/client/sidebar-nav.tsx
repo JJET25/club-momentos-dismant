@@ -16,6 +16,7 @@ import {
   CheckCircle2,
   XCircle,
   Zap,
+  Shield,
   type LucideIcon,
 } from 'lucide-react'
 import { ThemeToggle } from '@/components/admin/theme-toggle'
@@ -51,6 +52,12 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { href: '/invoices',    label: 'Mis Facturas', icon: FileText },
       { href: '/redemptions', label: 'Mis Canjes',   icon: ShoppingBag },
+    ],
+  },
+  {
+    label: 'Privacidad',
+    items: [
+      { href: '/arco', label: 'Derechos ARCO', icon: Shield },
     ],
   },
 ]

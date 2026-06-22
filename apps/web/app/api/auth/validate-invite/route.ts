@@ -12,7 +12,7 @@ export async function GET(req: NextRequest) {
 
   const { data } = await supabase
     .from('invitations')
-    .select('id, email, used, expires_at')
+    .select('id, email, used, expires_at, affiliate')
     .eq('token', token)
     .maybeSingle()
 
@@ -28,5 +28,5 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ valid: false, reason: 'token-expired' })
   }
 
-  return NextResponse.json({ valid: true, email: data.email })
+  return NextResponse.json({ valid: true, email: data.email, affiliate: data.affiliate ?? 'dismant' })
 }

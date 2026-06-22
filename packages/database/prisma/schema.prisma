@@ -54,6 +54,7 @@ model Member {
   locationCity    String    @map("location_city")   // Ciudad
   phone           String?   @map("phone")           // Celular del miembro
   passwordHash    String?   @map("password_hash")   // Contraseña hasheada (bcrypt)
+  affiliate       String    @default("dismant") @map("affiliate") // dismant | lauti
   invitationCode  String?   @map("invitation_code")
   fcmToken        String?   @map("fcm_token")       // Token de Firebase push
   status          String    @default("active")       // active | suspended
@@ -337,6 +338,7 @@ model Invitation {
   email     String
   token     String    @unique
   sentBy    String?   @map("sent_by")
+  affiliate String    @default("dismant") @map("affiliate")
   used      Boolean   @default(false)
   usedAt    DateTime? @map("used_at")
   expiresAt DateTime  @map("expires_at")

@@ -3,9 +3,17 @@
 import { useState, useEffect } from 'react'
 import { Copy, Check } from 'lucide-react'
 
+type Affiliate = 'dismant' | 'lauti'
+
+const AFFILIATE_OPTIONS: { value: Affiliate; label: string; color: string }[] = [
+  { value: 'dismant', label: 'Dismant',  color: 'bg-blue-100 text-blue-700' },
+  { value: 'lauti',   label: 'Lauti',    color: 'bg-amber-100 text-amber-700' },
+]
+
 interface Invitation {
   id: string
   email: string
+  affiliate: string
   used: boolean
   used_at: string | null
   expires_at: string
@@ -37,6 +45,7 @@ function StatusBadge({ invitation }: { invitation: Invitation }) {
 export default function InvitationsPage() {
   const [email, setEmail] = useState('')
   const [recipientName, setRecipientName] = useState('')
+  const [affiliate, setAffiliate] = useState<Affiliate>('dismant')
   const [sending, setSending] = useState(false)
   const [success, setSuccess] = useState('')
   const [error, setError] = useState('')
@@ -70,7 +79,7 @@ export default function InvitationsPage() {
     const res = await fetch('/api/admin/invitations', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: email.trim(), recipientName: recipientName.trim() || undefined }),
+      body: JSON.stringify({ email: email.trim(), recipientName: recipientName.trim() || undefined, affiliate }),
     })
 
     setSending(false)
@@ -87,6 +96,7 @@ export default function InvitationsPage() {
     setCopied(false)
     setEmail('')
     setRecipientName('')
+    setAffiliate('dismant')
     loadInvitations()
   }
 
@@ -147,6 +157,29 @@ export default function InvitationsPage() {
         )}
 
         <form onSubmit={handleSend} className="space-y-4">
+          {/* Empresa afiliada */}
+          <div>
+            <label className="block text-sm font-medium text-foreground mb-2">
+              Empresa afiliada *
+            </label>
+            <div className="flex gap-3">
+              {AFFILIATE_OPTIONS.map((opt) => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => setAffiliate(opt.value)}
+                  className={`flex-1 py-2.5 px-4 rounded-lg border-2 text-sm font-medium transition-all ${
+                    affiliate === opt.value
+                      ? 'border-brand-600 bg-brand-50 text-brand-700'
+                      : 'border-border bg-background text-muted-foreground hover:border-muted-foreground/40'
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-foreground mb-1.5">
@@ -203,6 +236,7 @@ export default function InvitationsPage() {
             <thead>
               <tr className="border-b border-border text-left text-xs text-muted-foreground uppercase tracking-wide">
                 <th className="px-6 py-3 font-medium">Correo</th>
+                <th className="px-6 py-3 font-medium">Empresa</th>
                 <th className="px-6 py-3 font-medium">Estado</th>
                 <th className="px-6 py-3 font-medium">Enviada</th>
                 <th className="px-6 py-3 font-medium">Expira</th>
@@ -212,6 +246,16 @@ export default function InvitationsPage() {
               {invitations.map((inv) => (
                 <tr key={inv.id} className="hover:bg-muted/30 transition-colors">
                   <td className="px-6 py-4 font-medium text-foreground">{inv.email}</td>
+                  <td className="px-6 py-4">
+                    {(() => {
+                      const opt = AFFILIATE_OPTIONS.find(o => o.value === inv.affiliate)
+                      return (
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${opt?.color ?? 'bg-gray-100 text-gray-600'}`}>
+                          {opt?.label ?? inv.affiliate}
+                        </span>
+                      )
+                    })()}
+                  </td>
                   <td className="px-6 py-4">
                     <StatusBadge invitation={inv} />
                   </td>
