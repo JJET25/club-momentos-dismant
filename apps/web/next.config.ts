@@ -1,23 +1,14 @@
 import type { NextConfig } from 'next'
-import path from 'path'
 
 const nextConfig: NextConfig = {
-  // Paquetes que corren solo en el servidor (no se bundlean para el cliente)
-  // @react-pdf/renderer must stay external — its module-level fiber renderer init
-  // conflicts with Next.js's web React renderer during static page generation
-  serverExternalPackages: ['@prisma/client', '@react-pdf/renderer'],
-
-  // Force all packages to use the same React 19 instance.
-  // Without this, root node_modules/react@18 coexists with apps/web's React 19
-  // and causes "Objects are not valid as a React child" (error #31) during SSG.
-  webpack(config) {
-    config.resolve.alias = {
-      ...config.resolve.alias,
-      react:     path.resolve(__dirname, 'node_modules/react'),
-      'react-dom': path.resolve(__dirname, 'node_modules/react-dom'),
-    }
-    return config
-  },
+  // Paquetes que corren solo en el servidor y NO deben bundlearse por webpack.
+  // @prisma/client — requiere binarios nativos.
+  // @react-pdf/renderer — inicializa su propio fiber renderer; si webpack lo bundlea
+  //   junto al web renderer de React, causa errores durante SSG.
+  // resend — incluye @react-email/render, que trae React 18 propio.  Como resend
+  //   solo se usa en API routes (nunca en páginas/layouts), dejarlo externo es seguro
+  //   y evita que React 18 de resend entre en el bundle del servidor de Next.js.
+  serverExternalPackages: ['@prisma/client', '@react-pdf/renderer', 'resend'],
 
   // Imágenes: dominios permitidos para next/image
   images: {
