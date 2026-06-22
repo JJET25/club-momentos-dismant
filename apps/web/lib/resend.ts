@@ -1,8 +1,12 @@
 import { Resend } from 'resend'
 
-const resend = new Resend(process.env.RESEND_API_KEY!)
+// Lazy-init: evita throw en build de Next.js cuando la API key no está presente
+let _resend: Resend | null = null
+function getResend(): Resend {
+  if (!_resend) _resend = new Resend(process.env.RESEND_API_KEY!)
+  return _resend
+}
 
-const FROM = process.env.RESEND_FROM_EMAIL!
 const FROM_NAME = process.env.RESEND_FROM_NAME ?? 'Club Momentos Dismant'
 
 interface Attachment {
@@ -20,8 +24,9 @@ interface SendEmailOptions {
 
 /** Envía un email transaccional via Resend */
 export async function sendEmail({ to, subject, html, text, attachments }: SendEmailOptions) {
-  const { data, error } = await resend.emails.send({
-    from: `${FROM_NAME} <${FROM}>`,
+  const from = process.env.RESEND_FROM_EMAIL!
+  const { data, error } = await getResend().emails.send({
+    from: `${FROM_NAME} <${from}>`,
     to,
     subject,
     html,
