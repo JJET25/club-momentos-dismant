@@ -12,7 +12,7 @@ const nextConfig: NextConfig = {
   // resend — incluye @react-email/render, que trae React 18 propio.  Como resend
   //   solo se usa en API routes (nunca en páginas/layouts), dejarlo externo es seguro
   //   y evita que React 18 de resend entre en el bundle del servidor de Next.js.
-  serverExternalPackages: ['@prisma/client', '@react-pdf/renderer', 'resend'],
+  serverExternalPackages: ['@prisma/client', '@react-pdf/renderer', 'resend', 'bullmq', 'ioredis'],
 
   // Imágenes: dominios permitidos para next/image
   images: {
