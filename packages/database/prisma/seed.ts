@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import { hashSync } from 'bcryptjs'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -23,22 +24,25 @@ async function seed() {
   console.log('  ✓ Roles:', Object.keys(roleMap).join(', '), '\n')
 
   // ── 2. USUARIO ADMIN / OWNER ──────────────────────────────
+  // Contraseña de prueba: Admin.2026  (cámbiala en producción vía reset-password)
   console.log('→ Insertando usuario owner...')
+  const adminPasswordHash = hashSync('Admin.2026', 12)
   const { error: adminError } = await supabase.from('members').upsert([
     {
-      id:           'member-admin-0000-0000-000000000001',
-      email:        'admin@dismant.com',
-      full_name:    'Administrador Dismant',
-      company_name: 'Distribuidora Dismant',
-      rfc:          'DIS010101AAA',
+      id:            'member-admin-0000-0000-000000000001',
+      email:         'admin@dismant.com',
+      full_name:     'Administrador Dismant',
+      company_name:  'Distribuidora Dismant',
+      rfc:           'DIS010101AAA',
       location_state: 'Ciudad de México',
       location_city:  'CDMX',
-      status:       'active',
-      role_id:      roleMap['owner'],
+      status:        'active',
+      role_id:       roleMap['owner'],
+      password_hash: adminPasswordHash,
     },
   ], { onConflict: 'id' })
   if (adminError) throw new Error(`admin: ${adminError.message}`)
-  console.log('  ✓ Owner: admin@dismant.com\n')
+  console.log('  ✓ Owner: admin@dismant.com  /  contraseña: Admin.2026\n')
 
   // ── 3. INVITACIONES DE PRUEBA ─────────────────────────────
   console.log('→ Insertando invitaciones de prueba...')

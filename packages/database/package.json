@@ -15,7 +15,10 @@
     "@prisma/client": "^5.17.0"
   },
   "devDependencies": {
+    "@supabase/supabase-js": "^2.45.0",
+    "@types/bcryptjs": "^2.4.6",
     "@vitest/runner": "^4.1.7",
+    "bcryptjs": "^3.0.3",
     "prisma": "^5.17.0",
     "tsx": "^4.16.0",
     "typescript": "^5.5.0",

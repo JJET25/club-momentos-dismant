@@ -15,8 +15,10 @@ INSERT INTO roles (id, name) VALUES
 ON CONFLICT (id) DO NOTHING;
 
 -- ── 2. USUARIO OWNER / ADMIN ──────────────────────────────────
--- ⚠️  CAMBIA el email 'admin@dismant.com' por tu email real
--- Este es el usuario con el que harás login como administrador
+-- ⚠️  USA seed.ts en su lugar — genera el hash bcrypt automáticamente:
+--     cd packages/database && npm run db:seed
+-- Si prefieres SQL puro, omite el password_hash aquí y usa el flujo
+-- de "Olvidé mi contraseña" en /login para establecerla por OTP.
 
 INSERT INTO members (
   id,
@@ -44,7 +46,7 @@ ON CONFLICT (id) DO NOTHING;
 -- ── 3. INVITACIÓN DE PRUEBA ───────────────────────────────────
 -- Token: TEST-INVITE-LOCAL-2026
 -- Email al que está vinculada: miembro@test.com
--- Para registrarse: ir a /register?invite=TEST-INVITE-LOCAL-2026
+-- Para registrarse: ir a /register?token=TEST-INVITE-LOCAL-2026
 -- (el email en el formulario debe ser miembro@test.com)
 
 INSERT INTO invitations (
@@ -176,12 +178,13 @@ ON CONFLICT (id) DO NOTHING;
 --
 -- Admin owner:
 --   Email: admin@dismant.com (cámbialo antes de correr)
---   Para login: /login → magic link → revisar consola del servidor
+--   Para login con contraseña: usa seed.ts (genera hash de Admin.2026)
+--   Sin contraseña: /login → "¿Olvidaste tu contraseña?" → OTP por email
 --
 -- Invitaciones de prueba:
 --   Email: miembro@test.com   → Token: TEST-INVITE-LOCAL-2026
 --   Email: cliente2@test.com  → Token: TEST-INVITE-CLIENTE2-2026
---   URL de registro: /register?invite=TEST-INVITE-LOCAL-2026
+--   URL de registro: /register?token=TEST-INVITE-LOCAL-2026
 --
 -- Catálogo (5 premios):
 --   150 pts → Café de especialidad
