@@ -6,8 +6,8 @@ import { Copy, Check } from 'lucide-react'
 type Affiliate = 'dismant' | 'lauti'
 
 const AFFILIATE_OPTIONS: { value: Affiliate; label: string; color: string }[] = [
-  { value: 'dismant', label: 'Dismant',  color: 'bg-blue-100 text-blue-700' },
-  { value: 'lauti',   label: 'Lauti',    color: 'bg-amber-100 text-amber-700' },
+  { value: 'dismant', label: 'Dismant',  color: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' },
+  { value: 'lauti',   label: 'Lauti',    color: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' },
 ]
 
 interface Invitation {
@@ -23,20 +23,20 @@ interface Invitation {
 function StatusBadge({ invitation }: { invitation: Invitation }) {
   if (invitation.used) {
     return (
-      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400">
         Usada
       </span>
     )
   }
   if (new Date(invitation.expires_at) < new Date()) {
     return (
-      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700">
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
         Expirada
       </span>
     )
   }
   return (
-    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">
+    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">
       Pendiente
     </span>
   )

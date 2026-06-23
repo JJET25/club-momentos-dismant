@@ -27,8 +27,8 @@ interface MemberDetail {
 }
 
 const STATUS_CFG: Record<string, { label: string; className: string }> = {
-  active:    { label: 'Activo',    className: 'bg-green-100 text-green-700' },
-  suspended: { label: 'Suspendido', className: 'bg-red-100 text-red-600' },
+  active:    { label: 'Activo',    className: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' },
+  suspended: { label: 'Suspendido', className: 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400' },
 }
 
 function fmtDate(iso: string) {
@@ -275,7 +275,7 @@ function MemberDetailModal({ detail, onClose, onUpdated, currentUserRole }: {
               <button
                 onClick={() => handleStatus('suspended')}
                 disabled={suspending || !suspendReason.trim()}
-                className="px-4 py-2 rounded-lg border border-red-200 text-red-600 text-sm font-medium hover:bg-red-50 disabled:opacity-50"
+                className="px-4 py-2 rounded-lg border border-red-200 text-red-600 text-sm font-medium hover:bg-red-50 disabled:opacity-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-900/20"
               >
                 Suspender cuenta
               </button>
@@ -307,7 +307,7 @@ function MemberDetailModal({ detail, onClose, onUpdated, currentUserRole }: {
                 <button
                   onClick={handleRoleChange}
                   disabled={roleChanging || !roleTarget}
-                  className="px-4 py-2 rounded-lg border border-orange-200 text-orange-700 text-sm font-medium hover:bg-orange-50 disabled:opacity-50"
+                  className="px-4 py-2 rounded-lg border border-orange-200 text-orange-700 text-sm font-medium hover:bg-orange-50 disabled:opacity-50 dark:border-orange-800 dark:text-orange-400 dark:hover:bg-orange-900/20"
                 >
                   {roleChanging ? '…' : 'Cambiar rol'}
                 </button>
@@ -392,7 +392,7 @@ function BulkPointsModal({ onClose }: { onClose: () => void }) {
                 <thead><tr className="bg-muted/30">{['RFC','Pts','Razón','Nombre','Estado'].map(h=><th key={h} className="px-3 py-2 text-left font-medium text-muted-foreground">{h}</th>)}</tr></thead>
                 <tbody>
                   {preview.map(r => (
-                    <tr key={r.line} className={`border-t ${r.error ? 'bg-red-50' : ''}`}>
+                    <tr key={r.line} className={`border-t ${r.error ? 'bg-red-50 dark:bg-red-900/20' : ''}`}>
                       <td className="px-3 py-2 font-mono">{r.rfc}</td>
                       <td className={`px-3 py-2 font-semibold ${r.puntos > 0 ? 'text-green-700' : 'text-red-600'}`}>{r.puntos > 0 ? '+':''}{r.puntos}</td>
                       <td className="px-3 py-2 text-muted-foreground">{r.razon}</td>

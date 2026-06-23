@@ -221,7 +221,7 @@ function PromotionCard({
             </button>
             <button
               onClick={() => onReject(promo)}
-              className="flex-1 py-2 rounded-xl border border-red-200 bg-red-50 text-red-600 text-xs font-semibold hover:bg-red-100 transition-colors"
+              className="flex-1 py-2 rounded-xl border border-red-200 bg-red-50 text-red-600 text-xs font-semibold hover:bg-red-100 transition-colors dark:border-red-800 dark:bg-red-900/20 dark:text-red-400 dark:hover:bg-red-900/30"
             >
               Rechazar
             </button>
@@ -233,7 +233,7 @@ function PromotionCard({
             onClick={() => onToggleFeatured(promo.id, promo.featured)}
             className={`flex-1 py-2 rounded-xl text-xs font-semibold border transition-colors ${
               promo.featured
-                ? 'bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100'
+                ? 'bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-800 dark:hover:bg-amber-900/30'
                 : 'bg-muted text-muted-foreground border-border hover:bg-muted/80'
             }`}
           >
@@ -248,7 +248,7 @@ function PromotionCard({
           <button
             onClick={() => onDelete(promo)}
             title="Eliminar"
-            className="p-2 rounded-xl text-muted-foreground hover:text-red-600 hover:bg-red-50 transition-colors border border-transparent hover:border-red-100"
+            className="p-2 rounded-xl text-muted-foreground hover:text-red-600 hover:bg-red-50 transition-colors border border-transparent hover:border-red-100 dark:hover:text-red-400 dark:hover:bg-red-900/20 dark:hover:border-red-900"
           >
             <Trash2 className="w-3.5 h-3.5" />
           </button>
@@ -301,7 +301,7 @@ function RejectModal({ promo, onClose, onRejected }: {
             value={reason}
             onChange={e => setReason(e.target.value)}
             placeholder="Describe por qué se rechaza esta promoción…"
-            className="w-full px-3 py-2 text-sm border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none"
+            className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none"
           />
         </div>
         {error && <p className="text-xs text-red-600">{error}</p>}
@@ -570,7 +570,7 @@ function EditModal({ promo, onClose, onUpdated }: {
               type="text"
               value={form.title}
               onChange={e => set('title', e.target.value)}
-              className="w-full px-3 py-2 text-sm border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30"
+              className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
             />
           </div>
 
@@ -581,7 +581,7 @@ function EditModal({ promo, onClose, onUpdated }: {
               rows={2}
               value={form.description}
               onChange={e => set('description', e.target.value)}
-              className="w-full px-3 py-2 text-sm border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none"
+              className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none"
             />
           </div>
 
@@ -593,7 +593,7 @@ function EditModal({ promo, onClose, onUpdated }: {
               value={form.destination_url}
               onChange={e => set('destination_url', e.target.value)}
               placeholder="https://…"
-              className="w-full px-3 py-2 text-sm border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30"
+              className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
             />
           </div>
 
@@ -645,7 +645,7 @@ function EditModal({ promo, onClose, onUpdated }: {
                   value={form.geo_states}
                   onChange={e => set('geo_states', e.target.value)}
                   placeholder="Nuevo León, Jalisco"
-                  className="w-full px-3 py-2 text-sm border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
                 />
               </div>
               <div>
@@ -655,7 +655,7 @@ function EditModal({ promo, onClose, onUpdated }: {
                   value={form.geo_cities}
                   onChange={e => set('geo_cities', e.target.value)}
                   placeholder="Monterrey, Guadalajara"
-                  className="w-full px-3 py-2 text-sm border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
                 />
               </div>
             </div>
@@ -898,7 +898,7 @@ function CreateModal({ partners, onClose, onCreated }: {
               value={form.title}
               onChange={e => set('title', e.target.value)}
               placeholder="Nombre de la promoción"
-              className="w-full px-3 py-2 text-sm border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30"
+              className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
             />
           </div>
 
@@ -910,7 +910,7 @@ function CreateModal({ partners, onClose, onCreated }: {
               value={form.description}
               onChange={e => set('description', e.target.value)}
               placeholder="Descripción opcional…"
-              className="w-full px-3 py-2 text-sm border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none"
+              className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none"
             />
           </div>
 
@@ -922,7 +922,7 @@ function CreateModal({ partners, onClose, onCreated }: {
               value={form.destination_url}
               onChange={e => set('destination_url', e.target.value)}
               placeholder="https://…"
-              className="w-full px-3 py-2 text-sm border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30"
+              className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
             />
           </div>
 
@@ -974,7 +974,7 @@ function CreateModal({ partners, onClose, onCreated }: {
                   value={form.geo_states}
                   onChange={e => set('geo_states', e.target.value)}
                   placeholder={MX_STATES[8]}
-                  className="w-full px-3 py-2 text-sm border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
                 />
               </div>
               <div>
@@ -984,7 +984,7 @@ function CreateModal({ partners, onClose, onCreated }: {
                   value={form.geo_cities}
                   onChange={e => set('geo_cities', e.target.value)}
                   placeholder="Monterrey, Guadalajara"
-                  className="w-full px-3 py-2 text-sm border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
                 />
               </div>
             </div>
