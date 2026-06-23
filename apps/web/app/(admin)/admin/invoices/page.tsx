@@ -98,9 +98,9 @@ function EvidenceSection({ invoice, onUpdate }: {
       const { evidenceKey } = await res.json()
       onUpdate(evidenceKey)
       // Fetch signed URL immediately
-      const r2 = await fetch(`/api/admin/invoices/${invoice.id}/evidence`)
-      if (r2.ok) {
-        const d = await r2.json()
+      const urlRes = await fetch(`/api/admin/invoices/${invoice.id}/evidence`)
+      if (urlRes.ok) {
+        const d = await urlRes.json()
         if (d.url) setUrl(d.url)
       }
     } catch (e) {

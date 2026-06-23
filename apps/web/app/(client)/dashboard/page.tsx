@@ -8,7 +8,7 @@ import {
 } from 'lucide-react'
 import { getSession } from '@/lib/auth'
 import { createAdminClient } from '@/lib/supabase'
-import { getSignedDownloadUrl } from '@/lib/r2'
+import { getSignedDownloadUrl } from '@/lib/storage'
 import { NotificationsSection } from './notifications-section'
 
 // ── Tipos ─────────────────────────────────────────────────────

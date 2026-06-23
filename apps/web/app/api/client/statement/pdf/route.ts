@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/lib/auth'
 import { createAdminClient } from '@/lib/supabase'
-import { uploadFile, downloadFileContent, R2_PATHS } from '@/lib/r2'
+import { uploadFile, downloadFileContent, STORAGE_PATHS } from '@/lib/storage'
 import { renderToBuffer } from '@react-pdf/renderer'
 import React from 'react'
 import { StatementDocument, type StatementEntry } from '@/components/pdf/StatementDocument'
@@ -23,13 +23,13 @@ export async function GET(req: NextRequest) {
   const memberId = session.sub
   const supabase = createAdminClient()
 
-  // ── 1. Check R2 cache ───────────────────────────────────────
-  const r2Key = R2_PATHS.statement(memberId, month)
+  // ── 1. Check Storage cache ──────────────────────────────────
+  const storageKey = STORAGE_PATHS.statement(memberId, month)
   const fresh = !from && !to // only cache the "current month" view
 
-  if (fresh && process.env.R2_ACCOUNT_ID) {
+  if (fresh) {
     try {
-      const cached = await downloadFileContent(r2Key)
+      const cached = await downloadFileContent(storageKey)
       if (cached) {
         return new Response(new Uint8Array(cached), {
           headers: {
@@ -41,7 +41,7 @@ export async function GET(req: NextRequest) {
         })
       }
     } catch {
-      // R2 lookup failed — fall through to generation
+      // lookup failed — fall through to generation
     }
   }
 
@@ -88,10 +88,10 @@ export async function GET(req: NextRequest) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const buffer = await renderToBuffer(docElement as any)
 
-  // ── 4. Upload to R2 (async, non-blocking) ──────────────────
-  if (fresh && process.env.R2_ACCOUNT_ID) {
-    uploadFile(r2Key, buffer, 'application/pdf').catch(err =>
-      console.error('[statement-pdf] Error al cachear en R2:', err)
+  // ── 4. Cache en Storage (async, non-blocking) ──────────────
+  if (fresh) {
+    uploadFile(storageKey, buffer, 'application/pdf').catch(err =>
+      console.error('[statement-pdf] Error al cachear en Storage:', err)
     )
   }
 

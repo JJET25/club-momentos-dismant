@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/lib/auth'
 import { createAdminClient } from '@/lib/supabase'
-import { getSignedDownloadUrl } from '@/lib/r2'
+import { getSignedDownloadUrl } from '@/lib/storage'
 
 export async function GET(
   _req: NextRequest,

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/lib/auth'
 import { MANAGER_ROLES } from '@/lib/permissions'
 import { createAdminClient } from '@/lib/supabase'
-import { uploadFile, getSignedDownloadUrl, R2_PATHS } from '@/lib/r2'
+import { uploadFile, getSignedDownloadUrl, STORAGE_PATHS } from '@/lib/storage'
 
 const MAX_BYTES    = 5 * 1024 * 1024
 const ALLOWED_MIME = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
@@ -87,13 +87,13 @@ export async function POST(
   }
 
   const ext = extFromMime(file.type)
-  const key = R2_PATHS.promotionBanner(id, ext)
+  const key = STORAGE_PATHS.promotionBanner(id, ext)
 
   try {
     const buffer = Buffer.from(await file.arrayBuffer())
     await uploadFile(key, buffer, file.type)
   } catch (err) {
-    console.error('[banner] Error al subir a R2:', err)
+    console.error('[banner] Error al subir a Storage:', err)
     return NextResponse.json({ error: 'Error al subir la imagen' }, { status: 500 })
   }
 

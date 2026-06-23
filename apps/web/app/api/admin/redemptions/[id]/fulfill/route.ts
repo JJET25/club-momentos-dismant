@@ -4,7 +4,7 @@ import { getSession } from '@/lib/auth'
 import { createAdminClient } from '@/lib/supabase'
 import { STAFF_ROLES } from '@/lib/permissions'
 import { sendEmail, buildPrizeDeliveredEmail, buildShippingNotificationEmail, buildPhysicalDeliveredEmail } from '@/lib/resend'
-import { downloadFileContent } from '@/lib/r2'
+import { downloadFileContent } from '@/lib/storage'
 import path from 'path'
 
 export async function PATCH(
@@ -117,7 +117,7 @@ export async function PATCH(
 
     if (member?.email) {
       if (sku?.is_digital) {
-        // Descarga el archivo de R2 para adjuntarlo si existe
+        // Descarga el archivo de Storage para adjuntarlo si existe
         let attachments: Array<{ filename: string; content: string }> = []
         let fileName: string | undefined
 

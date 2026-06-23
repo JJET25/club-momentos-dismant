@@ -2,16 +2,12 @@ import { MANAGER_ROLES } from '@/lib/permissions'
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/lib/auth'
 import { createAdminClient } from '@/lib/supabase'
-import { uploadFile, R2_PATHS } from '@/lib/r2'
+import { uploadFile, getSignedDownloadUrl, STORAGE_PATHS } from '@/lib/storage'
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSession()
   if (!session || !MANAGER_ROLES.includes(session.role as never)) {
     return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
-  }
-
-  if (!process.env.R2_ACCOUNT_ID || !process.env.R2_ACCESS_KEY_ID) {
-    return NextResponse.json({ error: 'Almacenamiento R2 no configurado' }, { status: 503 })
   }
 
   const { id } = await params
@@ -25,20 +21,21 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     return NextResponse.json({ error: 'Solo se permiten imágenes JPG, PNG o WebP' }, { status: 400 })
   }
 
-  const MAX_SIZE = 5 * 1024 * 1024 // 5MB
+  const MAX_SIZE = 5 * 1024 * 1024
   if (file.size > MAX_SIZE) {
     return NextResponse.json({ error: 'La imagen no puede superar 5MB' }, { status: 400 })
   }
 
   const buffer = Buffer.from(await file.arrayBuffer())
-  const key = R2_PATHS.rewardCover(id)
+  const key = STORAGE_PATHS.rewardCover(id)
 
   await uploadFile(key, buffer, file.type)
 
-  const publicUrl = `${process.env.R2_PUBLIC_URL}/${key}`
+  // URL firmada con vigencia de 10 años — prácticamente permanente para imágenes de catálogo
+  const imageUrl = await getSignedDownloadUrl(key, 60 * 60 * 24 * 365 * 10)
 
   const supabase = createAdminClient()
-  await supabase.from('reward_skus').update({ image_url: publicUrl }).eq('id', id)
+  await supabase.from('reward_skus').update({ image_url: imageUrl }).eq('id', id)
 
-  return NextResponse.json({ image_url: publicUrl })
+  return NextResponse.json({ image_url: imageUrl })
 }

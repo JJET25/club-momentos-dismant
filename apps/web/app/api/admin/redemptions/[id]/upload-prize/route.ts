@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/lib/auth'
 import { STAFF_ROLES } from '@/lib/permissions'
-import { uploadFile, R2_PATHS } from '@/lib/r2'
+import { uploadFile, STORAGE_PATHS } from '@/lib/storage'
 
 const MAX_BYTES = 10 * 1024 * 1024 // 10 MB
 
@@ -73,14 +73,14 @@ export async function POST(
   }
 
   const ext    = extFromMime(mimeType)
-  const key    = R2_PATHS.prizeFile(id, ext)
+  const key    = STORAGE_PATHS.prizeFile(id, ext)
   const buffer = Buffer.from(await file.arrayBuffer())
 
   try {
     await uploadFile(key, buffer, mimeType)
   } catch (err) {
-    console.error('[upload-prize] R2 upload error:', err)
-    return NextResponse.json({ error: 'Error al subir el archivo al almacenamiento. Verifica las credenciales de R2.' }, { status: 500 })
+    console.error('[upload-prize] Storage upload error:', err)
+    return NextResponse.json({ error: 'Error al subir el archivo al almacenamiento.' }, { status: 500 })
   }
 
   return NextResponse.json({ key, filename: file.name, size: file.size, type: mimeType })

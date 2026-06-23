@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import crypto from 'crypto'
 import { getSession } from '@/lib/auth'
 import { createAdminClient } from '@/lib/supabase'
-import { uploadFile, R2_PATHS } from '@/lib/r2'
+import { uploadFile, STORAGE_PATHS } from '@/lib/storage'
 import { parseCFDIXml, calculatePoints, isInvoiceWithinPeriod, isValidCFDIUUID } from '@/lib/utils'
 import { enqueueInvoiceValidation } from '@/lib/queue'
 
@@ -84,19 +84,16 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Esta factura ya fue registrada anteriormente.' }, { status: 409 })
   }
 
-  // Subir XML a R2 (si está configurado)
+  // Subir XML a Supabase Storage (error no bloquea el registro)
   const xmlBuffer = Buffer.from(xmlText, 'utf-8')
-  const r2Key = R2_PATHS.invoice(memberId, cfdi.uuid)
+  const storageKey = STORAGE_PATHS.invoice(memberId, cfdi.uuid)
   let xmlStorageKey: string | null = null
 
-  if (process.env.R2_ACCOUNT_ID) {
-    try {
-      await uploadFile(r2Key, xmlBuffer, 'application/xml')
-      xmlStorageKey = r2Key
-    } catch (err) {
-      console.error('[invoices] Error al subir XML a R2:', err)
-      // No bloqueamos el flujo si R2 falla
-    }
+  try {
+    await uploadFile(storageKey, xmlBuffer, 'application/xml')
+    xmlStorageKey = storageKey
+  } catch (err) {
+    console.error('[invoices] Error al subir XML a Storage:', err)
   }
 
   // Calcular puntos estimados

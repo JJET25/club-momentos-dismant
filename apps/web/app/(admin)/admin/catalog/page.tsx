@@ -348,7 +348,7 @@ function SkuFormModal({ sku, onClose, onSaved }: {
               className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) setImageFile(f) }}
             />
             <p className="text-xs text-muted-foreground mt-1">
-              Pega una URL o sube un archivo JPG/PNG/WebP (máx 5MB). R2 debe estar configurado para subir archivos.
+              Pega una URL o sube un archivo JPG/PNG/WebP (máx 5MB).
             </p>
           </div>
 
