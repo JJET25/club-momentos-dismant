@@ -84,8 +84,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (member?.email) {
     const brandName = getBrand(member.affiliate).name
     sendEmail({
-      to:      member.email,
-      subject: `Tu factura no pudo ser procesada — ${brandName}`,
+      to:        member.email,
+      subject:   `Tu factura no pudo ser procesada — ${brandName}`,
+      affiliate: member.affiliate,
       html:    buildInvoiceRejectedEmail({
         userName:  member.full_name,
         uuidCfdi:  invoice.uuid_cfdi,

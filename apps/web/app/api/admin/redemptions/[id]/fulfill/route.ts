@@ -77,9 +77,10 @@ export async function PATCH(
 
     if (member?.email) {
       sendEmail({
-        to: member.email,
-        subject: `Tu premio está en camino: ${sku?.name}`,
-        html: buildShippingNotificationEmail({
+        to:        member.email,
+        subject:   `Tu premio está en camino: ${sku?.name}`,
+        affiliate: member.affiliate,
+        html:      buildShippingNotificationEmail({
           userName: member.full_name, skuName: sku?.name ?? 'Premio',
           carrier: shipping_info.carrier, trackingNumber: shipping_info.tracking_number,
           trackingUrl: shipping_info.tracking_url, estimatedDate: shipping_info.estimated_date,
@@ -135,9 +136,10 @@ export async function PATCH(
         }
 
         sendEmail({
-          to: member.email,
-          subject: `¡Tu premio fue entregado! ${sku?.name}`,
-          html: buildPrizeDeliveredEmail({
+          to:        member.email,
+          subject:   `¡Tu premio fue entregado! ${sku?.name}`,
+          affiliate: member.affiliate,
+          html:      buildPrizeDeliveredEmail({
             userName: member.full_name, skuName: sku?.name ?? 'Premio',
             prizeContent: prize_content?.trim(), hasFile: attachments.length > 0,
             fileName, isDigital: true, voucherCode: redemption.voucher_code,
@@ -148,9 +150,10 @@ export async function PATCH(
       } else {
         // Físico: mensaje simple de entrega confirmada
         sendEmail({
-          to: member.email,
-          subject: `¡Tu premio fue entregado! ${sku?.name}`,
-          html: buildPhysicalDeliveredEmail({
+          to:        member.email,
+          subject:   `¡Tu premio fue entregado! ${sku?.name}`,
+          affiliate: member.affiliate,
+          html:      buildPhysicalDeliveredEmail({
             userName: member.full_name, skuName: sku?.name ?? 'Premio',
             voucherCode: redemption.voucher_code,
             affiliate: member.affiliate,

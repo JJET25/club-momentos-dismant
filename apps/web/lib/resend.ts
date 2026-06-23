@@ -7,26 +7,32 @@ function getResend(): Resend {
   return _resend
 }
 
-const FROM_NAME = process.env.RESEND_FROM_NAME ?? 'Club Momentos'
-
 interface Attachment {
   filename: string
   content: string  // base64
 }
 
 interface SendEmailOptions {
-  to: string
-  subject: string
-  html: string
-  text?: string
+  to:           string
+  subject:      string
+  html:         string
+  text?:        string
   attachments?: Attachment[]
+  affiliate?:   string
+}
+
+function getFromAddress(affiliate?: string): string {
+  const cfg = AFFILIATE_CONFIG[affiliate ?? 'dismant'] ?? AFFILIATE_CONFIG.dismant
+  const emailKey = affiliate === 'lauti'
+    ? (process.env.RESEND_FROM_EMAIL_LAUTI ?? process.env.RESEND_FROM_EMAIL!)
+    : (process.env.RESEND_FROM_EMAIL_DISMANT ?? process.env.RESEND_FROM_EMAIL!)
+  return `${cfg.clubName} <${emailKey}>`
 }
 
 /** Envía un email transaccional via Resend */
-export async function sendEmail({ to, subject, html, text, attachments }: SendEmailOptions) {
-  const from = process.env.RESEND_FROM_EMAIL!
+export async function sendEmail({ to, subject, html, text, attachments, affiliate }: SendEmailOptions) {
   const { data, error } = await getResend().emails.send({
-    from: `${FROM_NAME} <${from}>`,
+    from: getFromAddress(affiliate),
     to,
     subject,
     html,

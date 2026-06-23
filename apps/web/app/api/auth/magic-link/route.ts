@@ -26,9 +26,10 @@ export async function POST(req: NextRequest) {
   if (process.env.RESEND_API_KEY) {
     try {
       await sendEmail({
-        to: member.email,
-        subject: `Tu enlace de acceso — ${getBrand((member as { affiliate?: string }).affiliate).name}`,
-        html: buildMagicLinkEmail(magicLink, member.full_name, (member as { affiliate?: string }).affiliate),
+        to:        member.email,
+        subject:   `Tu enlace de acceso — ${getBrand((member as { affiliate?: string }).affiliate).name}`,
+        html:      buildMagicLinkEmail(magicLink, member.full_name, (member as { affiliate?: string }).affiliate),
+        affiliate: (member as { affiliate?: string }).affiliate,
       })
     } catch {
       // Dominio no verificado o error de Resend en dev — mostrar en consola

@@ -23,9 +23,10 @@ export async function POST(req: NextRequest) {
   if (process.env.RESEND_API_KEY) {
     try {
       await sendEmail({
-        to: email,
-        subject: `Tu código de verificación — ${brandName}`,
-        html: buildOTPEmail(code, name, affiliate),
+        to:        email,
+        subject:   `Tu código de verificación — ${brandName}`,
+        html:      buildOTPEmail(code, name, affiliate),
+        affiliate,
       })
     } catch {
       // Dominio no verificado o error de Resend en dev — mostrar en consola

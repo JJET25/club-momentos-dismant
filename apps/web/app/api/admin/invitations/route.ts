@@ -68,13 +68,14 @@ export async function POST(req: NextRequest) {
 
   if (process.env.RESEND_API_KEY) {
     await sendEmail({
-      to: normalizedEmail,
-      subject: `${session.name} te invita al ${clubName}`,
-      html: buildInvitationEmail({
+      to:        normalizedEmail,
+      subject:   `${session.name} te invita al ${clubName}`,
+      affiliate: normalizedAffiliate,
+      html:      buildInvitationEmail({
         inviteLink,
         recipientName: recipientName?.trim() || undefined,
-        senderName: session.name,
-        affiliate: normalizedAffiliate,
+        senderName:    session.name,
+        affiliate:     normalizedAffiliate,
       }),
     })
   } else {

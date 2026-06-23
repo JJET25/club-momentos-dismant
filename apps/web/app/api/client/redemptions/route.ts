@@ -128,9 +128,10 @@ export async function POST(req: NextRequest) {
 
   // 8. Email de confirmación (no bloqueante)
   sendEmail({
-    to:      session.email,
-    subject: `¡Canje exitoso! ${sku.name}`,
-    html:    buildVoucherEmail({
+    to:        session.email,
+    subject:   `¡Canje exitoso! ${sku.name}`,
+    affiliate: session.affiliate,
+    html:      buildVoucherEmail({
       userName:    session.name,
       skuName:     sku.name,
       voucherCode,
