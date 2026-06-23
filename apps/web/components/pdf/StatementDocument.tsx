@@ -29,6 +29,8 @@ export interface StatementDocumentProps {
   balance:      number
   periodLabel:  string
   generatedAt:  string
+  brandName:    string
+  brandInitial: string
 }
 
 Font.register({
@@ -107,24 +109,24 @@ const s = StyleSheet.create({
 })
 
 export function StatementDocument({
-  entries, member, balance, periodLabel, generatedAt,
+  entries, member, balance, periodLabel, generatedAt, brandName, brandInitial,
 }: StatementDocumentProps) {
   const initialBalance = entries.length > 0
     ? entries[entries.length - 1].balance_after - entries[entries.length - 1].points
     : balance
 
   return (
-    <Document title={`Estado de Cuenta — ${member.rfc}`} author="Club Momentos Dismant">
+    <Document title={`Estado de Cuenta — ${member.rfc}`} author={brandName}>
       <Page size="A4" style={s.page}>
 
         {/* Header */}
         <View style={s.header}>
           <View style={{ flexDirection: 'row', gap: 10 }}>
             <View style={s.logoBox}>
-              <Text style={s.logoText}>D</Text>
+              <Text style={s.logoText}>{brandInitial}</Text>
             </View>
             <View>
-              <Text style={s.brand}>Club Momentos Dismant</Text>
+              <Text style={s.brand}>{brandName}</Text>
               <Text style={s.brandSub}>Estado de Cuenta de Puntos</Text>
             </View>
           </View>
@@ -195,7 +197,7 @@ export function StatementDocument({
         {/* Footer */}
         <View style={s.footer}>
           <Text>
-            Club Momentos Dismant — Documento generado automáticamente.
+            {brandName} — Documento generado automáticamente.
             Los puntos tienen trazabilidad completa ante cada movimiento.
           </Text>
         </View>

@@ -12,7 +12,7 @@ export async function GET() {
   const supabase = createAdminClient()
   const { data, error } = await supabase
     .from('members')
-    .select('id, full_name, email, company_name, rfc, location_state, location_city, phone, created_at')
+    .select('id, full_name, email, company_name, rfc, location_state, location_city, phone, created_at, affiliate')
     .eq('id', session.sub)
     .single()
 
@@ -50,7 +50,7 @@ export async function PATCH(req: NextRequest) {
     .from('members')
     .update(update)
     .eq('id', session.sub)
-    .select('id, full_name, email, company_name, rfc, location_state, location_city, phone, created_at')
+    .select('id, full_name, email, company_name, rfc, location_state, location_city, phone, created_at, affiliate')
     .single()
 
   if (error || !data) {

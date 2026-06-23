@@ -5,6 +5,7 @@ import { getSession } from '@/lib/auth'
 import { createAdminClient } from '@/lib/supabase'
 import { sendEmail, buildInvoiceApprovedEmail } from '@/lib/resend'
 import { sendPushNotification } from '@/lib/firebase-admin'
+import { getBrand } from '@/lib/brand'
 
 
 export async function POST(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -21,7 +22,7 @@ export async function POST(_: NextRequest, { params }: { params: Promise<{ id: s
     .from('invoices')
     .select(`
       id, member_id, points_generated, status, uuid_cfdi, total_mxn,
-      members!member_id ( id, full_name, email, fcm_token )
+      members!member_id ( id, full_name, email, fcm_token, affiliate )
     `)
     .eq('id', invoiceId)
     .single()
@@ -33,7 +34,7 @@ export async function POST(_: NextRequest, { params }: { params: Promise<{ id: s
     return NextResponse.json({ error: 'Solo se pueden aprobar facturas pendientes' }, { status: 409 })
   }
 
-  const member = (invoice.members as unknown) as { id: string; full_name: string; email: string; fcm_token: string | null } | null
+  const member = (invoice.members as unknown) as { id: string; full_name: string; email: string; fcm_token: string | null; affiliate?: string } | null
   const points = invoice.points_generated ?? 0
 
   // Saldo actual del miembro
@@ -120,15 +121,17 @@ export async function POST(_: NextRequest, { params }: { params: Promise<{ id: s
 
   // 3. Email
   if (member?.email) {
+    const brandName = getBrand(member.affiliate).name
     sendEmail({
       to:      member.email,
-      subject: '✅ Tu factura fue validada — Club Momentos Dismant',
+      subject: `✅ Tu factura fue validada — ${brandName}`,
       html:    buildInvoiceApprovedEmail({
         userName:   member.full_name,
         uuidCfdi:   invoice.uuid_cfdi,
         totalMxn:   invoice.total_mxn,
         points,
         newBalance,
+        affiliate:  member.affiliate,
       }),
     }).catch(console.error)
   }

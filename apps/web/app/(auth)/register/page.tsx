@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { isValidRFC } from '@/lib/utils'
 import { MEXICAN_STATES } from '@dismant/types'
+import { getBrand } from '@/lib/brand'
 
 // ── Tipos ────────────────────────────────────────────────────
 
@@ -416,7 +417,7 @@ function Step3({
           <span className="text-sm text-foreground">
             Acepto los{' '}
             <a href="#" className="text-brand-600 hover:underline">Términos y Condiciones</a>
-            {' '}del programa Club Momentos Dismant *
+            {' '}del programa Club Momentos *
           </span>
         </label>
         {errors.acceptTerms && <p className="text-danger text-xs">{errors.acceptTerms}</p>}
@@ -546,11 +547,8 @@ function RegisterContent() {
     router.push('/welcome')
   }
 
-  const AFFILIATE_META: Record<string, { clubName: string; initial: string }> = {
-    dismant: { clubName: 'Club Momentos Dismant', initial: 'D' },
-    lauti:   { clubName: 'Club Momentos Lauti',   initial: 'L' },
-  }
-  const affiliateMeta = AFFILIATE_META[affiliate] ?? AFFILIATE_META.dismant
+  const brand = getBrand(affiliate)
+  const affiliateMeta = { clubName: brand.name, initial: brand.initial }
 
   const titles = ['Crea tu cuenta', 'Verifica tu correo', 'Configura tu perfil']
 

@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef } from 'react'
 import { useSearchParams } from 'next/navigation'
+import { getBrand } from '@/lib/brand'
 
 interface Entry {
   id:           string
@@ -15,7 +16,7 @@ interface Entry {
 
 interface StatementData {
   entries:        Entry[]
-  member:         { full_name: string; rfc: string; company_name: string; email: string }
+  member:         { full_name: string; rfc: string; company_name: string; email: string; affiliate?: string }
   balance:        number
   periodLabel:    string
   generatedAt:    string
@@ -59,7 +60,7 @@ function StatementPDFContent() {
 
         setData({
           entries:     stmt.entries,
-          member:      prof.profile,
+          member:      { ...prof.profile, affiliate: prof.profile.affiliate },
           balance:     stmt.balance,
           periodLabel: label,
           generatedAt: new Date().toLocaleString('es-MX'),
@@ -83,6 +84,8 @@ function StatementPDFContent() {
     ? data.entries[data.entries.length - 1].balance_after - data.entries[data.entries.length - 1].points
     : data.balance
 
+  const brand = getBrand(data.member.affiliate)
+
   return (
     <div className="min-h-screen bg-white text-gray-900 font-sans text-sm" style={{ padding: '40px 48px' }}>
       {/* Encabezado */}
@@ -93,9 +96,9 @@ function StatementPDFContent() {
               width: 36, height: 36, borderRadius: 8, background: '#2563eb',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               color: 'white', fontWeight: 700, fontSize: 16,
-            }}>D</div>
+            }}>{brand.initial}</div>
             <div>
-              <p style={{ fontWeight: 700, fontSize: 16, margin: 0 }}>Club Momentos Dismant</p>
+              <p style={{ fontWeight: 700, fontSize: 16, margin: 0 }}>{brand.name}</p>
               <p style={{ color: '#6b7280', fontSize: 12, margin: 0 }}>Estado de Cuenta de Puntos</p>
             </div>
           </div>
@@ -183,7 +186,7 @@ function StatementPDFContent() {
 
       {/* Pie */}
       <div style={{ marginTop: 32, borderTop: '1px solid #e5e7eb', paddingTop: 16, color: '#9ca3af', fontSize: 10 }}>
-        <p style={{ margin: 0 }}>Club Momentos Dismant — Documento generado automáticamente. Los puntos tienen trazabilidad completa ante cada movimiento.</p>
+        <p style={{ margin: 0 }}>{brand.name} — Documento generado automáticamente. Los puntos tienen trazabilidad completa ante cada movimiento.</p>
       </div>
 
       <style>{`@media print { @page { margin: 20mm; } body { print-color-adjust: exact; } }`}</style>

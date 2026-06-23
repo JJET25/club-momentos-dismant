@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
   }
 
   if (member.status === 'suspended') {
-    return NextResponse.json({ error: 'Cuenta suspendida. Contacta a Dismant.' }, { status: 403 })
+    return NextResponse.json({ error: 'Cuenta suspendida. Contacta a tu ejecutivo de cuenta.' }, { status: 403 })
   }
 
   await supabase

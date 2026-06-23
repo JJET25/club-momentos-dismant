@@ -258,7 +258,7 @@ export default function TeamPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Equipo</h1>
-          <p className="text-muted-foreground text-sm mt-1">Gestiona las cuentas del equipo interno de Dismant</p>
+          <p className="text-muted-foreground text-sm mt-1">Gestiona las cuentas del equipo interno</p>
         </div>
         {me?.role === 'owner' && (
           <button

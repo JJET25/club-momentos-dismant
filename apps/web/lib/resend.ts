@@ -7,7 +7,7 @@ function getResend(): Resend {
   return _resend
 }
 
-const FROM_NAME = process.env.RESEND_FROM_NAME ?? 'Club Momentos Dismant'
+const FROM_NAME = process.env.RESEND_FROM_NAME ?? 'Club Momentos'
 
 interface Attachment {
   filename: string
@@ -45,10 +45,11 @@ export async function sendEmail({ to, subject, html, text, attachments }: SendEm
 // ── Plantillas de email ──────────────────────────────────────
 
 /** OTP de acceso al sistema */
-export function buildOTPEmail(code: string, userName?: string): string {
+export function buildOTPEmail(code: string, userName?: string, affiliate?: string): string {
+  const cfg = AFFILIATE_CONFIG[affiliate ?? 'dismant'] ?? AFFILIATE_CONFIG.dismant
   return `
     <div style="font-family: Inter, sans-serif; max-width: 500px; margin: 0 auto; padding: 32px;">
-      <img src="${process.env.NEXT_PUBLIC_APP_URL}/logo.png" alt="Club Momentos Dismant" height="40" />
+      <img src="${process.env.NEXT_PUBLIC_APP_URL}/logo.png" alt="${cfg.clubName}" height="40" />
       <h2 style="margin-top: 24px; color: #1e3a8a;">Tu código de acceso</h2>
       ${userName ? `<p>Hola ${userName},</p>` : ''}
       <p>Usa este código para ingresar a tu cuenta. Expira en <strong>10 minutos</strong>.</p>
@@ -71,7 +72,9 @@ export function buildInvoiceApprovedEmail(params: {
   totalMxn:   number
   points:     number
   newBalance: number
+  affiliate?: string
 }): string {
+  const cfg = AFFILIATE_CONFIG[params.affiliate ?? 'dismant'] ?? AFFILIATE_CONFIG.dismant
   const fmtMxn = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(params.totalMxn)
   const fmtPts = (n: number) => n.toLocaleString('es-MX')
   return `
@@ -80,7 +83,7 @@ export function buildInvoiceApprovedEmail(params: {
         <div style="display: inline-flex; align-items: center; justify-content: center; width: 64px; height: 64px; background: #16a34a; border-radius: 16px;">
           <span style="font-size: 30px;">✅</span>
         </div>
-        <h1 style="margin-top: 12px; font-size: 20px; color: #1e3a8a; margin-bottom: 0;">Club Momentos Dismant</h1>
+        <h1 style="margin-top: 12px; font-size: 20px; color: ${cfg.colorDark}; margin-bottom: 0;">${cfg.clubName}</h1>
       </div>
 
       <h2 style="color: #15803d; margin-bottom: 8px;">Factura validada exitosamente</h2>
@@ -118,7 +121,7 @@ export function buildInvoiceApprovedEmail(params: {
       </div>
 
       <p style="color: #9ca3af; font-size: 12px; text-align: center;">
-        Club Momentos Dismant · Si tienes dudas, contacta a tu ejecutivo de cuenta.
+        ${cfg.clubName} · Si tienes dudas, contacta a tu ejecutivo de cuenta.
       </p>
     </div>
   `
@@ -126,10 +129,12 @@ export function buildInvoiceApprovedEmail(params: {
 
 /** Notificación de factura rechazada */
 export function buildInvoiceRejectedEmail(params: {
-  userName: string
-  uuidCfdi: string
-  reason: string
+  userName:   string
+  uuidCfdi:   string
+  reason:     string
+  affiliate?: string
 }): string {
+  const cfg = AFFILIATE_CONFIG[params.affiliate ?? 'dismant'] ?? AFFILIATE_CONFIG.dismant
   return `
     <div style="font-family: Inter, sans-serif; max-width: 500px; margin: 0 auto; padding: 32px;">
       <h2 style="color: #dc2626;">❌ Factura no procesada</h2>
@@ -139,7 +144,7 @@ export function buildInvoiceRejectedEmail(params: {
         <p style="margin: 4px 0;"><strong>Folio:</strong> ${params.uuidCfdi.slice(0, 8)}...</p>
         <p style="margin: 4px 0;"><strong>Razón:</strong> ${params.reason}</p>
       </div>
-      <p>Si tienes dudas, contacta a tu ejecutivo de cuenta en Dismant.</p>
+      <p>Si tienes dudas, contacta a tu ejecutivo de cuenta en ${cfg.brand}.</p>
     </div>
   `
 }
@@ -220,14 +225,15 @@ export function buildInvitationEmail(params: {
 }
 
 /** Magic Link de acceso */
-export function buildMagicLinkEmail(magicLink: string, userName?: string): string {
+export function buildMagicLinkEmail(magicLink: string, userName?: string, affiliate?: string): string {
+  const cfg = AFFILIATE_CONFIG[affiliate ?? 'dismant'] ?? AFFILIATE_CONFIG.dismant
   return `
     <div style="font-family: Inter, sans-serif; max-width: 500px; margin: 0 auto; padding: 32px;">
       <div style="text-align: center; margin-bottom: 24px;">
-        <div style="display: inline-flex; align-items: center; justify-content: center; width: 64px; height: 64px; background: #2563eb; border-radius: 16px;">
-          <span style="font-size: 28px; font-weight: 700; color: white;">D</span>
+        <div style="display: inline-flex; align-items: center; justify-content: center; width: 64px; height: 64px; background: ${cfg.color}; border-radius: 16px;">
+          <span style="font-size: 28px; font-weight: 700; color: white;">${cfg.initial}</span>
         </div>
-        <h1 style="margin-top: 12px; font-size: 20px; color: #1e3a8a;">Club Momentos Dismant</h1>
+        <h1 style="margin-top: 12px; font-size: 20px; color: ${cfg.colorDark};">${cfg.clubName}</h1>
       </div>
       <h2 style="color: #111827;">Tu enlace de acceso</h2>
       ${userName ? `<p>Hola ${userName},</p>` : ''}
@@ -247,14 +253,16 @@ export function buildMagicLinkEmail(magicLink: string, userName?: string): strin
 
 /** Confirmación de canje + voucher */
 export function buildVoucherEmail(params: {
-  userName:    string
-  skuName:     string
-  voucherCode: string
-  pointsSpent: number
-  newBalance:  number
-  isDigital:   boolean
+  userName:     string
+  skuName:      string
+  voucherCode:  string
+  pointsSpent:  number
+  newBalance:   number
+  isDigital:    boolean
   digitalCode?: string
+  affiliate?:   string
 }): string {
+  const cfg = AFFILIATE_CONFIG[params.affiliate ?? 'dismant'] ?? AFFILIATE_CONFIG.dismant
   const fmtPts = (n: number) => n.toLocaleString('es-MX')
   const instructionHtml = params.isDigital && params.digitalCode
     ? `<div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:20px;margin:20px 0;text-align:center;">
@@ -264,7 +272,7 @@ export function buildVoucherEmail(params: {
        </div>`
     : `<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:16px;margin:20px 0;">
         <p style="margin:0 0 6px;font-size:13px;color:#374151;font-weight:600;">¿Cómo recibir tu premio?</p>
-        <p style="margin:0;font-size:13px;color:#374151;line-height:1.6;">Presenta el código de referencia a tu ejecutivo de Dismant.
+        <p style="margin:0;font-size:13px;color:#374151;line-height:1.6;">Presenta el código de referencia a tu ejecutivo de ${cfg.brand}.
         Él gestionará la entrega de tu premio.</p>
        </div>`
 
@@ -308,7 +316,7 @@ export function buildVoucherEmail(params: {
       </div>
 
       <p style="color:#9ca3af;font-size:12px;text-align:center;">
-        Club Momentos Dismant · Guarda este correo como comprobante de tu canje.
+        ${cfg.clubName} · Guarda este correo como comprobante de tu canje.
       </p>
     </div>
   `
@@ -323,7 +331,9 @@ export function buildPrizeDeliveredEmail(params: {
   fileName?:     string
   isDigital:     boolean
   voucherCode:   string
+  affiliate?:    string
 }): string {
+  const cfg = AFFILIATE_CONFIG[params.affiliate ?? 'dismant'] ?? AFFILIATE_CONFIG.dismant
   const codeBlock = params.prizeContent
     ? `<div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:12px;padding:24px;margin:24px 0;text-align:center;">
         <p style="margin:0 0 8px;font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:1.5px;font-weight:600;">Tu código / acceso</p>
@@ -359,7 +369,7 @@ export function buildPrizeDeliveredEmail(params: {
         <h1 style="margin-top:12px;font-size:20px;color:#1e3a8a;margin-bottom:0;">¡Tu premio está listo!</h1>
       </div>
       <p style="color:#374151;">Hola <strong>${params.userName}</strong>,</p>
-      <p style="color:#374151;line-height:1.6;">Tu ejecutivo de Dismant procesó la entrega de <strong>${params.skuName}</strong>.</p>
+      <p style="color:#374151;line-height:1.6;">Tu ejecutivo de ${cfg.brand} procesó la entrega de <strong>${params.skuName}</strong>.</p>
       ${codeBlock}${fileBlock}${fallback}
       <div style="background:#f8fafc;border-radius:10px;padding:14px;margin:20px 0;text-align:center;">
         <p style="margin:0 0 4px;font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:1px;">Referencia del canje</p>
@@ -371,7 +381,7 @@ export function buildPrizeDeliveredEmail(params: {
           Ver mis canjes →
         </a>
       </div>
-      <p style="color:#9ca3af;font-size:12px;text-align:center;">Club Momentos Dismant · Guarda este correo como comprobante.</p>
+      <p style="color:#9ca3af;font-size:12px;text-align:center;">${cfg.clubName} · Guarda este correo como comprobante.</p>
     </div>
   `
 }
@@ -381,7 +391,9 @@ export function buildPhysicalDeliveredEmail(params: {
   userName:    string
   skuName:     string
   voucherCode: string
+  affiliate?:  string
 }): string {
+  const cfg = AFFILIATE_CONFIG[params.affiliate ?? 'dismant'] ?? AFFILIATE_CONFIG.dismant
   return `
     <div style="font-family:Inter,sans-serif;max-width:520px;margin:0 auto;padding:32px;background:#fff;">
       <div style="text-align:center;margin-bottom:24px;">
@@ -392,11 +404,11 @@ export function buildPhysicalDeliveredEmail(params: {
       </div>
       <p style="color:#374151;">Hola <strong>${params.userName}</strong>,</p>
       <p style="color:#374151;line-height:1.6;">
-        Tu ejecutivo de Dismant ha confirmado que tu premio <strong>${params.skuName}</strong> fue entregado exitosamente.
+        Tu ejecutivo de ${cfg.brand} ha confirmado que tu premio <strong>${params.skuName}</strong> fue entregado exitosamente.
       </p>
       <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:20px;margin:24px 0;">
         <p style="margin:0;font-size:14px;color:#166534;line-height:1.6;">
-          Si tienes alguna duda sobre tu entrega, comunícate directamente con tu ejecutivo de cuenta en Dismant.
+          Si tienes alguna duda sobre tu entrega, comunícate directamente con tu ejecutivo de cuenta en ${cfg.brand}.
         </p>
       </div>
       <div style="background:#f8fafc;border-radius:10px;padding:14px;margin:20px 0;text-align:center;">
@@ -409,7 +421,7 @@ export function buildPhysicalDeliveredEmail(params: {
           Ver mis canjes →
         </a>
       </div>
-      <p style="color:#9ca3af;font-size:12px;text-align:center;">Club Momentos Dismant · Gracias por confiar en nosotros.</p>
+      <p style="color:#9ca3af;font-size:12px;text-align:center;">${cfg.clubName} · Gracias por confiar en nosotros.</p>
     </div>
   `
 }
@@ -422,7 +434,9 @@ export function buildShippingNotificationEmail(params: {
   trackingNumber: string
   trackingUrl?:   string
   estimatedDate?: string
+  affiliate?:     string
 }): string {
+  const cfg = AFFILIATE_CONFIG[params.affiliate ?? 'dismant'] ?? AFFILIATE_CONFIG.dismant
   const trackingBlock = params.trackingUrl
     ? `<div style="text-align:center;margin:16px 0;">
         <a href="${params.trackingUrl}"
@@ -475,7 +489,7 @@ export function buildShippingNotificationEmail(params: {
       </div>
 
       <p style="color:#9ca3af;font-size:12px;text-align:center;">
-        Club Momentos Dismant · Si tienes dudas sobre tu envío, contacta a tu ejecutivo.
+        ${cfg.clubName} · Si tienes dudas sobre tu envío, contacta a tu ejecutivo.
       </p>
     </div>
   `

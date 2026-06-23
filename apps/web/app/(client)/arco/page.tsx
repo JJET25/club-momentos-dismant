@@ -112,7 +112,7 @@ export default function ArcoPage() {
           <textarea
             required minLength={20} rows={5}
             value={description} onChange={e => setDescription(e.target.value)}
-            placeholder="Ej. Solicito acceso a todos los datos personales que Club Momentos Dismant tiene almacenados sobre mi persona…"
+            placeholder="Ej. Solicito acceso a todos los datos personales que el programa tiene almacenados sobre mi persona…"
             className="input-field w-full resize-none text-sm"
           />
           <p className="text-xs text-muted-foreground text-right mt-1">{description.length} caracteres</p>

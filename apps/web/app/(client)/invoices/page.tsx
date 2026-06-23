@@ -199,7 +199,7 @@ export default function InvoicesPage() {
       <div>
         <h1 className="text-2xl font-bold text-foreground">Mis Facturas</h1>
         <p className="text-sm text-muted-foreground mt-1">
-          Consulta el estado de tus facturas registradas por Dismant.
+          Consulta el estado de tus facturas registradas en el programa.
         </p>
       </div>
 
@@ -207,7 +207,7 @@ export default function InvoicesPage() {
       <div className="flex items-start gap-3 bg-blue-500/5 border border-blue-500/20 rounded-xl px-4 py-3.5">
         <AlertCircle className="w-4 h-4 text-blue-500 shrink-0 mt-0.5" />
         <p className="text-xs text-muted-foreground leading-relaxed">
-          Las facturas son registradas por tu ejecutivo de Dismant. Aquí puedes consultar cuáles están pendientes de validación, cuáles fueron aprobadas y los puntos que generaron.
+          Las facturas son registradas por tu ejecutivo de cuenta. Aquí puedes consultar cuáles están pendientes de validación, cuáles fueron aprobadas y los puntos que generaron.
         </p>
       </div>
 
@@ -267,7 +267,7 @@ export default function InvoicesPage() {
               <p className="text-sm font-semibold text-foreground">
                 {pending.length} factura{pending.length > 1 ? 's' : ''} en revisión
               </p>
-              <p className="text-xs text-muted-foreground">En proceso de validación por Dismant</p>
+              <p className="text-xs text-muted-foreground">En proceso de validación</p>
             </div>
           </div>
           <button onClick={() => setTab('pending')} className="text-xs font-semibold text-amber-600 hover:underline shrink-0">Ver</button>
@@ -281,7 +281,7 @@ export default function InvoicesPage() {
           </div>
           <p className="text-base font-semibold text-foreground mb-1">Sin facturas registradas</p>
           <p className="text-sm text-muted-foreground max-w-xs mx-auto">
-            Tu ejecutivo de Dismant registrará tus facturas. Una vez validadas, los puntos se acreditarán automáticamente.
+            Tu ejecutivo de cuenta registrará tus facturas. Una vez validadas, los puntos se acreditarán automáticamente.
           </p>
         </div>
       ) : (

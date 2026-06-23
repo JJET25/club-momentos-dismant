@@ -5,6 +5,7 @@ import { getSession } from '@/lib/auth'
 import { createAdminClient } from '@/lib/supabase'
 import { sendEmail, buildInvoiceRejectedEmail } from '@/lib/resend'
 import { sendPushNotification } from '@/lib/firebase-admin'
+import { getBrand } from '@/lib/brand'
 
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -26,7 +27,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     .from('invoices')
     .select(`
       id, status, member_id, uuid_cfdi,
-      members!member_id ( id, full_name, email, fcm_token )
+      members!member_id ( id, full_name, email, fcm_token, affiliate )
     `)
     .eq('id', invoiceId)
     .single()
@@ -38,7 +39,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     return NextResponse.json({ error: 'Solo se pueden rechazar facturas pendientes' }, { status: 409 })
   }
 
-  const member = (invoice.members as unknown) as { id: string; full_name: string; email: string; fcm_token: string | null } | null
+  const member = (invoice.members as unknown) as { id: string; full_name: string; email: string; fcm_token: string | null; affiliate?: string } | null
 
   await supabase
     .from('invoices')
@@ -81,13 +82,15 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   // 3. Email
   if (member?.email) {
+    const brandName = getBrand(member.affiliate).name
     sendEmail({
       to:      member.email,
-      subject: 'Tu factura no pudo ser procesada — Club Momentos Dismant',
+      subject: `Tu factura no pudo ser procesada — ${brandName}`,
       html:    buildInvoiceRejectedEmail({
-        userName: member.full_name,
-        uuidCfdi: invoice.uuid_cfdi,
-        reason:   reason.trim(),
+        userName:  member.full_name,
+        uuidCfdi:  invoice.uuid_cfdi,
+        reason:    reason.trim(),
+        affiliate: member.affiliate,
       }),
     }).catch(console.error)
   }

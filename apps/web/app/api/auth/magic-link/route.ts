@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
       await sendEmail({
         to: member.email,
         subject: `Tu enlace de acceso — ${getBrand((member as { affiliate?: string }).affiliate).name}`,
-        html: buildMagicLinkEmail(magicLink, member.full_name),
+        html: buildMagicLinkEmail(magicLink, member.full_name, (member as { affiliate?: string }).affiliate),
       })
     } catch {
       // Dominio no verificado o error de Resend en dev — mostrar en consola

@@ -138,6 +138,7 @@ export async function POST(req: NextRequest) {
       newBalance:  balanceAfter,
       isDigital:   sku.is_digital ?? false,
       digitalCode: digitalCodeRecord?.code,
+      affiliate:   session.affiliate,
     }),
   }).catch(err => console.error('[redemption] Error sending email:', err))
 

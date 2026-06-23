@@ -327,7 +327,7 @@ function VoucherModal({ redemption, onClose, onEditAddress, onUpdate }: {
               <Clock className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
               <div>
                 <p className="text-sm font-semibold text-foreground">Premio en preparación</p>
-                <p className="text-xs text-muted-foreground mt-0.5">Tu ejecutivo de Dismant está asignando el contenido. Recibirás un email cuando esté listo.</p>
+                <p className="text-xs text-muted-foreground mt-0.5">Tu ejecutivo de cuenta está asignando el contenido. Recibirás un email cuando esté listo.</p>
               </div>
             </div>
           )}

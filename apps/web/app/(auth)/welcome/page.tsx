@@ -1,11 +1,7 @@
 import Link from 'next/link'
 import { getSession } from '@/lib/auth'
 import { redirect } from 'next/navigation'
-
-const AFFILIATE_CLUB: Record<string, string> = {
-  dismant: 'Club Momentos Dismant',
-  lauti:   'Club Momentos Lauti',
-}
+import { getBrand } from '@/lib/brand'
 
 export default async function WelcomePage() {
   const session = await getSession()
@@ -20,7 +16,7 @@ export default async function WelcomePage() {
     .eq('id', session.sub)
     .single()
 
-  const clubName = AFFILIATE_CLUB[member?.affiliate ?? 'dismant'] ?? 'Club Momentos Dismant'
+  const clubName = getBrand((member as { affiliate?: string } | null)?.affiliate).name
   const welcomePoints = parseInt(process.env.WELCOME_BONUS_POINTS ?? '100')
   const firstName = session.name.split(' ')[0]
 

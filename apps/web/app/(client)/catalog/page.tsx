@@ -450,7 +450,7 @@ function VoucherScreen({ voucher, onClose }: { voucher: VoucherData; onClose: ()
                   <p>{voucher.delivery_address.city}, {voucher.delivery_address.state} {voucher.delivery_address.zip}</p>
                 </div>
               )}
-              <p className="text-muted-foreground">Tu ejecutivo de Dismant coordinará el envío.</p>
+              <p className="text-muted-foreground">Tu ejecutivo de cuenta coordinará el envío.</p>
             </div>
           )}
 

@@ -52,7 +52,7 @@ export async function POST(req: NextRequest) {
   // Validación: RFC emisor == RFC de Dismant
   const dismantRfc = process.env.DISMANT_RFC
   if (dismantRfc && normalizedRfcEmi !== dismantRfc.toUpperCase()) {
-    return NextResponse.json({ error: 'Esta factura no fue emitida por Dismant.' }, { status: 422 })
+    return NextResponse.json({ error: 'Esta factura no fue emitida por la empresa correspondiente.' }, { status: 422 })
   }
 
   // Validación: antigüedad <= 90 días

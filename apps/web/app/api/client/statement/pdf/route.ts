@@ -5,6 +5,7 @@ import { uploadFile, downloadFileContent, STORAGE_PATHS } from '@/lib/storage'
 import { renderToBuffer } from '@react-pdf/renderer'
 import React from 'react'
 import { StatementDocument, type StatementEntry } from '@/components/pdf/StatementDocument'
+import { getBrand } from '@/lib/brand'
 
 // Cache PDFs for 1 hour — TTL enforced at request time via Cache-Control
 const CACHE_TTL_SECONDS = 3600
@@ -60,7 +61,7 @@ export async function GET(req: NextRequest) {
     entriesQuery,
     supabase
       .from('members')
-      .select('full_name, rfc, company_name, email')
+      .select('full_name, rfc, company_name, email, affiliate')
       .eq('id', memberId)
       .single(),
   ])
@@ -75,13 +76,17 @@ export async function GET(req: NextRequest) {
     ? `${new Date(from).toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' })} — ${new Date(to).toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' })}`
     : month
 
+  const brand = getBrand((memberRow as { affiliate?: string }).affiliate)
+
   // ── 3. Generate PDF ─────────────────────────────────────────
   const docElement = React.createElement(StatementDocument, {
-    entries:     rows,
-    member:      memberRow,
+    entries:      rows,
+    member:       memberRow,
     balance,
     periodLabel,
-    generatedAt: new Date().toLocaleString('es-MX'),
+    generatedAt:  new Date().toLocaleString('es-MX'),
+    brandName:    brand.name,
+    brandInitial: brand.initial,
   })
 
   // Dual-React-types issue in monorepo — safe at runtime

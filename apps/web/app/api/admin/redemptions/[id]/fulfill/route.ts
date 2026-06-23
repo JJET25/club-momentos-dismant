@@ -40,7 +40,7 @@ export async function PATCH(
       id, status, voucher_code, points_spent, member_id, delivery_address,
       prize_file_key,
       reward_skus!sku_id ( name, is_digital ),
-      members!member_id ( full_name, email )
+      members!member_id ( full_name, email, affiliate )
     `)
     .eq('id', id)
     .single()
@@ -48,7 +48,7 @@ export async function PATCH(
   if (!redemption) return NextResponse.json({ error: 'Canje no encontrado' }, { status: 404 })
 
   const sku    = redemption.reward_skus as unknown as { name: string; is_digital: boolean } | null
-  const member = redemption.members   as unknown as { full_name: string; email: string } | null
+  const member = redemption.members   as unknown as { full_name: string; email: string; affiliate?: string } | null
 
   // ── Marcar enviado (físico) ──────────────────────────────────
   if (action === 'ship') {
@@ -83,6 +83,7 @@ export async function PATCH(
           userName: member.full_name, skuName: sku?.name ?? 'Premio',
           carrier: shipping_info.carrier, trackingNumber: shipping_info.tracking_number,
           trackingUrl: shipping_info.tracking_url, estimatedDate: shipping_info.estimated_date,
+          affiliate: member.affiliate,
         }),
       }).catch(err => console.error('[fulfill] shipping email error:', err))
     }
@@ -140,6 +141,7 @@ export async function PATCH(
             userName: member.full_name, skuName: sku?.name ?? 'Premio',
             prizeContent: prize_content?.trim(), hasFile: attachments.length > 0,
             fileName, isDigital: true, voucherCode: redemption.voucher_code,
+            affiliate: member.affiliate,
           }),
           attachments: attachments.length ? attachments : undefined,
         }).catch(err => console.error('[fulfill] delivery email error:', err))
@@ -151,6 +153,7 @@ export async function PATCH(
           html: buildPhysicalDeliveredEmail({
             userName: member.full_name, skuName: sku?.name ?? 'Premio',
             voucherCode: redemption.voucher_code,
+            affiliate: member.affiliate,
           }),
         }).catch(err => console.error('[fulfill] delivery email error:', err))
       }

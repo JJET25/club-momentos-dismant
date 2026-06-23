@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/lib/auth'
 import { createAdminClient } from '@/lib/supabase'
 import { sendEmail, buildInvitationEmail } from '@/lib/resend'
+import { getBrand } from '@/lib/brand'
 import crypto from 'crypto'
 
 export async function POST(req: NextRequest) {
@@ -63,11 +64,7 @@ export async function POST(req: NextRequest) {
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
   const inviteLink = `${appUrl}/register?token=${token}`
 
-  const AFFILIATE_NAMES: Record<string, string> = {
-    dismant: 'Club Momentos Dismant',
-    lauti:   'Club Momentos Lauti',
-  }
-  const clubName = AFFILIATE_NAMES[normalizedAffiliate] ?? 'Club Momentos Dismant'
+  const clubName = getBrand(normalizedAffiliate).name
 
   if (process.env.RESEND_API_KEY) {
     await sendEmail({

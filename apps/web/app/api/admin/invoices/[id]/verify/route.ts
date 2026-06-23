@@ -5,6 +5,7 @@ import { MANAGER_ROLES } from '@/lib/permissions'
 import { createAdminClient } from '@/lib/supabase'
 import { sendEmail, buildInvoiceApprovedEmail } from '@/lib/resend'
 import { sendPushNotification } from '@/lib/firebase-admin'
+import { getBrand } from '@/lib/brand'
 
 // Solo owners y admins pueden verificar — los empleados solo registran
 export async function POST(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -20,7 +21,7 @@ export async function POST(_: NextRequest, { params }: { params: Promise<{ id: s
     .from('invoices')
     .select(`
       id, member_id, points_generated, status, verification_status, uuid_cfdi, total_mxn,
-      members!member_id ( id, full_name, email, fcm_token )
+      members!member_id ( id, full_name, email, fcm_token, affiliate )
     `)
     .eq('id', invoiceId)
     .single()
@@ -36,7 +37,7 @@ export async function POST(_: NextRequest, { params }: { params: Promise<{ id: s
   }
 
   const member = (invoice.members as unknown) as {
-    id: string; full_name: string; email: string; fcm_token: string | null
+    id: string; full_name: string; email: string; fcm_token: string | null; affiliate?: string
   } | null
   const points = invoice.points_generated ?? 0
 
@@ -110,15 +111,17 @@ export async function POST(_: NextRequest, { params }: { params: Promise<{ id: s
   }
 
   if (member?.email) {
+    const brandName = getBrand(member.affiliate).name
     sendEmail({
       to:      member.email,
-      subject: '✅ Tu factura fue verificada — Club Momentos Dismant',
+      subject: `✅ Tu factura fue verificada — ${brandName}`,
       html:    buildInvoiceApprovedEmail({
         userName:   member.full_name,
         uuidCfdi:   invoice.uuid_cfdi,
         totalMxn:   invoice.total_mxn,
         points,
         newBalance,
+        affiliate:  member.affiliate,
       }),
     }).catch(console.error)
   }
