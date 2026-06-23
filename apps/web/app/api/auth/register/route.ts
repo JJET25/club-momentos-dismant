@@ -84,11 +84,8 @@ export async function POST(req: NextRequest) {
 
   // Bono de bienvenida en el ledger
   const welcomePoints = parseInt(process.env.WELCOME_BONUS_POINTS ?? '100')
-  const CLUB_NAMES: Record<string, string> = {
-    dismant: 'Club Momentos Dismant',
-    lauti:   'Club Momentos Lauti',
-  }
-  const clubName = CLUB_NAMES[invitation.affiliate ?? 'dismant'] ?? 'Club Momentos Dismant'
+  const { getBrand } = await import('@/lib/brand')
+  const clubName = getBrand(invitation.affiliate).name
   await supabase.from('ledger_entries').insert({
     id:            crypto.randomUUID(),
     member_id:     member.id,
@@ -114,6 +111,7 @@ export async function POST(req: NextRequest) {
     email: member.email,
     role: 'member',
     name: member.full_name,
+    affiliate: invitation.affiliate ?? 'dismant',
   })
 
   const response = NextResponse.json({ success: true })

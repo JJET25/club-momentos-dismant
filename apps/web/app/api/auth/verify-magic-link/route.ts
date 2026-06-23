@@ -20,7 +20,7 @@ export async function GET(req: NextRequest) {
   const supabase = createAdminClient()
   const { data: member } = await supabase
     .from('members')
-    .select('id, email, full_name, status, roles(name)')
+    .select('id, email, full_name, status, affiliate, roles(name)')
     .eq('id', payload.sub)
     .maybeSingle()
 
@@ -42,6 +42,7 @@ export async function GET(req: NextRequest) {
     email: member.email,
     role,
     name: member.full_name,
+    affiliate: (member as { affiliate?: string }).affiliate ?? 'dismant',
   })
 
   const destination = role === 'member' ? '/dashboard' : '/admin/dashboard'

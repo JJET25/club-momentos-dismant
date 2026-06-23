@@ -9,10 +9,10 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: {
-    default: 'Club Momentos Dismant',
-    template: '%s | Club Momentos Dismant',
+    default: 'Club Momentos',
+    template: '%s | Club Momentos',
   },
-  description: 'Programa de lealtad exclusivo para clientes de Dismant',
+  description: 'Programa de lealtad exclusivo',
   robots: {
     index: false, // Portal privado — no indexar
     follow: false,

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase'
 import { createMagicLinkToken } from '@/lib/auth'
 import { sendEmail, buildMagicLinkEmail } from '@/lib/resend'
+import { getBrand } from '@/lib/brand'
 
 export async function POST(req: NextRequest) {
   const { email } = await req.json()
@@ -10,7 +11,7 @@ export async function POST(req: NextRequest) {
   const supabase = createAdminClient()
   const { data: member } = await supabase
     .from('members')
-    .select('id, email, full_name, status')
+    .select('id, email, full_name, status, affiliate')
     .eq('email', email.toLowerCase().trim())
     .maybeSingle()
 
@@ -26,7 +27,7 @@ export async function POST(req: NextRequest) {
     try {
       await sendEmail({
         to: member.email,
-        subject: 'Tu enlace de acceso — Club Momentos Dismant',
+        subject: `Tu enlace de acceso — ${getBrand((member as { affiliate?: string }).affiliate).name}`,
         html: buildMagicLinkEmail(magicLink, member.full_name),
       })
     } catch {

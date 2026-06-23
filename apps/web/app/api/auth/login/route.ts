@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import bcrypt from 'bcryptjs'
 import { createAdminClient } from '@/lib/supabase'
 import { createSessionToken } from '@/lib/auth'
+import { getBrand } from '@/lib/brand'
 
 const OTP_REQUIRED_AFTER_DAYS = 30
 
@@ -14,7 +15,7 @@ export async function POST(req: NextRequest) {
   const supabase = createAdminClient()
   const { data: member } = await supabase
     .from('members')
-    .select('id, email, full_name, status, password_hash, last_login_at, roles(name)')
+    .select('id, email, full_name, status, password_hash, last_login_at, affiliate, roles(name)')
     .eq('email', email.toLowerCase().trim())
     .maybeSingle()
 
@@ -48,7 +49,7 @@ export async function POST(req: NextRequest) {
       try {
         await sendEmail({
           to: member.email,
-          subject: 'Tu código de verificación — Club Momentos Dismant',
+          subject: `Tu código de verificación — ${getBrand(member.affiliate).name}`,
           html: buildOTPEmail(code, member.full_name),
         })
       } catch {
@@ -66,7 +67,7 @@ export async function POST(req: NextRequest) {
 }
 
 async function createLoginSession(member: {
-  id: string; email: string; full_name: string; roles: unknown
+  id: string; email: string; full_name: string; affiliate: string; roles: unknown
 }) {
   const supabase = createAdminClient()
   await supabase
@@ -76,7 +77,7 @@ async function createLoginSession(member: {
 
   const rolesData = member.roles as unknown as { name: string } | null
   const role = rolesData?.name ?? 'member'
-  const token = await createSessionToken({ sub: member.id, email: member.email, role, name: member.full_name })
+  const token = await createSessionToken({ sub: member.id, email: member.email, role, name: member.full_name, affiliate: member.affiliate ?? 'dismant' })
   const redirectTo = role === 'member' ? '/dashboard' : '/admin/dashboard'
 
   const response = NextResponse.json({ success: true, redirectTo })

@@ -12,6 +12,7 @@ export interface SessionPayload {
   email: string
   role: string       // owner | admin | employee | member
   name: string
+  affiliate: string  // dismant | lauti
   iat: number
   exp: number
 }

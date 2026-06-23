@@ -18,7 +18,7 @@ export async function POST(req: NextRequest) {
   const supabase = createAdminClient()
   const { data: member } = await supabase
     .from('members')
-    .select('id, email, full_name, status, roles(name)')
+    .select('id, email, full_name, status, affiliate, roles(name)')
     .eq('email', normalizedEmail)
     .maybeSingle()
 
@@ -44,6 +44,7 @@ export async function POST(req: NextRequest) {
     email: member.email,
     role,
     name: member.full_name,
+    affiliate: (member as { affiliate?: string }).affiliate ?? 'dismant',
   })
 
   const redirectTo = role === 'member' ? '/dashboard' : '/admin/dashboard'
