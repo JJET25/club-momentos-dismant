@@ -170,7 +170,7 @@ export default function InvitationsPage() {
                   onClick={() => setAffiliate(opt.value)}
                   className={`flex-1 py-2.5 px-4 rounded-lg border-2 text-sm font-medium transition-all ${
                     affiliate === opt.value
-                      ? 'border-brand-600 bg-brand-50 text-brand-700'
+                      ? 'border-brand-600 bg-brand-50 text-brand-700 dark:bg-brand-900/40 dark:text-brand-300 dark:border-brand-500'
                       : 'border-border bg-background text-muted-foreground hover:border-muted-foreground/40'
                   }`}
                 >

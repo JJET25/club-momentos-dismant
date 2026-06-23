@@ -301,7 +301,7 @@ function RejectModal({ promo, onClose, onRejected }: {
             value={reason}
             onChange={e => setReason(e.target.value)}
             placeholder="Describe por qué se rechaza esta promoción…"
-            className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none"
+            className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-background dark:bg-white/[.06] dark:border-white/[.12] text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none"
           />
         </div>
         {error && <p className="text-xs text-red-600">{error}</p>}
@@ -570,7 +570,7 @@ function EditModal({ promo, onClose, onUpdated }: {
               type="text"
               value={form.title}
               onChange={e => set('title', e.target.value)}
-              className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+              className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-background dark:bg-white/[.06] dark:border-white/[.12] text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
             />
           </div>
 
@@ -581,7 +581,7 @@ function EditModal({ promo, onClose, onUpdated }: {
               rows={2}
               value={form.description}
               onChange={e => set('description', e.target.value)}
-              className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none"
+              className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-background dark:bg-white/[.06] dark:border-white/[.12] text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none"
             />
           </div>
 
@@ -593,7 +593,7 @@ function EditModal({ promo, onClose, onUpdated }: {
               value={form.destination_url}
               onChange={e => set('destination_url', e.target.value)}
               placeholder="https://…"
-              className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+              className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-background dark:bg-white/[.06] dark:border-white/[.12] text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
             />
           </div>
 
@@ -607,7 +607,7 @@ function EditModal({ promo, onClose, onUpdated }: {
                 type="datetime-local"
                 value={form.valid_from}
                 onChange={e => set('valid_from', e.target.value)}
-                className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-primary/30"
+                className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-background dark:bg-white/[.06] dark:border-white/[.12] text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
               />
             </div>
             <div>
@@ -618,7 +618,7 @@ function EditModal({ promo, onClose, onUpdated }: {
                 type="datetime-local"
                 value={form.valid_until}
                 onChange={e => set('valid_until', e.target.value)}
-                className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-primary/30"
+                className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-background dark:bg-white/[.06] dark:border-white/[.12] text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
               />
             </div>
           </div>
@@ -629,7 +629,7 @@ function EditModal({ promo, onClose, onUpdated }: {
             <select
               value={form.geo_type}
               onChange={e => set('geo_type', e.target.value)}
-              className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-primary/30"
+              className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-background dark:bg-white/[.06] dark:border-white/[.12] text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
             >
               <option value="national">Todo México</option>
               <option value="local">Local (por estado/ciudad)</option>
@@ -645,7 +645,7 @@ function EditModal({ promo, onClose, onUpdated }: {
                   value={form.geo_states}
                   onChange={e => set('geo_states', e.target.value)}
                   placeholder="Nuevo León, Jalisco"
-                  className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-background dark:bg-white/[.06] dark:border-white/[.12] text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
                 />
               </div>
               <div>
@@ -655,7 +655,7 @@ function EditModal({ promo, onClose, onUpdated }: {
                   value={form.geo_cities}
                   onChange={e => set('geo_cities', e.target.value)}
                   placeholder="Monterrey, Guadalajara"
-                  className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-background dark:bg-white/[.06] dark:border-white/[.12] text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
                 />
               </div>
             </div>
@@ -879,7 +879,7 @@ function CreateModal({ partners, onClose, onCreated }: {
             <select
               value={form.partner_id}
               onChange={e => set('partner_id', e.target.value)}
-              className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-primary/30"
+              className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-background dark:bg-white/[.06] dark:border-white/[.12] text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
             >
               <option value="">Selecciona un aliado…</option>
               {partners.map(p => (
@@ -898,7 +898,7 @@ function CreateModal({ partners, onClose, onCreated }: {
               value={form.title}
               onChange={e => set('title', e.target.value)}
               placeholder="Nombre de la promoción"
-              className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+              className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-background dark:bg-white/[.06] dark:border-white/[.12] text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
             />
           </div>
 
@@ -910,7 +910,7 @@ function CreateModal({ partners, onClose, onCreated }: {
               value={form.description}
               onChange={e => set('description', e.target.value)}
               placeholder="Descripción opcional…"
-              className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none"
+              className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-background dark:bg-white/[.06] dark:border-white/[.12] text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none"
             />
           </div>
 
@@ -922,7 +922,7 @@ function CreateModal({ partners, onClose, onCreated }: {
               value={form.destination_url}
               onChange={e => set('destination_url', e.target.value)}
               placeholder="https://…"
-              className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+              className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-background dark:bg-white/[.06] dark:border-white/[.12] text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
             />
           </div>
 
@@ -936,7 +936,7 @@ function CreateModal({ partners, onClose, onCreated }: {
                 type="datetime-local"
                 value={form.valid_from}
                 onChange={e => set('valid_from', e.target.value)}
-                className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-primary/30"
+                className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-background dark:bg-white/[.06] dark:border-white/[.12] text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
               />
             </div>
             <div>
@@ -947,7 +947,7 @@ function CreateModal({ partners, onClose, onCreated }: {
                 type="datetime-local"
                 value={form.valid_until}
                 onChange={e => set('valid_until', e.target.value)}
-                className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-primary/30"
+                className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-background dark:bg-white/[.06] dark:border-white/[.12] text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
               />
             </div>
           </div>
@@ -958,7 +958,7 @@ function CreateModal({ partners, onClose, onCreated }: {
             <select
               value={form.geo_type}
               onChange={e => set('geo_type', e.target.value)}
-              className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-primary/30"
+              className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-background dark:bg-white/[.06] dark:border-white/[.12] text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
             >
               <option value="national">Todo México</option>
               <option value="local">Local (por estado/ciudad)</option>
@@ -974,7 +974,7 @@ function CreateModal({ partners, onClose, onCreated }: {
                   value={form.geo_states}
                   onChange={e => set('geo_states', e.target.value)}
                   placeholder={MX_STATES[8]}
-                  className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-background dark:bg-white/[.06] dark:border-white/[.12] text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
                 />
               </div>
               <div>
@@ -984,7 +984,7 @@ function CreateModal({ partners, onClose, onCreated }: {
                   value={form.geo_cities}
                   onChange={e => set('geo_cities', e.target.value)}
                   placeholder="Monterrey, Guadalajara"
-                  className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-background dark:bg-white/[.06] dark:border-white/[.12] text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
                 />
               </div>
             </div>
@@ -1161,7 +1161,7 @@ export default function AdminPromotionsPage() {
           <select
             value={statusFilter}
             onChange={e => setStatusFilter(e.target.value)}
-            className="text-sm border border-border rounded-lg px-2 py-1 bg-background focus:outline-none focus:ring-2 focus:ring-primary/30"
+            className="text-sm border border-border rounded-lg px-2 py-1 bg-background dark:bg-white/[.06] dark:border-white/[.12] text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
           >
             <option value="all">Todos</option>
             {HISTORY_STATUSES.map(s => (
