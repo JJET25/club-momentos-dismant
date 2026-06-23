@@ -6,10 +6,10 @@ import { useSearchParams } from 'next/navigation'
 const ERROR_MESSAGES: Record<string, string> = {
   'link-expirado':       'Tu enlace de acceso expiró. Solicita uno nuevo.',
   'link-invalido':       'El enlace de acceso no es válido.',
-  'cuenta-suspendida':   'Tu cuenta está suspendida. Contacta a Dismant.',
-  'registro-cerrado':    'El registro es solo por invitación. Contacta a tu ejecutivo de Dismant.',
+  'cuenta-suspendida':   'Tu cuenta está suspendida. Contacta a tu ejecutivo.',
+  'registro-cerrado':    'El registro es solo por invitación. Contacta a tu ejecutivo.',
   'invitacion-usada':    'Esta invitación ya fue utilizada.',
-  'invitacion-expirada': 'Tu invitación expiró. Solicita una nueva a Dismant.',
+  'invitacion-expirada': 'Tu invitación expiró. Solicita una nueva a tu ejecutivo.',
   'invitacion-invalida': 'El enlace de invitación no es válido.',
 }
 
@@ -323,7 +323,7 @@ function LoginForm() {
 
       <div className="mt-4 text-center">
         <p className="text-xs text-muted-foreground">
-          El acceso al club es por invitación. Contacta a tu ejecutivo de Dismant.
+          El acceso al club es por invitación. Contacta a tu ejecutivo.
         </p>
       </div>
     </>
@@ -336,9 +336,9 @@ export default function LoginPage() {
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-white/10 mb-4">
-            <span className="text-2xl font-bold text-white">D</span>
+            <span className="text-2xl font-bold text-white">CM</span>
           </div>
-          <h1 className="text-2xl font-bold text-white">Club Momentos Dismant</h1>
+          <h1 className="text-2xl font-bold text-white">Club Momentos</h1>
           <p className="text-brand-300 mt-1">Ingresa a tu cuenta de lealtad</p>
         </div>
 
