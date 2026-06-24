@@ -26,9 +26,9 @@ const ROLE_LABEL: Record<string, string> = {
 }
 
 const ROLE_BADGE: Record<string, string> = {
-  owner:    'bg-purple-100 text-purple-700 ring-purple-200',
-  admin:    'bg-blue-100 text-blue-700 ring-blue-200',
-  employee: 'bg-emerald-100 text-emerald-700 ring-emerald-200',
+  owner:    'bg-purple-100 text-purple-700 ring-purple-200 dark:bg-purple-900/30 dark:text-purple-400 dark:ring-purple-800',
+  admin:    'bg-blue-100 text-blue-700 ring-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:ring-blue-800',
+  employee: 'bg-emerald-100 text-emerald-700 ring-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400 dark:ring-emerald-800',
 }
 
 function initials(name: string) {
@@ -50,7 +50,7 @@ function relativeDate(iso: string | null) {
 function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md">
+      <div className="bg-card rounded-2xl shadow-xl w-full max-w-md border border-border">
         <div className="flex items-center justify-between px-6 py-4 border-b">
           <h3 className="text-sm font-semibold text-foreground">{title}</h3>
           <button onClick={onClose} className="text-muted-foreground hover:text-foreground transition-colors">
@@ -76,7 +76,8 @@ function Field({ label, type = 'text', value, onChange, placeholder, disabled }:
         onChange={e => onChange(e.target.value)}
         placeholder={placeholder}
         disabled={disabled}
-        className="w-full text-sm border border-border rounded-lg px-3 py-2.5 bg-background
+        className="w-full text-sm border border-border rounded-lg px-3 py-2.5 bg-background text-foreground
+          dark:bg-white/[.06] dark:border-white/[.12]
           placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-brand-500/30
           disabled:opacity-50 disabled:cursor-not-allowed"
       />
@@ -312,8 +313,8 @@ export default function TeamPage() {
                     {/* Nombre + email */}
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-full bg-slate-100 flex items-center justify-center shrink-0">
-                          <span className="text-xs font-bold text-slate-600">{initials(m.full_name)}</span>
+                        <div className="w-9 h-9 rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center shrink-0">
+                          <span className="text-xs font-bold text-slate-600 dark:text-slate-300">{initials(m.full_name)}</span>
                         </div>
                         <div className="min-w-0">
                           <p className="text-sm font-medium text-foreground leading-none">
@@ -341,8 +342,8 @@ export default function TeamPage() {
                     <td className="px-4 py-4">
                       <span className={`inline-flex items-center gap-1.5 text-xs font-medium px-2 py-1 rounded-full
                         ${m.status === 'active'
-                          ? 'bg-green-50 text-green-700'
-                          : 'bg-red-50 text-red-600'}`}>
+                          ? 'bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                          : 'bg-red-50 text-red-600 dark:bg-red-900/30 dark:text-red-400'}`}>
                         <span className={`w-1.5 h-1.5 rounded-full ${m.status === 'active' ? 'bg-green-500' : 'bg-red-400'}`} />
                         {m.status === 'active' ? 'Activo' : 'Inactivo'}
                       </span>
@@ -355,7 +356,7 @@ export default function TeamPage() {
                         <button
                           onClick={() => handleSendLink(m.email, m.full_name)}
                           title="Enviar enlace de acceso"
-                          className="p-1.5 rounded-lg text-muted-foreground hover:text-brand-600 hover:bg-brand-50 transition-colors"
+                          className="p-1.5 rounded-lg text-muted-foreground hover:text-brand-600 hover:bg-brand-50 dark:hover:bg-brand-900/20 transition-colors"
                         >
                           <Send className="w-3.5 h-3.5" />
                         </button>
@@ -378,8 +379,8 @@ export default function TeamPage() {
                             title={m.status === 'active' ? 'Desactivar' : 'Reactivar'}
                             className={`p-1.5 rounded-lg transition-colors
                               ${m.status === 'active'
-                                ? 'text-muted-foreground hover:text-amber-600 hover:bg-amber-50'
-                                : 'text-muted-foreground hover:text-green-600 hover:bg-green-50'}`}
+                                ? 'text-muted-foreground hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/20'
+                                : 'text-muted-foreground hover:text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20'}`}
                           >
                             {m.status === 'active' ? <PowerOff className="w-3.5 h-3.5" /> : <Power className="w-3.5 h-3.5" />}
                           </button>
@@ -390,7 +391,7 @@ export default function TeamPage() {
                           <button
                             onClick={() => setConfirmDelete(m)}
                             title="Eliminar cuenta"
-                            className="p-1.5 rounded-lg text-muted-foreground hover:text-red-600 hover:bg-red-50 transition-colors"
+                            className="p-1.5 rounded-lg text-muted-foreground hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
@@ -416,7 +417,7 @@ export default function TeamPage() {
               <select
                 value={addForm.role}
                 onChange={e => setAddForm(p => ({ ...p, role: e.target.value }))}
-                className="w-full text-sm border border-border rounded-lg px-3 py-2.5 bg-background focus:outline-none focus:ring-2 focus:ring-brand-500/30"
+                className="w-full text-sm border border-border rounded-lg px-3 py-2.5 bg-background text-foreground dark:bg-white/[.06] dark:border-white/[.12] focus:outline-none focus:ring-2 focus:ring-brand-500/30"
               >
                 <option value="employee">Empleado — puede ver miembros y aprobar facturas</option>
                 <option value="admin">Administrador — acceso completo excepto roles</option>
@@ -452,7 +453,7 @@ export default function TeamPage() {
               <select
                 value={editForm.role ?? 'employee'}
                 onChange={e => setEditForm(p => ({ ...p, role: e.target.value }))}
-                className="w-full text-sm border border-border rounded-lg px-3 py-2.5 bg-background focus:outline-none focus:ring-2 focus:ring-brand-500/30"
+                className="w-full text-sm border border-border rounded-lg px-3 py-2.5 bg-background text-foreground dark:bg-white/[.06] dark:border-white/[.12] focus:outline-none focus:ring-2 focus:ring-brand-500/30"
               >
                 <option value="employee">Empleado</option>
                 <option value="admin">Administrador</option>
@@ -493,7 +494,7 @@ export default function TeamPage() {
                   value={reasonInput}
                   onChange={e => setReasonInput(e.target.value)}
                   placeholder="Ej. Fin de contrato, baja temporal…"
-                  className="w-full text-sm border border-border rounded-lg px-3 py-2.5 bg-background focus:outline-none focus:ring-2 focus:ring-brand-500/30"
+                  className="w-full text-sm border border-border rounded-lg px-3 py-2.5 bg-background text-foreground dark:bg-white/[.06] dark:border-white/[.12] focus:outline-none focus:ring-2 focus:ring-brand-500/30"
                 />
               </div>
             )}
@@ -518,7 +519,7 @@ export default function TeamPage() {
       {confirmDelete && (
         <Modal title="Eliminar cuenta" onClose={() => setConfirmDelete(null)}>
           <div className="space-y-4">
-            <div className="bg-red-50 rounded-lg px-4 py-3 text-sm text-red-700">
+            <div className="bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-400 rounded-lg px-4 py-3 text-sm">
               Esta acción es irreversible. Si la cuenta tiene actividad registrada, el sistema te pedirá desactivarla en su lugar.
             </div>
             <p className="text-sm text-muted-foreground">
