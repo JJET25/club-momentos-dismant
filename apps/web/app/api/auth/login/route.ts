@@ -2,9 +2,6 @@ import { NextRequest, NextResponse } from 'next/server'
 import bcrypt from 'bcryptjs'
 import { createAdminClient } from '@/lib/supabase'
 import { createSessionToken } from '@/lib/auth'
-import { getBrand } from '@/lib/brand'
-
-const OTP_REQUIRED_AFTER_DAYS = 30
 
 export async function POST(req: NextRequest) {
   const { email, password } = await req.json()
@@ -15,7 +12,7 @@ export async function POST(req: NextRequest) {
   const supabase = createAdminClient()
   const { data: member } = await supabase
     .from('members')
-    .select('id, email, full_name, status, password_hash, last_login_at, affiliate, roles(name)')
+    .select('id, email, full_name, status, password_hash, affiliate, roles(name)')
     .eq('email', email.toLowerCase().trim())
     .maybeSingle()
 
@@ -23,9 +20,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Correo o contraseña incorrectos' }, { status: 401 })
   }
 
-  // Miembro sin contraseña (creado antes del nuevo flujo) → fallback a OTP
+  // Staff sin contraseña → pedir que use "Olvidé mi contraseña" para configurarla
   if (!member.password_hash) {
-    return NextResponse.json({ requiresOtp: true, reason: 'no-password' })
+    return NextResponse.json({ noPassword: true })
   }
 
   const passwordValid = await bcrypt.compare(password, member.password_hash)
@@ -33,43 +30,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Correo o contraseña incorrectos' }, { status: 401 })
   }
 
-  // Determinar si se requiere OTP
-  const isFirstLogin = !member.last_login_at
-  const daysSinceLogin = member.last_login_at
-    ? (Date.now() - new Date(member.last_login_at).getTime()) / (1000 * 60 * 60 * 24)
-    : Infinity
-
-  if (isFirstLogin || daysSinceLogin >= OTP_REQUIRED_AFTER_DAYS) {
-    // Generar y enviar OTP
-    const { generateAndStoreOTP } = await import('@/lib/auth')
-    const { sendEmail, buildOTPEmail } = await import('@/lib/resend')
-    const code = await generateAndStoreOTP(member.email)
-
-    if (process.env.RESEND_API_KEY) {
-      try {
-        await sendEmail({
-          to: member.email,
-          subject: `Tu código de verificación — ${getBrand(member.affiliate).name}`,
-          html: buildOTPEmail(code, member.full_name),
-        })
-      } catch {
-        console.log(`[DEV] OTP para ${member.email}: ${code}`)
-      }
-    } else {
-      console.log(`[DEV] OTP para ${member.email}: ${code}`)
-    }
-
-    return NextResponse.json({ requiresOtp: true })
-  }
-
-  // Login directo sin OTP
-  return await createLoginSession(member)
-}
-
-async function createLoginSession(member: {
-  id: string; email: string; full_name: string; affiliate: string; roles: unknown
-}) {
-  const supabase = createAdminClient()
   await supabase
     .from('members')
     .update({ last_login_at: new Date().toISOString() })
@@ -77,7 +37,13 @@ async function createLoginSession(member: {
 
   const rolesData = member.roles as unknown as { name: string } | null
   const role = rolesData?.name ?? 'member'
-  const token = await createSessionToken({ sub: member.id, email: member.email, role, name: member.full_name, affiliate: member.affiliate ?? 'dismant' })
+  const token = await createSessionToken({
+    sub: member.id,
+    email: member.email,
+    role,
+    name: member.full_name,
+    affiliate: member.affiliate ?? 'dismant',
+  })
   const redirectTo = role === 'member' ? '/dashboard' : '/admin/dashboard'
 
   const response = NextResponse.json({ success: true, redirectTo })

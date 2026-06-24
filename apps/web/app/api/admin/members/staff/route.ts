@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getSession } from '@/lib/auth'
+import { getSession, createMagicLinkToken } from '@/lib/auth'
 import { createAdminClient } from '@/lib/supabase'
+import { sendEmail, buildMagicLinkEmail } from '@/lib/resend'
 import crypto from 'crypto'
 
 /** GET — Lista todos los miembros del equipo interno (owner, admin, employee) */
@@ -73,7 +74,7 @@ export async function POST(req: NextRequest) {
       id:             crypto.randomUUID(),
       email:          email.toLowerCase().trim(),
       full_name:      full_name.trim(),
-      company_name:   'Dismant',
+      company_name:   session.affiliate === 'lauti' ? 'Lauti' : 'Dismant',
       rfc:            internalRfc,
       location_state: 'Ciudad de México',
       location_city:  'CDMX',
@@ -99,6 +100,22 @@ export async function POST(req: NextRequest) {
     target_id:   member.id,
     metadata:    { role, email: email.toLowerCase().trim() },
   })
+
+  // Enviar correo de bienvenida con magic link para que configure su contraseña
+  try {
+    const mlToken = await createMagicLinkToken(member.id, member.email)
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
+    const magicLink = `${appUrl}/api/auth/verify-magic-link?token=${mlToken}`
+
+    await sendEmail({
+      to: member.email,
+      subject: `Bienvenido al equipo — accede y configura tu contraseña`,
+      affiliate: session.affiliate,
+      html: buildMagicLinkEmail(magicLink, member.full_name, session.affiliate),
+    })
+  } catch (emailErr) {
+    console.error('[staff] Error enviando correo de bienvenida:', emailErr)
+  }
 
   return NextResponse.json({ ...member, role })
 }

@@ -22,7 +22,7 @@ function LoginForm() {
   const [code, setCode]         = useState('')
   const [newPw, setNewPw]       = useState('')
   const [confirmPw, setConfirmPw] = useState('')
-  const [step, setStep]         = useState<'credentials' | 'otp' | 'forgot-email' | 'forgot-otp' | 'forgot-newpw'>('credentials')
+  const [step, setStep]         = useState<'credentials' | 'forgot-email' | 'forgot-otp' | 'forgot-newpw'>('credentials')
   const [loading, setLoading]   = useState(false)
   const [error, setError]       = useState(urlError ? (ERROR_MESSAGES[urlError] ?? '') : '')
 
@@ -45,45 +45,12 @@ function LoginForm() {
       return
     }
 
-    if (data.requiresOtp) {
-      setStep('otp')
+    if (data.noPassword) {
+      setError('Esta cuenta no tiene contraseña configurada. Usa "¿Olvidaste tu contraseña?" para establecerla.')
       return
     }
 
     window.location.href = data.redirectTo
-  }
-
-  async function handleOtp(e: React.FormEvent) {
-    e.preventDefault()
-    setError('')
-    setLoading(true)
-
-    const res = await fetch('/api/auth/verify-otp', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, code }),
-    })
-
-    setLoading(false)
-
-    if (!res.ok) {
-      const data = await res.json()
-      setError(data.error ?? 'Código inválido o expirado.')
-      return
-    }
-
-    const { redirectTo } = await res.json()
-    window.location.href = redirectTo
-  }
-
-  async function handleResendOtp() {
-    setError('')
-    setCode('')
-    await fetch('/api/auth/send-otp', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email }),
-    })
   }
 
   async function handleForgotSendOtp(e: React.FormEvent) {
@@ -198,70 +165,6 @@ function LoginForm() {
             {loading ? 'Guardando…' : 'Guardar contraseña'}
           </button>
         </form>
-      </>
-    )
-  }
-
-  if (step === 'otp') {
-    return (
-      <>
-        <div className="flex items-center gap-3 mb-6">
-          <div className="w-10 h-10 bg-brand-50 rounded-full flex items-center justify-center shrink-0">
-            <svg className="w-5 h-5 text-brand-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-            </svg>
-          </div>
-          <div>
-            <h2 className="text-lg font-semibold text-foreground">Verificación adicional</h2>
-            <p className="text-muted-foreground text-sm">
-              Enviamos un código a <strong>{email}</strong>
-            </p>
-          </div>
-        </div>
-
-        <p className="text-xs text-muted-foreground mb-4 bg-muted/50 rounded-lg px-3 py-2">
-          Es tu primer inicio de sesión o llevas mucho tiempo sin entrar. Verificamos que eres tú.
-        </p>
-
-        {error && (
-          <div className="mb-4 p-3 rounded-lg bg-danger-light text-danger text-sm">{error}</div>
-        )}
-
-        <form onSubmit={handleOtp} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-foreground mb-1.5">
-              Código de verificación
-            </label>
-            <input
-              type="text"
-              inputMode="numeric"
-              pattern="[0-9]{6}"
-              maxLength={6}
-              value={code}
-              onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
-              placeholder="000000"
-              required
-              autoFocus
-              className="input-field text-center text-2xl tracking-widest font-mono"
-            />
-          </div>
-          <button
-            type="submit"
-            disabled={loading || code.length !== 6}
-            className="w-full btn-primary"
-          >
-            {loading ? 'Verificando...' : 'Confirmar'}
-          </button>
-        </form>
-
-        <div className="mt-4 flex items-center justify-between text-sm">
-          <button onClick={() => { setStep('credentials'); setCode(''); setError('') }} className="text-muted-foreground hover:underline">
-            Volver
-          </button>
-          <button onClick={handleResendOtp} className="text-brand-600 hover:underline">
-            Reenviar código
-          </button>
-        </div>
       </>
     )
   }

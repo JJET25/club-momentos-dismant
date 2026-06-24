@@ -20,7 +20,7 @@ export async function GET(req: NextRequest) {
   const supabase = createAdminClient()
   const { data: member } = await supabase
     .from('members')
-    .select('id, email, full_name, status, affiliate, roles(name)')
+    .select('id, email, full_name, status, password_hash, affiliate, roles(name)')
     .eq('id', payload.sub)
     .maybeSingle()
 
@@ -45,7 +45,11 @@ export async function GET(req: NextRequest) {
     affiliate: (member as { affiliate?: string }).affiliate ?? 'dismant',
   })
 
-  const destination = role === 'member' ? '/dashboard' : '/admin/dashboard'
+  // Staff sin contraseña → redirigir a la página de configuración de contraseña
+  const needsPasswordSetup = !member.password_hash && role !== 'member'
+  const destination = needsPasswordSetup
+    ? '/admin/setup-password'
+    : role === 'member' ? '/dashboard' : '/admin/dashboard'
   const response = NextResponse.redirect(new URL(destination, req.url))
   response.cookies.set('session', sessionToken, {
     httpOnly: true,
