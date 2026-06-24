@@ -2,6 +2,7 @@ import { getSession } from '@/lib/auth'
 import { getBrand } from '@/lib/brand'
 import { SidebarNav } from '@/components/client/sidebar-nav'
 import { GlobalBanner } from '@/components/GlobalBanner'
+import { WelcomeBanner } from '@/components/client/WelcomeBanner'
 
 function getInitials(name: string): string {
   return name
@@ -45,6 +46,7 @@ export default async function ClientLayout({ children }: { children: React.React
       {/* Main content */}
       <main className="ml-60 flex-1 min-h-screen flex flex-col">
         <GlobalBanner />
+        <WelcomeBanner name={name} />
         <div className="max-w-6xl mx-auto w-full px-8 py-8">
           {children}
         </div>
