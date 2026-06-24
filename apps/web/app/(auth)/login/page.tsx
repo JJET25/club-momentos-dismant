@@ -98,14 +98,14 @@ function LoginForm() {
   if (step === 'forgot-email') {
     return (
       <>
-        <h2 className="text-xl font-semibold text-foreground mb-1">Restablecer contraseña</h2>
-        <p className="text-muted-foreground text-sm mb-6">Ingresa tu correo y te enviaremos un código de verificación.</p>
+        <h2 className="text-xl font-semibold text-gray-900 mb-1">Restablecer contraseña</h2>
+        <p className="text-gray-500 text-sm mb-6">Ingresa tu correo y te enviaremos un código de verificación.</p>
         {error && <div className="mb-4 p-3 rounded-lg bg-danger-light text-danger text-sm">{error}</div>}
         <form onSubmit={handleForgotSendOtp} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-foreground mb-1.5">Correo electrónico</label>
+            <label className="block text-sm font-medium text-gray-900 mb-1.5">Correo electrónico</label>
             <input type="email" value={email} onChange={e => setEmail(e.target.value)}
-              placeholder="tu@empresa.com" required autoFocus className="input-field" />
+              placeholder="tu@empresa.com" required autoFocus className="w-full px-3 py-2.5 rounded-lg border border-gray-200 bg-white text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent transition-shadow" />
           </div>
           <button type="submit" disabled={loading || !email} className="w-full btn-primary">
             {loading ? 'Enviando…' : 'Enviar código'}
@@ -123,21 +123,21 @@ function LoginForm() {
   if (step === 'forgot-otp') {
     return (
       <>
-        <h2 className="text-xl font-semibold text-foreground mb-1">Ingresa el código</h2>
-        <p className="text-muted-foreground text-sm mb-6">Enviamos un código a <strong>{email}</strong>.</p>
+        <h2 className="text-xl font-semibold text-gray-900 mb-1">Ingresa el código</h2>
+        <p className="text-gray-500 text-sm mb-6">Enviamos un código a <strong>{email}</strong>.</p>
         {error && <div className="mb-4 p-3 rounded-lg bg-danger-light text-danger text-sm">{error}</div>}
         <form onSubmit={e => { e.preventDefault(); setStep('forgot-newpw') }} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-foreground mb-1.5">Código de verificación</label>
+            <label className="block text-sm font-medium text-gray-900 mb-1.5">Código de verificación</label>
             <input type="text" inputMode="numeric" maxLength={6} value={code}
               onChange={e => setCode(e.target.value.replace(/\D/g, ''))}
               placeholder="000000" required autoFocus
-              className="input-field text-center text-2xl tracking-widest font-mono" />
+              className="w-full px-3 py-2.5 rounded-lg border border-gray-200 bg-white text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent transition-shadow text-center text-2xl tracking-widest font-mono" />
           </div>
           <button type="submit" disabled={code.length !== 6} className="w-full btn-primary">Continuar</button>
         </form>
         <div className="mt-4 flex justify-between text-sm">
-          <button onClick={() => { setStep('forgot-email'); setCode(''); setError('') }} className="text-muted-foreground hover:underline">Volver</button>
+          <button onClick={() => { setStep('forgot-email'); setCode(''); setError('') }} className="text-gray-500 hover:underline">Volver</button>
           <button onClick={() => handleForgotSendOtp({ preventDefault: () => {} } as React.FormEvent)} className="text-brand-600 hover:underline">Reenviar código</button>
         </div>
       </>
@@ -147,19 +147,19 @@ function LoginForm() {
   if (step === 'forgot-newpw') {
     return (
       <>
-        <h2 className="text-xl font-semibold text-foreground mb-1">Nueva contraseña</h2>
-        <p className="text-muted-foreground text-sm mb-6">Elige una contraseña segura para tu cuenta.</p>
+        <h2 className="text-xl font-semibold text-gray-900 mb-1">Nueva contraseña</h2>
+        <p className="text-gray-500 text-sm mb-6">Elige una contraseña segura para tu cuenta.</p>
         {error && <div className="mb-4 p-3 rounded-lg bg-danger-light text-danger text-sm">{error}</div>}
         <form onSubmit={handleResetPassword} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-foreground mb-1.5">Nueva contraseña</label>
+            <label className="block text-sm font-medium text-gray-900 mb-1.5">Nueva contraseña</label>
             <input type="password" value={newPw} onChange={e => setNewPw(e.target.value)}
-              placeholder="Mínimo 8 caracteres" required className="input-field" />
+              placeholder="Mínimo 8 caracteres" required className="w-full px-3 py-2.5 rounded-lg border border-gray-200 bg-white text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent transition-shadow" />
           </div>
           <div>
-            <label className="block text-sm font-medium text-foreground mb-1.5">Confirmar contraseña</label>
+            <label className="block text-sm font-medium text-gray-900 mb-1.5">Confirmar contraseña</label>
             <input type="password" value={confirmPw} onChange={e => setConfirmPw(e.target.value)}
-              placeholder="Repite tu contraseña" required className="input-field" />
+              placeholder="Repite tu contraseña" required className="w-full px-3 py-2.5 rounded-lg border border-gray-200 bg-white text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent transition-shadow" />
           </div>
           <button type="submit" disabled={loading || !newPw || !confirmPw} className="w-full btn-primary">
             {loading ? 'Guardando…' : 'Guardar contraseña'}
@@ -171,8 +171,8 @@ function LoginForm() {
 
   return (
     <>
-      <h2 className="text-xl font-semibold text-foreground mb-1">Iniciar sesión</h2>
-      <p className="text-muted-foreground text-sm mb-6">
+      <h2 className="text-xl font-semibold text-gray-900 mb-1">Iniciar sesión</h2>
+      <p className="text-gray-500 text-sm mb-6">
         Ingresa tu correo y contraseña para acceder.
       </p>
 
@@ -182,7 +182,7 @@ function LoginForm() {
 
       <form onSubmit={handleCredentials} className="space-y-4">
         <div>
-          <label className="block text-sm font-medium text-foreground mb-1.5">
+          <label className="block text-sm font-medium text-gray-900 mb-1.5">
             Correo electrónico
           </label>
           <input
@@ -192,11 +192,11 @@ function LoginForm() {
             placeholder="tu@empresa.com"
             required
             autoFocus
-            className="input-field"
+            className="w-full px-3 py-2.5 rounded-lg border border-gray-200 bg-white text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent transition-shadow"
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-foreground mb-1.5">
+          <label className="block text-sm font-medium text-gray-900 mb-1.5">
             Contraseña
           </label>
           <input
@@ -205,7 +205,7 @@ function LoginForm() {
             onChange={(e) => setPassword(e.target.value)}
             placeholder="Tu contraseña"
             required
-            className="input-field"
+            className="w-full px-3 py-2.5 rounded-lg border border-gray-200 bg-white text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent transition-shadow"
           />
         </div>
         <button
@@ -225,7 +225,7 @@ function LoginForm() {
       </div>
 
       <div className="mt-4 text-center">
-        <p className="text-xs text-muted-foreground">
+        <p className="text-xs text-gray-500">
           El acceso al club es por invitación. Contacta a tu ejecutivo.
         </p>
       </div>
