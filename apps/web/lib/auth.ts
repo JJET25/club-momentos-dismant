@@ -51,12 +51,17 @@ export async function generateAndStoreOTP(email: string): Promise<string> {
   const supabase = createAdminClient()
   const expiresAt = new Date(Date.now() + 10 * 60 * 1000) // 10 minutos
 
-  await supabase.from('otp_tokens').insert({
+  const { error } = await supabase.from('otp_tokens').insert({
     id: crypto.randomUUID(),
     email,
     code_hash: codeHash,
     expires_at: expiresAt.toISOString(),
   })
+
+  if (error) {
+    console.error('[auth] Error al guardar OTP:', error)
+    throw new Error('No se pudo generar el código de verificación')
+  }
 
   return code
 }

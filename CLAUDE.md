@@ -4,7 +4,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## ¿Qué es este proyecto?
 
-Plataforma web de lealtad B2B para los clientes empresariales de **Dismant**. Los miembros acumulan puntos a partir de facturas (CFDI) validadas ante el SAT y los canjean por premios en un catálogo filtrado por zona geográfica.
+Plataforma web de lealtad B2B multi-marca ("Club Momentos"), usada actualmente por **Dismant** y **Lauti** como affiliates. Los miembros acumulan puntos a partir de facturas (CFDI) validadas ante el SAT y los canjean por premios en un catálogo filtrado por zona geográfica.
+
+**Multi-affiliate / branding dinámico:** No es mono-marca. Cada `Member` e `Invitation` tiene un campo `affiliate` (`dismant` | `lauti`, default `dismant`). `apps/web/lib/brand.ts` mapea el affiliate a nombre/inicial de marca vía `getBrand(affiliate)`; se usa en emails (`lib/resend.ts`, remitente dinámico `RESEND_FROM_EMAIL_DISMANT`/`RESEND_FROM_EMAIL_LAUTI`), PDFs de estado de cuenta, páginas de registro/welcome/invitaciones. Al agregar features nuevas que muestren nombre de marca o envíen correos, usar `getBrand()` en vez de hardcodear "Dismant". No asumir un solo tenant/RFC — aunque `DISMANT_RFC` sigue siendo la validación CFDI vigente (ver nota abajo).
 
 **Documentación completa en `/docs/`:**
 - `docs/Plan_Tecnico.md` — arquitectura, módulos, modelo de datos, flujo CFDI, RBAC, roadmap
@@ -146,4 +148,4 @@ El middleware redirige automáticamente: los no-miembros intentando rutas `/dash
 - Implementar US-002: Verificación por OTP
 - Implementar US-005: Login con Magic Link
 
-> **Nota de seguridad pendiente:** `lib/auth.ts:generateAndStoreOTP` guarda el código OTP en texto plano (`code_hash`). Hay un TODO en el código para hashear con bcrypt antes de ir a producción.
+> **Nota:** `otp_tokens` (tabla usada para verificar el correo de invitados) **no tiene FK hacia `members`** — a propósito. El OTP se genera y verifica antes de que exista el registro de `Member` (flujo de registro nuevo vía invitación). Una FK `otp_tokens.email -> members.email` causó que todo insert de OTP para no-miembros fallara en silencio durante semanas (corregido 2026-07-02, migración `20260702000000_drop_otp_tokens_member_fk`). Si se vuelve a tocar este modelo, no reintroducir esa relación.

@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { Trash2, Megaphone, BadgeCheck, Calendar, Globe, MapPin, ImagePlus, X, Upload, Pencil, Star } from 'lucide-react'
+import { Trash2, Megaphone, BadgeCheck, Calendar, Globe, MapPin, ImagePlus, X, Upload, Pencil, Star, Plus } from 'lucide-react'
 
 // ── Tipos ─────────────────────────────────────────────────────
 
@@ -692,6 +692,98 @@ function EditModal({ promo, onClose, onUpdated }: {
   )
 }
 
+// ── Modal de nuevo aliado ──────────────────────────────────────
+
+function NewPartnerModal({ onClose, onCreated }: {
+  onClose:   () => void
+  onCreated: (p: Partner) => void
+}) {
+  const [name, setName]           = useState('')
+  const [logoUrl, setLogoUrl]     = useState('')
+  const [isVerified, setIsVerified] = useState(false)
+  const [loading, setLoading]     = useState(false)
+  const [error, setError]         = useState('')
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    if (!name.trim()) { setError('El nombre es obligatorio'); return }
+
+    setLoading(true)
+    const res = await fetch('/api/admin/partners', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: name.trim(), logo_url: logoUrl.trim() || null, is_verified: isVerified }),
+    })
+    setLoading(false)
+
+    if (!res.ok) {
+      const d = await res.json().catch(() => ({}))
+      setError(d.error ?? 'Error al crear el aliado')
+      return
+    }
+
+    const { partner } = await res.json()
+    onCreated(partner)
+    onClose()
+  }
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/40" onClick={onClose}>
+      <form
+        onSubmit={handleSubmit}
+        className="bg-card rounded-2xl shadow-xl w-full max-w-sm p-6 space-y-4"
+        onClick={e => e.stopPropagation()}
+      >
+        <h3 className="font-bold text-base text-foreground">Nuevo aliado</h3>
+
+        <div>
+          <label className="block text-xs font-medium text-foreground mb-1">
+            Nombre <span className="text-red-500">*</span>
+          </label>
+          <input
+            type="text"
+            value={name}
+            onChange={e => setName(e.target.value)}
+            placeholder="Nombre del aliado/socio"
+            className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-background dark:bg-white/[.06] dark:border-white/[.12] text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+          />
+        </div>
+
+        <div>
+          <label className="block text-xs font-medium text-foreground mb-1">Logo (URL)</label>
+          <input
+            type="url"
+            value={logoUrl}
+            onChange={e => setLogoUrl(e.target.value)}
+            placeholder="https://…"
+            className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-background dark:bg-white/[.06] dark:border-white/[.12] text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+          />
+        </div>
+
+        <label className="flex items-center gap-2 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={isVerified}
+            onChange={e => setIsVerified(e.target.checked)}
+            className="w-4 h-4 accent-primary"
+          />
+          <span className="text-sm text-foreground">Aliado verificado</span>
+        </label>
+
+        {error && <p className="text-xs text-red-600">{error}</p>}
+
+        <div className="flex gap-3 pt-1">
+          <button type="button" onClick={onClose} className="flex-1 py-2.5 rounded-xl border text-sm font-medium text-muted-foreground hover:bg-muted/50">
+            Cancelar
+          </button>
+          <button type="submit" disabled={loading} className="flex-1 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 disabled:opacity-60">
+            {loading ? 'Creando…' : 'Crear aliado'}
+          </button>
+        </div>
+      </form>
+    </div>
+  )
+}
+
 // ── Modal de creación ─────────────────────────────────────────
 
 const MX_STATES = [
@@ -721,10 +813,11 @@ const EMPTY_FORM: FormData = {
   valid_from: '', valid_until: '', featured: false,
 }
 
-function CreateModal({ partners, onClose, onCreated }: {
+function CreateModal({ partners, onClose, onCreated, onPartnerCreated }: {
   partners:  Partner[]
   onClose:   () => void
   onCreated: (p: Promotion) => void
+  onPartnerCreated: (p: Partner) => void
 }) {
   const [form, setForm]           = useState<FormData>(EMPTY_FORM)
   const [bannerFile, setBannerFile] = useState<File | null>(null)
@@ -732,7 +825,13 @@ function CreateModal({ partners, onClose, onCreated }: {
   const [loading, setLoading]     = useState(false)
   const [error, setError]         = useState('')
   const [dragging, setDragging]   = useState(false)
+  const [addingPartner, setAddingPartner] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
+
+  function handlePartnerCreated(p: Partner) {
+    onPartnerCreated(p)
+    set('partner_id', p.id)
+  }
 
   function set(field: keyof FormData, value: string | boolean) {
     setForm(prev => ({ ...prev, [field]: value }))
@@ -873,9 +972,18 @@ function CreateModal({ partners, onClose, onCreated }: {
 
           {/* Aliado */}
           <div>
-            <label className="block text-xs font-medium text-foreground mb-1">
-              Aliado <span className="text-red-500">*</span>
-            </label>
+            <div className="flex items-center justify-between mb-1">
+              <label className="block text-xs font-medium text-foreground">
+                Aliado <span className="text-red-500">*</span>
+              </label>
+              <button
+                type="button"
+                onClick={() => setAddingPartner(true)}
+                className="flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+              >
+                <Plus className="w-3 h-3" /> Nuevo aliado
+              </button>
+            </div>
             <select
               value={form.partner_id}
               onChange={e => set('partner_id', e.target.value)}
@@ -1017,6 +1125,10 @@ function CreateModal({ partners, onClose, onCreated }: {
           </div>
         </div>
       </form>
+
+      {addingPartner && (
+        <NewPartnerModal onClose={() => setAddingPartner(false)} onCreated={handlePartnerCreated} />
+      )}
     </div>
   )
 }
@@ -1076,6 +1188,10 @@ export default function AdminPromotionsPage() {
     setPromotions(prev => [promo, ...prev])
   }
 
+  function handlePartnerCreated(partner: Partner) {
+    setPartners(prev => [...prev, partner].sort((a, b) => a.name.localeCompare(b.name)))
+  }
+
   function handleDeleted(id: string) {
     setPromotions(prev => prev.filter(p => p.id !== id))
   }
@@ -1105,7 +1221,12 @@ export default function AdminPromotionsPage() {
         <EditModal promo={editing} onClose={() => setEditing(null)} onUpdated={handleEdited} />
       )}
       {creating && (
-        <CreateModal partners={partners} onClose={() => setCreating(false)} onCreated={handleCreated} />
+        <CreateModal
+          partners={partners}
+          onClose={() => setCreating(false)}
+          onCreated={handleCreated}
+          onPartnerCreated={handlePartnerCreated}
+        />
       )}
 
       {/* Header */}

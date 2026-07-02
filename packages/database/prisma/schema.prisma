@@ -69,7 +69,6 @@ model Member {
   invoices        Invoice[]
   redemptions     Redemption[]
   reviews         Review[]
-  otpTokens       OtpToken[]
   auditLogs       AuditLog[]  @relation("ActorLogs")
   approvedInvoices  Invoice[]  @relation("ApprovedInvoices")
   verifiedInvoices  Invoice[]  @relation("VerifiedInvoices")
@@ -87,6 +86,8 @@ model Member {
 // AUTENTICACIÓN — OTP TOKENS
 // ─────────────────────────────────────────────────────────────
 
+// Nota: NO tiene relación/FK hacia members.email — el OTP se usa para verificar
+// el correo de invitados ANTES de que exista su registro de Member (registro nuevo).
 model OtpToken {
   id        String   @id @default(uuid())
   email     String
@@ -94,8 +95,6 @@ model OtpToken {
   used      Boolean  @default(false)
   expiresAt DateTime @map("expires_at")
   createdAt DateTime @default(now()) @map("created_at")
-
-  member    Member?  @relation(fields: [email], references: [email])
 
   @@index([email, expiresAt])
   @@map("otp_tokens")

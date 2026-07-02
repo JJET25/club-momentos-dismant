@@ -1,4 +1,5 @@
 import { Resend } from 'resend'
+import { getBrand, BRAND_BLUE, BRAND_BLUE_DARK } from './brand'
 
 // Lazy-init: evita throw en build de Next.js cuando la API key no está presente
 let _resend: Resend | null = null
@@ -22,11 +23,24 @@ interface SendEmailOptions {
 }
 
 function getFromAddress(affiliate?: string): string {
-  const cfg = AFFILIATE_CONFIG[affiliate ?? 'dismant'] ?? AFFILIATE_CONFIG.dismant
+  const brand = getBrand(affiliate)
   const emailKey = affiliate === 'lauti'
     ? (process.env.RESEND_FROM_EMAIL_LAUTI ?? process.env.RESEND_FROM_EMAIL!)
     : (process.env.RESEND_FROM_EMAIL_DISMANT ?? process.env.RESEND_FROM_EMAIL!)
-  return `${cfg.clubName} <${emailKey}>`
+  return `${brand.name} <${emailKey}>`
+}
+
+/** Bloque de encabezado con el badge de marca (inicial + nombre del club), consistente en todos los correos */
+function brandHeader(affiliate?: string): string {
+  const brand = getBrand(affiliate)
+  return `
+    <div style="text-align: center; margin-bottom: 24px;">
+      <div style="display: inline-flex; align-items: center; justify-content: center; width: 56px; height: 56px; background: ${BRAND_BLUE}; border-radius: 14px;">
+        <span style="font-size: 24px; font-weight: 700; color: #ffffff;">${brand.initial}</span>
+      </div>
+      <h1 style="margin-top: 10px; font-size: 18px; color: ${BRAND_BLUE_DARK}; margin-bottom: 0;">${brand.name}</h1>
+    </div>
+  `
 }
 
 /** Envía un email transaccional via Resend */
@@ -52,11 +66,10 @@ export async function sendEmail({ to, subject, html, text, attachments, affiliat
 
 /** OTP de acceso al sistema */
 export function buildOTPEmail(code: string, userName?: string, affiliate?: string): string {
-  const cfg = AFFILIATE_CONFIG[affiliate ?? 'dismant'] ?? AFFILIATE_CONFIG.dismant
   return `
     <div style="font-family: Inter, sans-serif; max-width: 500px; margin: 0 auto; padding: 32px;">
-      <img src="${process.env.NEXT_PUBLIC_APP_URL}/logo.png" alt="${cfg.clubName}" height="40" />
-      <h2 style="margin-top: 24px; color: #1e3a8a;">Tu código de acceso</h2>
+      ${brandHeader(affiliate)}
+      <h2 style="margin-top: 0; color: #1e3a8a;">Tu código de acceso</h2>
       ${userName ? `<p>Hola ${userName},</p>` : ''}
       <p>Usa este código para ingresar a tu cuenta. Expira en <strong>10 minutos</strong>.</p>
       <div style="background: #eff6ff; border-radius: 8px; padding: 24px; text-align: center; margin: 24px 0;">
@@ -80,7 +93,7 @@ export function buildInvoiceApprovedEmail(params: {
   newBalance: number
   affiliate?: string
 }): string {
-  const cfg = AFFILIATE_CONFIG[params.affiliate ?? 'dismant'] ?? AFFILIATE_CONFIG.dismant
+  const cfg = getBrand(params.affiliate)
   const fmtMxn = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(params.totalMxn)
   const fmtPts = (n: number) => n.toLocaleString('es-MX')
   return `
@@ -89,7 +102,7 @@ export function buildInvoiceApprovedEmail(params: {
         <div style="display: inline-flex; align-items: center; justify-content: center; width: 64px; height: 64px; background: #16a34a; border-radius: 16px;">
           <span style="font-size: 30px;">✅</span>
         </div>
-        <h1 style="margin-top: 12px; font-size: 20px; color: ${cfg.colorDark}; margin-bottom: 0;">${cfg.clubName}</h1>
+        <h1 style="margin-top: 12px; font-size: 20px; color: ${BRAND_BLUE_DARK}; margin-bottom: 0;">${cfg.name}</h1>
       </div>
 
       <h2 style="color: #15803d; margin-bottom: 8px;">Factura validada exitosamente</h2>
@@ -127,7 +140,7 @@ export function buildInvoiceApprovedEmail(params: {
       </div>
 
       <p style="color: #9ca3af; font-size: 12px; text-align: center;">
-        ${cfg.clubName} · Si tienes dudas, contacta a tu ejecutivo de cuenta.
+        ${cfg.name} · Si tienes dudas, contacta a tu ejecutivo de cuenta.
       </p>
     </div>
   `
@@ -140,9 +153,10 @@ export function buildInvoiceRejectedEmail(params: {
   reason:     string
   affiliate?: string
 }): string {
-  const cfg = AFFILIATE_CONFIG[params.affiliate ?? 'dismant'] ?? AFFILIATE_CONFIG.dismant
+  const cfg = getBrand(params.affiliate)
   return `
     <div style="font-family: Inter, sans-serif; max-width: 500px; margin: 0 auto; padding: 32px;">
+      ${brandHeader(params.affiliate)}
       <h2 style="color: #dc2626;">❌ Factura no procesada</h2>
       <p>Hola ${params.userName},</p>
       <p>Tu factura no pudo ser procesada por la siguiente razón:</p>
@@ -150,28 +164,9 @@ export function buildInvoiceRejectedEmail(params: {
         <p style="margin: 4px 0;"><strong>Folio:</strong> ${params.uuidCfdi.slice(0, 8)}...</p>
         <p style="margin: 4px 0;"><strong>Razón:</strong> ${params.reason}</p>
       </div>
-      <p>Si tienes dudas, contacta a tu ejecutivo de cuenta en ${cfg.brand}.</p>
+      <p>Si tienes dudas, contacta a tu ejecutivo de cuenta en ${cfg.short}.</p>
     </div>
   `
-}
-
-// ── Config por afiliado ──────────────────────────────────────
-
-const AFFILIATE_CONFIG: Record<string, { clubName: string; brand: string; color: string; colorDark: string; initial: string }> = {
-  dismant: {
-    clubName:  'Club Momentos Dismant',
-    brand:     'Dismant',
-    color:     '#2563eb',
-    colorDark: '#1e3a8a',
-    initial:   'D',
-  },
-  lauti: {
-    clubName:  'Club Momentos Lauti',
-    brand:     'Lauti',
-    color:     '#d97706',
-    colorDark: '#92400e',
-    initial:   'L',
-  },
 }
 
 /** Email de invitación al club */
@@ -181,15 +176,15 @@ export function buildInvitationEmail(params: {
   senderName?: string
   affiliate?: string
 }): string {
-  const cfg = AFFILIATE_CONFIG[params.affiliate ?? 'dismant'] ?? AFFILIATE_CONFIG.dismant
+  const cfg = getBrand(params.affiliate)
 
   return `
     <div style="font-family: Inter, sans-serif; max-width: 500px; margin: 0 auto; padding: 32px;">
       <div style="text-align: center; margin-bottom: 32px;">
-        <div style="display: inline-flex; align-items: center; justify-content: center; width: 64px; height: 64px; background: ${cfg.color}; border-radius: 16px;">
+        <div style="display: inline-flex; align-items: center; justify-content: center; width: 64px; height: 64px; background: ${BRAND_BLUE}; border-radius: 16px;">
           <span style="font-size: 28px; font-weight: 700; color: white;">${cfg.initial}</span>
         </div>
-        <h1 style="margin-top: 12px; font-size: 20px; color: ${cfg.colorDark}; margin-bottom: 0;">${cfg.clubName}</h1>
+        <h1 style="margin-top: 12px; font-size: 20px; color: ${BRAND_BLUE_DARK}; margin-bottom: 0;">${cfg.name}</h1>
       </div>
 
       <h2 style="color: #111827; margin-bottom: 8px;">
@@ -197,7 +192,7 @@ export function buildInvitationEmail(params: {
       </h2>
       <p style="color: #374151; line-height: 1.6;">
         ${params.senderName ? `<strong>${params.senderName}</strong> te ha invitado a` : 'Has sido invitado a'} unirte al
-        <strong>${cfg.clubName}</strong>, el programa de lealtad exclusivo para clientes de ${cfg.brand}.
+        <strong>${cfg.name}</strong>, el programa de lealtad exclusivo para clientes de ${cfg.short}.
       </p>
       <p style="color: #374151; line-height: 1.6;">
         Acumula puntos con cada compra y canjéalos por premios exclusivos en tu zona.
@@ -205,7 +200,7 @@ export function buildInvitationEmail(params: {
 
       <div style="text-align: center; margin: 36px 0;">
         <a href="${params.inviteLink}"
-           style="display: inline-block; background: ${cfg.color}; color: white; padding: 16px 40px;
+           style="display: inline-block; background: ${BRAND_BLUE}; color: white; padding: 16px 40px;
                   border-radius: 10px; text-decoration: none; font-weight: 600; font-size: 16px;">
           Crear mi cuenta
         </a>
@@ -219,7 +214,7 @@ export function buildInvitationEmail(params: {
           Si el botón no funciona, copia y pega este enlace en tu navegador:
         </p>
         <p style="margin: 6px 0 0; font-size: 11px; word-break: break-all;">
-          <a href="${params.inviteLink}" style="color: ${cfg.color};">${params.inviteLink}</a>
+          <a href="${params.inviteLink}" style="color: ${BRAND_BLUE};">${params.inviteLink}</a>
         </p>
       </div>
 
@@ -232,14 +227,14 @@ export function buildInvitationEmail(params: {
 
 /** Magic Link de acceso */
 export function buildMagicLinkEmail(magicLink: string, userName?: string, affiliate?: string): string {
-  const cfg = AFFILIATE_CONFIG[affiliate ?? 'dismant'] ?? AFFILIATE_CONFIG.dismant
+  const cfg = getBrand(affiliate)
   return `
     <div style="font-family: Inter, sans-serif; max-width: 500px; margin: 0 auto; padding: 32px;">
       <div style="text-align: center; margin-bottom: 24px;">
-        <div style="display: inline-flex; align-items: center; justify-content: center; width: 64px; height: 64px; background: ${cfg.color}; border-radius: 16px;">
+        <div style="display: inline-flex; align-items: center; justify-content: center; width: 64px; height: 64px; background: ${BRAND_BLUE}; border-radius: 16px;">
           <span style="font-size: 28px; font-weight: 700; color: white;">${cfg.initial}</span>
         </div>
-        <h1 style="margin-top: 12px; font-size: 20px; color: ${cfg.colorDark};">${cfg.clubName}</h1>
+        <h1 style="margin-top: 12px; font-size: 20px; color: ${BRAND_BLUE_DARK};">${cfg.name}</h1>
       </div>
       <h2 style="color: #111827;">Tu enlace de acceso</h2>
       ${userName ? `<p>Hola ${userName},</p>` : ''}
@@ -268,7 +263,7 @@ export function buildVoucherEmail(params: {
   digitalCode?: string
   affiliate?:   string
 }): string {
-  const cfg = AFFILIATE_CONFIG[params.affiliate ?? 'dismant'] ?? AFFILIATE_CONFIG.dismant
+  const cfg = getBrand(params.affiliate)
   const fmtPts = (n: number) => n.toLocaleString('es-MX')
   const instructionHtml = params.isDigital && params.digitalCode
     ? `<div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:20px;margin:20px 0;text-align:center;">
@@ -278,7 +273,7 @@ export function buildVoucherEmail(params: {
        </div>`
     : `<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:10px;padding:16px;margin:20px 0;">
         <p style="margin:0 0 6px;font-size:13px;color:#374151;font-weight:600;">¿Cómo recibir tu premio?</p>
-        <p style="margin:0;font-size:13px;color:#374151;line-height:1.6;">Presenta el código de referencia a tu ejecutivo de ${cfg.brand}.
+        <p style="margin:0;font-size:13px;color:#374151;line-height:1.6;">Presenta el código de referencia a tu ejecutivo de ${cfg.short}.
         Él gestionará la entrega de tu premio.</p>
        </div>`
 
@@ -322,7 +317,7 @@ export function buildVoucherEmail(params: {
       </div>
 
       <p style="color:#9ca3af;font-size:12px;text-align:center;">
-        ${cfg.clubName} · Guarda este correo como comprobante de tu canje.
+        ${cfg.name} · Guarda este correo como comprobante de tu canje.
       </p>
     </div>
   `
@@ -339,7 +334,7 @@ export function buildPrizeDeliveredEmail(params: {
   voucherCode:   string
   affiliate?:    string
 }): string {
-  const cfg = AFFILIATE_CONFIG[params.affiliate ?? 'dismant'] ?? AFFILIATE_CONFIG.dismant
+  const cfg = getBrand(params.affiliate)
   const codeBlock = params.prizeContent
     ? `<div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:12px;padding:24px;margin:24px 0;text-align:center;">
         <p style="margin:0 0 8px;font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:1.5px;font-weight:600;">Tu código / acceso</p>
@@ -375,7 +370,7 @@ export function buildPrizeDeliveredEmail(params: {
         <h1 style="margin-top:12px;font-size:20px;color:#1e3a8a;margin-bottom:0;">¡Tu premio está listo!</h1>
       </div>
       <p style="color:#374151;">Hola <strong>${params.userName}</strong>,</p>
-      <p style="color:#374151;line-height:1.6;">Tu ejecutivo de ${cfg.brand} procesó la entrega de <strong>${params.skuName}</strong>.</p>
+      <p style="color:#374151;line-height:1.6;">Tu ejecutivo de ${cfg.short} procesó la entrega de <strong>${params.skuName}</strong>.</p>
       ${codeBlock}${fileBlock}${fallback}
       <div style="background:#f8fafc;border-radius:10px;padding:14px;margin:20px 0;text-align:center;">
         <p style="margin:0 0 4px;font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:1px;">Referencia del canje</p>
@@ -387,7 +382,7 @@ export function buildPrizeDeliveredEmail(params: {
           Ver mis canjes →
         </a>
       </div>
-      <p style="color:#9ca3af;font-size:12px;text-align:center;">${cfg.clubName} · Guarda este correo como comprobante.</p>
+      <p style="color:#9ca3af;font-size:12px;text-align:center;">${cfg.name} · Guarda este correo como comprobante.</p>
     </div>
   `
 }
@@ -399,7 +394,7 @@ export function buildPhysicalDeliveredEmail(params: {
   voucherCode: string
   affiliate?:  string
 }): string {
-  const cfg = AFFILIATE_CONFIG[params.affiliate ?? 'dismant'] ?? AFFILIATE_CONFIG.dismant
+  const cfg = getBrand(params.affiliate)
   return `
     <div style="font-family:Inter,sans-serif;max-width:520px;margin:0 auto;padding:32px;background:#fff;">
       <div style="text-align:center;margin-bottom:24px;">
@@ -410,11 +405,11 @@ export function buildPhysicalDeliveredEmail(params: {
       </div>
       <p style="color:#374151;">Hola <strong>${params.userName}</strong>,</p>
       <p style="color:#374151;line-height:1.6;">
-        Tu ejecutivo de ${cfg.brand} ha confirmado que tu premio <strong>${params.skuName}</strong> fue entregado exitosamente.
+        Tu ejecutivo de ${cfg.short} ha confirmado que tu premio <strong>${params.skuName}</strong> fue entregado exitosamente.
       </p>
       <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:20px;margin:24px 0;">
         <p style="margin:0;font-size:14px;color:#166534;line-height:1.6;">
-          Si tienes alguna duda sobre tu entrega, comunícate directamente con tu ejecutivo de cuenta en ${cfg.brand}.
+          Si tienes alguna duda sobre tu entrega, comunícate directamente con tu ejecutivo de cuenta en ${cfg.short}.
         </p>
       </div>
       <div style="background:#f8fafc;border-radius:10px;padding:14px;margin:20px 0;text-align:center;">
@@ -427,7 +422,7 @@ export function buildPhysicalDeliveredEmail(params: {
           Ver mis canjes →
         </a>
       </div>
-      <p style="color:#9ca3af;font-size:12px;text-align:center;">${cfg.clubName} · Gracias por confiar en nosotros.</p>
+      <p style="color:#9ca3af;font-size:12px;text-align:center;">${cfg.name} · Gracias por confiar en nosotros.</p>
     </div>
   `
 }
@@ -442,7 +437,7 @@ export function buildShippingNotificationEmail(params: {
   estimatedDate?: string
   affiliate?:     string
 }): string {
-  const cfg = AFFILIATE_CONFIG[params.affiliate ?? 'dismant'] ?? AFFILIATE_CONFIG.dismant
+  const cfg = getBrand(params.affiliate)
   const trackingBlock = params.trackingUrl
     ? `<div style="text-align:center;margin:16px 0;">
         <a href="${params.trackingUrl}"
@@ -495,7 +490,7 @@ export function buildShippingNotificationEmail(params: {
       </div>
 
       <p style="color:#9ca3af;font-size:12px;text-align:center;">
-        ${cfg.clubName} · Si tienes dudas sobre tu envío, contacta a tu ejecutivo.
+        ${cfg.name} · Si tienes dudas sobre tu envío, contacta a tu ejecutivo.
       </p>
     </div>
   `
@@ -506,9 +501,12 @@ export function buildPointsExpiringEmail(params: {
   userName: string
   points: number
   expiresAt: string
+  affiliate?: string
 }): string {
+  const cfg = getBrand(params.affiliate)
   return `
     <div style="font-family: Inter, sans-serif; max-width: 500px; margin: 0 auto; padding: 32px;">
+      ${brandHeader(params.affiliate)}
       <h2 style="color: #d97706;">⚠️ Tienes puntos que están por vencer</h2>
       <p>Hola ${params.userName},</p>
       <div style="background: #fef3c7; border-radius: 8px; padding: 16px; margin: 16px 0;">
@@ -516,9 +514,10 @@ export function buildPointsExpiringEmail(params: {
       </div>
       <p>Visita el catálogo y canjéalos antes de perderlos.</p>
       <a href="${process.env.NEXT_PUBLIC_APP_URL}/catalog"
-         style="display: inline-block; background: #d97706; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; margin-top: 16px;">
+         style="display: inline-block; background: ${BRAND_BLUE}; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; margin-top: 16px;">
         Ver premios disponibles
       </a>
+      <p style="color: #9ca3af; font-size: 12px; text-align: center; margin-top: 24px;">${cfg.name}</p>
     </div>
   `
 }
