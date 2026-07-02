@@ -244,12 +244,33 @@ function Step2({
     return () => clearTimeout(timer)
   }, [countdown])
 
-  function handleInput(index: number, value: string) {
-    if (!/^\d*$/.test(value)) return
+  function handleInput(index: number, rawValue: string) {
+    const digits = rawValue.replace(/\D/g, '')
+
+    // Pegado/autocompletado que llega vía onChange (con más de un dígito) en
+    // vez de un evento paste — distribuir a partir de esta casilla.
+    if (digits.length > 1) {
+      const newCode = ['', '', '', '', '', '']
+      for (let i = 0; i < digits.length && index + i < 6; i++) newCode[index + i] = digits[i]
+      setCode(newCode)
+      inputs.current[Math.min(index + digits.length, 6) - 1]?.focus()
+      return
+    }
+
     const newCode = [...code]
-    newCode[index] = value.slice(-1)
+    newCode[index] = digits
     setCode(newCode)
-    if (value && index < 5) inputs.current[index + 1]?.focus()
+    if (digits && index < 5) inputs.current[index + 1]?.focus()
+  }
+
+  function handlePaste(index: number, e: React.ClipboardEvent<HTMLInputElement>) {
+    const digits = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6)
+    if (!digits) return
+    e.preventDefault()
+    const newCode = ['', '', '', '', '', '']
+    for (let i = 0; i < digits.length && index + i < 6; i++) newCode[index + i] = digits[i]
+    setCode(newCode)
+    inputs.current[Math.min(index + digits.length, 6) - 1]?.focus()
   }
 
   function handleKeyDown(index: number, e: React.KeyboardEvent) {
@@ -300,18 +321,23 @@ function Step2({
         Enviamos un código de 6 dígitos a <strong>{email}</strong>. Expira en 10 minutos.
       </p>
 
-      <div className="flex gap-2 justify-center mb-4">
+      <div className="flex gap-2.5 justify-center mb-4">
         {code.map((digit, i) => (
           <input
             key={i}
             ref={(el) => { inputs.current[i] = el }}
             type="text"
             inputMode="numeric"
-            maxLength={1}
+            autoComplete={i === 0 ? 'one-time-code' : 'off'}
+            maxLength={6}
             value={digit}
             onChange={(e) => handleInput(i, e.target.value)}
             onKeyDown={(e) => handleKeyDown(i, e)}
-            className="w-11 h-13 text-center text-xl font-bold border-2 border-input rounded-lg focus:outline-none focus:border-brand-600 transition-colors"
+            onPaste={(e) => handlePaste(i, e)}
+            onFocus={(e) => e.target.select()}
+            className={`w-12 h-14 text-center text-2xl font-bold rounded-xl border-2 bg-white text-foreground shadow-sm
+              transition-all focus:outline-none focus:ring-4 focus:ring-brand-600/15 focus:border-brand-600
+              ${digit ? 'border-brand-600' : 'border-input'}`}
           />
         ))}
       </div>

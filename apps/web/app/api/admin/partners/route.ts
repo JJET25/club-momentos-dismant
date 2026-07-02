@@ -13,7 +13,7 @@ export async function GET() {
   const supabase = createAdminClient()
   const { data, error } = await supabase
     .from('partners')
-    .select('id, name, logo_url, is_verified')
+    .select('id, name, logo_url, is_verified, status')
     .order('name')
 
   if (error) return NextResponse.json({ error: 'Error al obtener aliados' }, { status: 500 })
@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
       logo_url:    logo_url?.trim() || null,
       is_verified: is_verified ?? false,
     })
-    .select('id, name, logo_url, is_verified')
+    .select('id, name, logo_url, is_verified, status')
     .single()
 
   if (error) return NextResponse.json({ error: 'Error al crear aliado' }, { status: 500 })

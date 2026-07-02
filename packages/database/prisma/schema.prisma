@@ -191,6 +191,7 @@ model Partner {
   name        String
   logoUrl     String?  @map("logo_url")
   isVerified  Boolean  @default(false) @map("is_verified")
+  status      String   @default("active") // active | suspended
   createdAt   DateTime @default(now()) @map("created_at")
 
   skus        RewardSku[]

@@ -9,6 +9,7 @@ import {
   Mail,
   Gift,
   Megaphone,
+  Handshake,
   BarChart2,
   ShieldCheck,
   Settings,
@@ -45,6 +46,7 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { href: '/admin/invitations', label: 'Invitaciones', icon: Mail,      minRole: 'admin' },
       { href: '/admin/catalog',     label: 'Catálogo',     icon: Gift,      minRole: 'admin' },
+      { href: '/admin/partners',    label: 'Aliados',      icon: Handshake, minRole: 'admin' },
       { href: '/admin/promotions',  label: 'Promociones',  icon: Megaphone, minRole: 'admin' },
       { href: '/admin/redemptions', label: 'Canjes',       icon: Ticket,    minRole: 'employee' },
     ],

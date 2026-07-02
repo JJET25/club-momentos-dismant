@@ -10,6 +10,7 @@ interface Partner {
   name:        string
   logo_url:    string | null
   is_verified: boolean
+  status?:     string
 }
 
 interface Promotion {
@@ -990,10 +991,13 @@ function CreateModal({ partners, onClose, onCreated, onPartnerCreated }: {
               className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-background dark:bg-white/[.06] dark:border-white/[.12] text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
             >
               <option value="">Selecciona un aliado…</option>
-              {partners.map(p => (
+              {partners.filter(p => p.status !== 'suspended').map(p => (
                 <option key={p.id} value={p.id}>{p.name}{p.is_verified ? ' — verificado' : ''}</option>
               ))}
             </select>
+            <p className="text-[11px] text-muted-foreground mt-1">
+              Los aliados suspendidos no aparecen aquí. Gestiónalos en <span className="font-medium">Aliados</span>.
+            </p>
           </div>
 
           {/* Título */}

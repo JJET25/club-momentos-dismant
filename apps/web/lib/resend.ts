@@ -30,14 +30,32 @@ function getFromAddress(affiliate?: string): string {
   return `${brand.name} <${emailKey}>`
 }
 
+/**
+ * Badge cuadrado con la inicial de la marca, centrado con <table>/valign en vez
+ * de flexbox: muchos clientes de correo (Outlook, algunos webmail) ignoran
+ * display:flex y dejan la letra pegada a una esquina en vez de centrada.
+ * Las tablas con align/valign son la forma que sí se centra en todos lados.
+ */
+function brandBadge(affiliate: string | undefined, size: number): string {
+  const brand = getBrand(affiliate)
+  return `
+    <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin: 0 auto;">
+      <tr>
+        <td width="${size}" height="${size}" align="center" valign="middle"
+            style="background: ${BRAND_BLUE}; border-radius: ${Math.round(size * 0.22)}px; font-family: Inter, Arial, sans-serif; font-size: ${Math.round(size * 0.42)}px; font-weight: 700; line-height: 1; color: #ffffff;">
+          ${brand.initial}
+        </td>
+      </tr>
+    </table>
+  `
+}
+
 /** Bloque de encabezado con el badge de marca (inicial + nombre del club), consistente en todos los correos */
 function brandHeader(affiliate?: string): string {
   const brand = getBrand(affiliate)
   return `
     <div style="text-align: center; margin-bottom: 24px;">
-      <div style="display: inline-flex; align-items: center; justify-content: center; width: 56px; height: 56px; background: ${BRAND_BLUE}; border-radius: 14px;">
-        <span style="font-size: 24px; font-weight: 700; color: #ffffff;">${brand.initial}</span>
-      </div>
+      ${brandBadge(affiliate, 56)}
       <h1 style="margin-top: 10px; font-size: 18px; color: ${BRAND_BLUE_DARK}; margin-bottom: 0;">${brand.name}</h1>
     </div>
   `
@@ -181,9 +199,7 @@ export function buildInvitationEmail(params: {
   return `
     <div style="font-family: Inter, sans-serif; max-width: 500px; margin: 0 auto; padding: 32px;">
       <div style="text-align: center; margin-bottom: 32px;">
-        <div style="display: inline-flex; align-items: center; justify-content: center; width: 64px; height: 64px; background: ${BRAND_BLUE}; border-radius: 16px;">
-          <span style="font-size: 28px; font-weight: 700; color: white;">${cfg.initial}</span>
-        </div>
+        ${brandBadge(params.affiliate, 64)}
         <h1 style="margin-top: 12px; font-size: 20px; color: ${BRAND_BLUE_DARK}; margin-bottom: 0;">${cfg.name}</h1>
       </div>
 
@@ -231,9 +247,7 @@ export function buildMagicLinkEmail(magicLink: string, userName?: string, affili
   return `
     <div style="font-family: Inter, sans-serif; max-width: 500px; margin: 0 auto; padding: 32px;">
       <div style="text-align: center; margin-bottom: 24px;">
-        <div style="display: inline-flex; align-items: center; justify-content: center; width: 64px; height: 64px; background: ${BRAND_BLUE}; border-radius: 16px;">
-          <span style="font-size: 28px; font-weight: 700; color: white;">${cfg.initial}</span>
-        </div>
+        ${brandBadge(affiliate, 64)}
         <h1 style="margin-top: 12px; font-size: 20px; color: ${BRAND_BLUE_DARK};">${cfg.name}</h1>
       </div>
       <h2 style="color: #111827;">Tu enlace de acceso</h2>

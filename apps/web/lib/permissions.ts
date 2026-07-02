@@ -32,6 +32,7 @@ export const EMPLOYEE_ROUTES = [
 /** Rutas de /admin exclusivas para owner y admin (no employee) */
 export const MANAGER_ONLY_ROUTES = [
   '/admin/catalog',
+  '/admin/partners',
   '/admin/invitations',
   '/admin/promotions',
   '/admin/reports',
@@ -58,6 +59,9 @@ export const PERMISSIONS = {
   // Catálogo
   VIEW_CATALOG:     STAFF_ROLES,
   MANAGE_CATALOG:   MANAGER_ROLES,
+
+  // Aliados
+  MANAGE_PARTNERS:  MANAGER_ROLES,
 
   // Invitaciones
   MANAGE_INVITATIONS: MANAGER_ROLES,
