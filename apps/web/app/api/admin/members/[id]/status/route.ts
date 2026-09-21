@@ -1,4 +1,5 @@
-import { MANAGER_ROLES } from '@/lib/permissions'
+import { SCOPED_MANAGER_ROLES } from '@/lib/permissions'
+import { getEffectiveAffiliate } from '@/lib/scope'
 import { NextRequest, NextResponse } from 'next/server'
 import crypto from 'crypto'
 import { getSession } from '@/lib/auth'
@@ -6,7 +7,7 @@ import { createAdminClient } from '@/lib/supabase'
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSession()
-  if (!session || !MANAGER_ROLES.includes(session.role as never)) {
+  if (!session || !SCOPED_MANAGER_ROLES.includes(session.role as never)) {
     return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
   }
 
@@ -21,6 +22,31 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   }
 
   const supabase = createAdminClient()
+
+  // Este endpoint sirve tanto para suspender clientes (Miembros, scoped por
+  // affiliate/perspectiva) como cuentas de staff (Equipo, siempre global,
+  // solo el Propietario).
+  const { data: target } = await supabase
+    .from('members')
+    .select('id, affiliate, roles!role_id(name)')
+    .eq('id', memberId)
+    .single()
+
+  if (!target) {
+    return NextResponse.json({ error: 'Miembro no encontrado' }, { status: 404 })
+  }
+
+  const targetRole = (target.roles as unknown as { name: string } | null)?.name
+  const isClient = targetRole === 'member'
+
+  if (isClient) {
+    const affiliate = getEffectiveAffiliate(session, req)
+    if (affiliate && target.affiliate !== affiliate) {
+      return NextResponse.json({ error: 'Miembro no encontrado' }, { status: 404 })
+    }
+  } else if (session.role !== 'owner') {
+    return NextResponse.json({ error: 'Solo el Propietario puede cambiar el estatus del equipo' }, { status: 403 })
+  }
 
   const { error } = await supabase
     .from('members')

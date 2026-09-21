@@ -1,20 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server'
 import crypto from 'crypto'
 import { getSession } from '@/lib/auth'
-import { MANAGER_ROLES } from '@/lib/permissions'
+import { SCOPED_MANAGER_ROLES } from '@/lib/permissions'
+import { getEffectiveAffiliate } from '@/lib/scope'
 import { createAdminClient } from '@/lib/supabase'
 import { sendEmail, buildInvoiceApprovedEmail } from '@/lib/resend'
 import { sendPushNotification } from '@/lib/firebase-admin'
 import { getBrand } from '@/lib/brand'
 
-// Solo owners y admins pueden verificar — los empleados solo registran
-export async function POST(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+// Solo owner/admin/team_admin pueden verificar — los empleados solo registran
+export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSession()
-  if (!session || !MANAGER_ROLES.includes(session.role as never)) {
+  if (!session || !SCOPED_MANAGER_ROLES.includes(session.role as never)) {
     return NextResponse.json({ error: 'No autorizado: se requiere rol admin u owner' }, { status: 403 })
   }
 
   const { id: invoiceId } = await params
+  const affiliate = getEffectiveAffiliate(session, req)
   const supabase = createAdminClient()
 
   const { data: invoice } = await supabase
@@ -27,6 +29,11 @@ export async function POST(_: NextRequest, { params }: { params: Promise<{ id: s
     .single()
 
   if (!invoice) {
+    return NextResponse.json({ error: 'Factura no encontrada' }, { status: 404 })
+  }
+
+  const memberScope = (invoice.members as unknown) as { affiliate?: string } | null
+  if (affiliate && memberScope?.affiliate !== affiliate) {
     return NextResponse.json({ error: 'Factura no encontrada' }, { status: 404 })
   }
   if (invoice.verification_status === 'verified') {

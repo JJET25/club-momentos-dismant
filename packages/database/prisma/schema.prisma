@@ -193,11 +193,13 @@ model Partner {
   logoUrl     String?  @map("logo_url")
   isVerified  Boolean  @default(false) @map("is_verified")
   status      String   @default("active") // active | suspended
+  affiliate   String   @default("dismant") @map("affiliate") // dismant | lauti
   createdAt   DateTime @default(now()) @map("created_at")
 
   skus        RewardSku[]
   promotions  PartnerPromotion[]
 
+  @@index([affiliate])
   @@map("partners")
 }
 
@@ -220,6 +222,7 @@ model RewardSku {
   status                String   @default("active")   // active | paused | discontinued
   category              String?
   partnerId             String?  @map("partner_id")
+  affiliate             String   @default("dismant") @map("affiliate") // dismant | lauti
   createdAt             DateTime @default(now()) @map("created_at")
 
   partner        Partner?     @relation(fields: [partnerId], references: [id])
@@ -228,6 +231,7 @@ model RewardSku {
   digitalCodes   DigitalCode[]
 
   @@index([geoType, status])
+  @@index([affiliate])
   @@map("reward_skus")
 }
 

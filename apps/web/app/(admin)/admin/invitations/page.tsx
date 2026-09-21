@@ -1,7 +1,8 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Copy, Check } from 'lucide-react'
+import Link from 'next/link'
+import { Copy, Check, Info } from 'lucide-react'
 
 type Affiliate = 'dismant' | 'lauti'
 
@@ -53,6 +54,7 @@ export default function InvitationsPage() {
   const [copied, setCopied] = useState(false)
   const [invitations, setInvitations] = useState<Invitation[]>([])
   const [loadingList, setLoadingList] = useState(true)
+  const [scopedTo, setScopedTo] = useState<Affiliate | null>(null)
 
   async function loadInvitations() {
     setLoadingList(true)
@@ -66,6 +68,14 @@ export default function InvitationsPage() {
 
   useEffect(() => {
     loadInvitations()
+    fetch('/api/admin/me').then(r => r.json()).then(me => {
+      // team_admin solo puede invitar a su propia empresa — se fuerza aquí
+      // y también en el servidor.
+      if (me.role === 'team_admin' && (me.affiliate === 'dismant' || me.affiliate === 'lauti')) {
+        setScopedTo(me.affiliate)
+        setAffiliate(me.affiliate)
+      }
+    })
   }, [])
 
   async function handleSend(e: React.FormEvent) {
@@ -96,7 +106,7 @@ export default function InvitationsPage() {
     setCopied(false)
     setEmail('')
     setRecipientName('')
-    setAffiliate('dismant')
+    setAffiliate(scopedTo ?? 'dismant')
     loadInvitations()
   }
 
@@ -111,10 +121,18 @@ export default function InvitationsPage() {
   return (
     <div className="max-w-4xl">
       <div className="mb-8">
-        <h1 className="text-2xl font-bold text-foreground">Invitaciones</h1>
+        <h1 className="text-2xl font-bold text-foreground">Invitaciones a clientes</h1>
         <p className="text-muted-foreground text-sm mt-1">
           Envía invitaciones por correo para que nuevos clientes puedan registrarse.
         </p>
+        <div className="mt-4 flex items-start gap-2.5 rounded-xl border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/20 px-4 py-3">
+          <Info className="w-4 h-4 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
+          <p className="text-xs text-blue-800 dark:text-blue-300">
+            Esta sección es únicamente para invitar <strong>clientes</strong> (miembros del club que acumulan puntos).
+            Para dar de alta a personal interno (empleados, administradores), usa{' '}
+            <Link href="/admin/team" className="font-semibold underline hover:no-underline">Equipo</Link> en su lugar.
+          </p>
+        </div>
       </div>
 
       {/* Formulario de nueva invitación */}
@@ -162,22 +180,29 @@ export default function InvitationsPage() {
             <label className="block text-sm font-medium text-foreground mb-2">
               Empresa afiliada *
             </label>
-            <div className="flex gap-3">
-              {AFFILIATE_OPTIONS.map((opt) => (
-                <button
-                  key={opt.value}
-                  type="button"
-                  onClick={() => setAffiliate(opt.value)}
-                  className={`flex-1 py-2.5 px-4 rounded-lg border-2 text-sm font-medium transition-all ${
-                    affiliate === opt.value
-                      ? 'border-brand-600 bg-brand-50 text-brand-700 dark:bg-brand-900/40 dark:text-brand-300 dark:border-brand-500'
-                      : 'border-border bg-background text-muted-foreground hover:border-muted-foreground/40'
-                  }`}
-                >
-                  {opt.label}
-                </button>
-              ))}
-            </div>
+            {scopedTo ? (
+              <p className="text-sm text-muted-foreground bg-muted/40 rounded-lg px-3 py-2.5">
+                Como administrador de equipo, tus invitaciones son siempre para{' '}
+                <strong>{AFFILIATE_OPTIONS.find(o => o.value === scopedTo)?.label ?? scopedTo}</strong>.
+              </p>
+            ) : (
+              <div className="flex gap-3">
+                {AFFILIATE_OPTIONS.map((opt) => (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => setAffiliate(opt.value)}
+                    className={`flex-1 py-2.5 px-4 rounded-lg border-2 text-sm font-medium transition-all ${
+                      affiliate === opt.value
+                        ? 'border-brand-600 bg-brand-50 text-brand-700 dark:bg-brand-900/40 dark:text-brand-300 dark:border-brand-500'
+                        : 'border-border bg-background text-muted-foreground hover:border-muted-foreground/40'
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

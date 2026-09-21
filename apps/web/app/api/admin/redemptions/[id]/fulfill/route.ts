@@ -3,6 +3,7 @@ import crypto from 'crypto'
 import { getSession } from '@/lib/auth'
 import { createAdminClient } from '@/lib/supabase'
 import { STAFF_ROLES } from '@/lib/permissions'
+import { getEffectiveAffiliate } from '@/lib/scope'
 import { sendEmail, buildPrizeDeliveredEmail, buildShippingNotificationEmail, buildPhysicalDeliveredEmail } from '@/lib/resend'
 import { downloadFileContent } from '@/lib/storage'
 import path from 'path'
@@ -32,6 +33,7 @@ export async function PATCH(
 
   if (!action) return NextResponse.json({ error: 'Falta el campo action' }, { status: 400 })
 
+  const affiliate = getEffectiveAffiliate(session, req)
   const supabase = createAdminClient()
 
   const { data: redemption } = await supabase
@@ -49,6 +51,10 @@ export async function PATCH(
 
   const sku    = redemption.reward_skus as unknown as { name: string; is_digital: boolean } | null
   const member = redemption.members   as unknown as { full_name: string; email: string; affiliate?: string } | null
+
+  if (affiliate && member?.affiliate !== affiliate) {
+    return NextResponse.json({ error: 'Canje no encontrado' }, { status: 404 })
+  }
 
   // ── Marcar enviado (físico) ──────────────────────────────────
   if (action === 'ship') {

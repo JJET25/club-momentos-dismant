@@ -2,11 +2,12 @@ import { NextRequest, NextResponse } from 'next/server'
 import crypto from 'crypto'
 import { getSession } from '@/lib/auth'
 import { createAdminClient } from '@/lib/supabase'
-import { MANAGER_ROLES } from '@/lib/permissions'
+import { SCOPED_MANAGER_ROLES } from '@/lib/permissions'
+import { getEffectiveAffiliate } from '@/lib/scope'
 
 export async function GET(req: NextRequest) {
   const session = await getSession()
-  if (!session || !MANAGER_ROLES.includes(session.role as never)) {
+  if (!session || !SCOPED_MANAGER_ROLES.includes(session.role as never)) {
     return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
   }
 
@@ -14,18 +15,28 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
   const status  = searchParams.get('status')
   const search  = searchParams.get('q')
+  const affiliate = getEffectiveAffiliate(session, req)
 
-  let query = supabase
-    .from('partner_promotions')
-    .select(`
-      id, title, description, image_url, banner_key, destination_url,
-      geo_type, geo_states, geo_cities, valid_from, valid_until,
-      status, featured, created_at,
-      partners!partner_id ( id, name, logo_url, is_verified )
-    `)
+  // Las promociones heredan la empresa de su partner (partners.affiliate),
+  // no tienen columna propia — se filtra vía el join.
+  let query = (affiliate
+    ? supabase.from('partner_promotions').select(`
+        id, title, description, image_url, banner_key, destination_url,
+        geo_type, geo_states, geo_cities, valid_from, valid_until,
+        status, featured, created_at,
+        partners!partner_id!inner ( id, name, logo_url, is_verified, affiliate )
+      `)
+    : supabase.from('partner_promotions').select(`
+        id, title, description, image_url, banner_key, destination_url,
+        geo_type, geo_states, geo_cities, valid_from, valid_until,
+        status, featured, created_at,
+        partners!partner_id ( id, name, logo_url, is_verified )
+      `)
+  )
     .order('created_at', { ascending: false })
     .limit(100)
 
+  if (affiliate) query = query.eq('partners.affiliate', affiliate)
   if (status && status !== 'all') query = query.eq('status', status)
   if (search) query = query.ilike('title', `%${search}%`)
 
@@ -37,7 +48,7 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   const session = await getSession()
-  if (!session || !MANAGER_ROLES.includes(session.role as never)) {
+  if (!session || !SCOPED_MANAGER_ROLES.includes(session.role as never)) {
     return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
   }
 
@@ -51,7 +62,17 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Faltan campos requeridos: partner_id, title, valid_from, valid_until' }, { status: 400 })
   }
 
+  const affiliate = getEffectiveAffiliate(session, req)
   const supabase = createAdminClient()
+
+  // Un rol scoped (team_admin) solo puede crear promociones para partners
+  // de su propia empresa.
+  if (affiliate) {
+    const { data: partner } = await supabase.from('partners').select('affiliate').eq('id', partner_id).maybeSingle()
+    if (!partner || partner.affiliate !== affiliate) {
+      return NextResponse.json({ error: 'Aliado no encontrado' }, { status: 404 })
+    }
+  }
 
   const { data, error } = await supabase
     .from('partner_promotions')

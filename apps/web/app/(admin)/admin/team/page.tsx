@@ -11,25 +11,31 @@ interface StaffMember {
   status:        string
   created_at:    string
   last_login_at: string | null
+  affiliate:     string
 }
 
 interface FormState {
   full_name: string
   email:     string
   role:      string
+  affiliate: string
 }
 
 const ROLE_LABEL: Record<string, string> = {
-  owner:    'Propietario',
-  admin:    'Administrador',
-  employee: 'Empleado',
+  owner:      'Propietario',
+  admin:      'Administrador',
+  team_admin: 'Admin. de equipo',
+  employee:   'Empleado',
 }
 
 const ROLE_BADGE: Record<string, string> = {
-  owner:    'bg-purple-100 text-purple-700 ring-purple-200 dark:bg-purple-900/30 dark:text-purple-400 dark:ring-purple-800',
-  admin:    'bg-blue-100 text-blue-700 ring-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:ring-blue-800',
-  employee: 'bg-emerald-100 text-emerald-700 ring-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400 dark:ring-emerald-800',
+  owner:      'bg-purple-100 text-purple-700 ring-purple-200 dark:bg-purple-900/30 dark:text-purple-400 dark:ring-purple-800',
+  admin:      'bg-blue-100 text-blue-700 ring-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:ring-blue-800',
+  team_admin: 'bg-amber-100 text-amber-700 ring-amber-200 dark:bg-amber-900/30 dark:text-amber-400 dark:ring-amber-800',
+  employee:   'bg-emerald-100 text-emerald-700 ring-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400 dark:ring-emerald-800',
 }
+
+const AFFILIATE_LABEL: Record<string, string> = { dismant: 'Dismant', lauti: 'Lauti' }
 
 function initials(name: string) {
   return name.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase()
@@ -101,10 +107,18 @@ export default function TeamPage() {
   const [reasonInput, setReasonInput] = useState('')
 
   // Formularios
-  const emptyForm: FormState = { full_name: '', email: '', role: 'employee' }
+  const emptyForm: FormState = { full_name: '', email: '', role: 'employee', affiliate: 'dismant' }
   const [addForm, setAddForm]   = useState<FormState>(emptyForm)
   const [editForm, setEditForm] = useState<Partial<FormState>>({})
   const [submitting, setSubmitting] = useState(false)
+
+  // Conversión a cliente (al bajar de rol a "member")
+  const [demoteRfc, setDemoteRfc]         = useState('')
+  const [demoteCompany, setDemoteCompany] = useState('')
+  const [demoteState, setDemoteState]     = useState('')
+  const [demoteCity, setDemoteCity]       = useState('')
+  const isDemotingToClient = editForm.role === 'member'
+  const isAssigningTeamAdmin = editForm.role === 'team_admin'
 
   function showToast(msg: string, type: 'ok' | 'err' = 'ok') {
     setToast({ msg, type })
@@ -163,10 +177,26 @@ export default function TeamPage() {
 
     const roleChanged = editForm.role && editForm.role !== editTarget.role
     if (roleChanged) {
+      if (isDemotingToClient && (!demoteRfc.trim() || !demoteCompany.trim() || !demoteState.trim() || !demoteCity.trim())) {
+        setSubmitting(false)
+        showToast('Completa RFC, empresa, estado y ciudad para convertir a cliente.', 'err')
+        return
+      }
+      if (isAssigningTeamAdmin && !editForm.affiliate) {
+        setSubmitting(false)
+        showToast('Elige la empresa que administrará.', 'err')
+        return
+      }
       calls.push(fetch(`/api/admin/members/${editTarget.id}/role`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ role: editForm.role }),
+        body: JSON.stringify({
+          role: editForm.role,
+          ...(isDemotingToClient
+            ? { rfc: demoteRfc, companyName: demoteCompany, locationState: demoteState, locationCity: demoteCity }
+            : {}),
+          ...(isAssigningTeamAdmin ? { affiliate: editForm.affiliate } : {}),
+        }),
       }))
     }
 
@@ -178,9 +208,14 @@ export default function TeamPage() {
       const err = await failed.json().catch(() => ({}))
       showToast(err.error ?? 'Error al actualizar.', 'err')
     } else {
-      setStaff(prev => prev.map(m => m.id === editTarget.id ? { ...m, ...editForm } : m))
+      if (isDemotingToClient) {
+        setStaff(prev => prev.filter(m => m.id !== editTarget.id))
+        showToast(`${editTarget.full_name} se convirtió en cliente y salió del equipo.`)
+      } else {
+        setStaff(prev => prev.map(m => m.id === editTarget.id ? { ...m, ...editForm } : m))
+        showToast('Información actualizada.')
+      }
       setEditTarget(null)
-      showToast('Información actualizada.')
     }
   }
 
@@ -297,6 +332,7 @@ export default function TeamPage() {
               <tr className="border-b bg-muted/30">
                 <th className="text-left px-6 py-3 text-xs font-semibold text-muted-foreground">Miembro</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground">Rol</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground">Empresa</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground">Último acceso</th>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground">Estado</th>
                 <th className="px-4 py-3" />
@@ -333,6 +369,13 @@ export default function TeamPage() {
                       </span>
                     </td>
 
+                    {/* Empresa */}
+                    <td className="px-4 py-4">
+                      <span className="text-xs text-muted-foreground">
+                        {m.role === 'owner' || m.role === 'admin' ? 'Global' : (AFFILIATE_LABEL[m.affiliate] ?? m.affiliate)}
+                      </span>
+                    </td>
+
                     {/* Último acceso */}
                     <td className="px-4 py-4">
                       <span className="text-xs text-muted-foreground">{relativeDate(m.last_login_at)}</span>
@@ -364,7 +407,11 @@ export default function TeamPage() {
                         {/* Editar */}
                         {canEdit && (
                           <button
-                            onClick={() => { setEditTarget(m); setEditForm({ full_name: m.full_name, email: m.email, role: m.role }) }}
+                            onClick={() => {
+                              setEditTarget(m)
+                              setEditForm({ full_name: m.full_name, email: m.email, role: m.role, affiliate: m.affiliate })
+                              setDemoteRfc(''); setDemoteCompany(''); setDemoteState(''); setDemoteCity('')
+                            }}
                             title="Editar"
                             className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
                           >
@@ -420,8 +467,25 @@ export default function TeamPage() {
                 className="w-full text-sm border border-border rounded-lg px-3 py-2.5 bg-background text-foreground dark:bg-white/[.06] dark:border-white/[.12] focus:outline-none focus:ring-2 focus:ring-brand-500/30"
               >
                 <option value="employee">Empleado — puede ver miembros y aprobar facturas</option>
-                <option value="admin">Administrador — acceso completo excepto roles</option>
+                <option value="team_admin">Administrador de equipo — administra solo su empresa</option>
+                <option value="admin">Administrador — acceso completo, ambas empresas</option>
               </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-muted-foreground mb-1.5">Empresa</label>
+              <select
+                value={addForm.affiliate}
+                onChange={e => setAddForm(p => ({ ...p, affiliate: e.target.value }))}
+                className="w-full text-sm border border-border rounded-lg px-3 py-2.5 bg-background text-foreground dark:bg-white/[.06] dark:border-white/[.12] focus:outline-none focus:ring-2 focus:ring-brand-500/30"
+              >
+                <option value="dismant">Dismant</option>
+                <option value="lauti">Lauti</option>
+              </select>
+              <p className="text-xs text-muted-foreground mt-1">
+                {addForm.role === 'admin'
+                  ? 'Los administradores tienen acceso global; esta empresa solo se usa para el branding de sus correos.'
+                  : 'Determina a qué información tendrá acceso esta cuenta.'}
+              </p>
             </div>
             <p className="text-xs text-muted-foreground bg-muted/40 rounded-lg px-3 py-2.5">
               Se creará la cuenta inmediatamente. Usa el botón <strong>Enviar enlace</strong> para que el miembro pueda ingresar por primera vez.
@@ -456,9 +520,40 @@ export default function TeamPage() {
                 className="w-full text-sm border border-border rounded-lg px-3 py-2.5 bg-background text-foreground dark:bg-white/[.06] dark:border-white/[.12] focus:outline-none focus:ring-2 focus:ring-brand-500/30"
               >
                 <option value="employee">Empleado</option>
+                <option value="team_admin">Administrador de equipo</option>
                 <option value="admin">Administrador</option>
+                <option value="member">Cliente (quitar del equipo)</option>
               </select>
             </div>
+
+            {isAssigningTeamAdmin && (
+              <div>
+                <label className="block text-xs font-medium text-muted-foreground mb-1.5">Empresa que administrará</label>
+                <select
+                  value={editForm.affiliate ?? 'dismant'}
+                  onChange={e => setEditForm(p => ({ ...p, affiliate: e.target.value }))}
+                  className="w-full text-sm border border-border rounded-lg px-3 py-2.5 bg-background text-foreground dark:bg-white/[.06] dark:border-white/[.12] focus:outline-none focus:ring-2 focus:ring-brand-500/30"
+                >
+                  <option value="dismant">Dismant</option>
+                  <option value="lauti">Lauti</option>
+                </select>
+              </div>
+            )}
+
+            {isDemotingToClient && (
+              <div className="space-y-2 rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-900/10 p-3">
+                <p className="text-xs text-muted-foreground">
+                  Esta cuenta tiene RFC y ubicación de uso interno. Para convertirla en cliente ingresa sus datos fiscales reales:
+                </p>
+                <Field label="RFC" value={demoteRfc} onChange={v => setDemoteRfc(v.toUpperCase())} />
+                <Field label="Empresa" value={demoteCompany} onChange={setDemoteCompany} />
+                <div className="grid grid-cols-2 gap-2">
+                  <Field label="Estado" value={demoteState} onChange={setDemoteState} />
+                  <Field label="Ciudad" value={demoteCity} onChange={setDemoteCity} />
+                </div>
+              </div>
+            )}
+
             <div className="flex gap-3 pt-1">
               <button onClick={() => setEditTarget(null)} className="flex-1 py-2.5 rounded-lg border border-border text-sm font-medium text-foreground hover:bg-muted transition-colors">
                 Cancelar

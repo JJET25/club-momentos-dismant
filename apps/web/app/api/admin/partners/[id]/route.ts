@@ -2,16 +2,18 @@ import { NextRequest, NextResponse } from 'next/server'
 import crypto from 'crypto'
 import { getSession } from '@/lib/auth'
 import { createAdminClient } from '@/lib/supabase'
-import { MANAGER_ROLES } from '@/lib/permissions'
+import { SCOPED_MANAGER_ROLES } from '@/lib/permissions'
+import { getEffectiveAffiliate } from '@/lib/scope'
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSession()
-  if (!session || !MANAGER_ROLES.includes(session.role as never)) {
+  if (!session || !SCOPED_MANAGER_ROLES.includes(session.role as never)) {
     return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
   }
 
   const { id } = await params
   const { name, logo_url, is_verified } = await req.json()
+  const affiliate = getEffectiveAffiliate(session, req)
 
   if (name !== undefined && !name.trim()) {
     return NextResponse.json({ error: 'El nombre del aliado es obligatorio' }, { status: 400 })
@@ -23,6 +25,12 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (is_verified !== undefined) update.is_verified  = is_verified
 
   const supabase = createAdminClient()
+
+  const { data: current } = await supabase.from('partners').select('affiliate').eq('id', id).maybeSingle()
+  if (!current || (affiliate && current.affiliate !== affiliate)) {
+    return NextResponse.json({ error: 'Aliado no encontrado' }, { status: 404 })
+  }
+
   const { data, error } = await supabase
     .from('partners')
     .update(update)
@@ -44,22 +52,25 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   return NextResponse.json({ partner: data })
 }
 
-export async function DELETE(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSession()
   if (!session || session.role !== 'owner') {
     return NextResponse.json({ error: 'Solo el Propietario puede eliminar aliados' }, { status: 403 })
   }
 
   const { id } = await params
+  const affiliate = getEffectiveAffiliate(session, req)
   const supabase = createAdminClient()
 
   const { data: partner } = await supabase
     .from('partners')
-    .select('id, name')
+    .select('id, name, affiliate')
     .eq('id', id)
     .single()
 
-  if (!partner) return NextResponse.json({ error: 'Aliado no encontrado' }, { status: 404 })
+  if (!partner || (affiliate && partner.affiliate !== affiliate)) {
+    return NextResponse.json({ error: 'Aliado no encontrado' }, { status: 404 })
+  }
 
   const { count: promotionCount } = await supabase
     .from('partner_promotions')

@@ -1,4 +1,5 @@
 import { STAFF_ROLES } from '@/lib/permissions'
+import { getEffectiveAffiliate } from '@/lib/scope'
 import { NextRequest, NextResponse } from 'next/server'
 import crypto from 'crypto'
 import { getSession } from '@/lib/auth'
@@ -16,6 +17,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   const { id: invoiceId } = await params
   const { reason } = await req.json()
+  const affiliate = getEffectiveAffiliate(session, req)
 
   if (!reason?.trim()) {
     return NextResponse.json({ error: 'La razón de rechazo es obligatoria' }, { status: 400 })
@@ -35,11 +37,15 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (!invoice) {
     return NextResponse.json({ error: 'Factura no encontrada' }, { status: 404 })
   }
+
+  const member = (invoice.members as unknown) as { id: string; full_name: string; email: string; fcm_token: string | null; affiliate?: string } | null
+
+  if (affiliate && member?.affiliate !== affiliate) {
+    return NextResponse.json({ error: 'Factura no encontrada' }, { status: 404 })
+  }
   if (invoice.status !== 'pending') {
     return NextResponse.json({ error: 'Solo se pueden rechazar facturas pendientes' }, { status: 409 })
   }
-
-  const member = (invoice.members as unknown) as { id: string; full_name: string; email: string; fcm_token: string | null; affiliate?: string } | null
 
   await supabase
     .from('invoices')

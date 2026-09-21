@@ -1,4 +1,5 @@
-import { MANAGER_ROLES } from '@/lib/permissions'
+import { SCOPED_MANAGER_ROLES } from '@/lib/permissions'
+import { getEffectiveAffiliate } from '@/lib/scope'
 import { NextRequest, NextResponse } from 'next/server'
 import crypto from 'crypto'
 import { getSession } from '@/lib/auth'
@@ -6,12 +7,13 @@ import { createAdminClient } from '@/lib/supabase'
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSession()
-  if (!session || !MANAGER_ROLES.includes(session.role as never)) {
+  if (!session || !SCOPED_MANAGER_ROLES.includes(session.role as never)) {
     return NextResponse.json({ error: 'Solo administradores pueden ajustar puntos' }, { status: 403 })
   }
 
   const { id: memberId } = await params
   const { points, reason } = await req.json()
+  const affiliate = getEffectiveAffiliate(session, req)
 
   if (!points || typeof points !== 'number' || points === 0) {
     return NextResponse.json({ error: 'La cantidad de puntos es requerida' }, { status: 400 })
@@ -22,10 +24,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   const supabase = createAdminClient()
 
-  // Verificar que el miembro existe
+  // Verificar que el miembro existe y pertenece al alcance del solicitante
   const { data: member } = await supabase
-    .from('members').select('id').eq('id', memberId).single()
-  if (!member) {
+    .from('members').select('id, affiliate').eq('id', memberId).single()
+  if (!member || (affiliate && member.affiliate !== affiliate)) {
     return NextResponse.json({ error: 'Miembro no encontrado' }, { status: 404 })
   }
 

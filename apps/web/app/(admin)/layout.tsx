@@ -1,12 +1,19 @@
+import { cookies } from 'next/headers'
 import { getSession } from '@/lib/auth'
 import { getBrand } from '@/lib/brand'
+import { isAffiliate, PERSPECTIVE_COOKIE } from '@/lib/scope'
 import { AdminSidebarNav } from '@/components/admin/admin-sidebar-nav'
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const session = await getSession()
   const name = session?.name ?? 'Admin'
   const role = session?.role ?? 'admin'
-  const brand = getBrand(session?.affiliate)
+
+  const isGlobal = role === 'owner' || role === 'admin'
+  const perspective = isGlobal ? (await cookies()).get(PERSPECTIVE_COOKIE)?.value : undefined
+  const brand = isGlobal
+    ? (isAffiliate(perspective) ? getBrand(perspective) : { name: 'Club Momentos', initial: '•' })
+    : getBrand(session?.affiliate)
 
   return (
     <div className="min-h-screen bg-background flex">

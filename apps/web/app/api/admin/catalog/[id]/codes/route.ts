@@ -2,19 +2,26 @@ import { NextRequest, NextResponse } from 'next/server'
 import crypto from 'crypto'
 import { getSession } from '@/lib/auth'
 import { createAdminClient } from '@/lib/supabase'
-import { MANAGER_ROLES } from '@/lib/permissions'
+import { SCOPED_MANAGER_ROLES } from '@/lib/permissions'
+import { getEffectiveAffiliate } from '@/lib/scope'
 
 export async function GET(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const session = await getSession()
-  if (!session || !MANAGER_ROLES.includes(session.role as never)) {
+  if (!session || !SCOPED_MANAGER_ROLES.includes(session.role as never)) {
     return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
   }
 
   const { id: skuId } = await params
+  const affiliate = getEffectiveAffiliate(session, req)
   const supabase = createAdminClient()
+
+  const { data: sku } = await supabase.from('reward_skus').select('affiliate').eq('id', skuId).maybeSingle()
+  if (!sku || (affiliate && sku.affiliate !== affiliate)) {
+    return NextResponse.json({ error: 'SKU no encontrado' }, { status: 404 })
+  }
 
   const { count: total }    = await supabase.from('digital_codes').select('*', { count: 'exact', head: true }).eq('sku_id', skuId)
   const { count: available } = await supabase.from('digital_codes').select('*', { count: 'exact', head: true }).eq('sku_id', skuId).is('assigned_to', null)
@@ -27,11 +34,12 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const session = await getSession()
-  if (!session || !MANAGER_ROLES.includes(session.role as never)) {
+  if (!session || !SCOPED_MANAGER_ROLES.includes(session.role as never)) {
     return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
   }
 
   const { id: skuId } = await params
+  const affiliate = getEffectiveAffiliate(session, req)
   const formData      = await req.formData()
   const file          = formData.get('csv') as File | null
 
@@ -42,11 +50,13 @@ export async function POST(
   // Verify SKU exists and is digital
   const { data: sku } = await supabase
     .from('reward_skus')
-    .select('id, name, is_digital')
+    .select('id, name, is_digital, affiliate')
     .eq('id', skuId)
     .single()
 
-  if (!sku) return NextResponse.json({ error: 'SKU no encontrado' }, { status: 404 })
+  if (!sku || (affiliate && sku.affiliate !== affiliate)) {
+    return NextResponse.json({ error: 'SKU no encontrado' }, { status: 404 })
+  }
   if (!sku.is_digital) return NextResponse.json({ error: 'Este SKU no es digital' }, { status: 400 })
 
   const text   = await file.text()

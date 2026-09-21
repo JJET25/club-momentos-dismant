@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/lib/auth'
 import { STAFF_ROLES } from '@/lib/permissions'
+import { getEffectiveAffiliate } from '@/lib/scope'
 import { createAdminClient } from '@/lib/supabase'
 import { uploadFile, getSignedDownloadUrl, STORAGE_PATHS } from '@/lib/storage'
 
@@ -17,7 +18,7 @@ function extFromMime(mime: string) {
 
 /** GET → URL firmada para ver la evidencia */
 export async function GET(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const session = await getSession()
@@ -26,13 +27,19 @@ export async function GET(
   }
 
   const { id } = await params
+  const affiliate = getEffectiveAffiliate(session, req)
   const supabase = createAdminClient()
 
   const { data: invoice } = await supabase
     .from('invoices')
-    .select('evidence_key')
+    .select('evidence_key, members!member_id!inner(affiliate)')
     .eq('id', id)
     .maybeSingle()
+
+  const invoiceAffiliate = (invoice?.members as unknown as { affiliate: string } | null)?.affiliate
+  if (invoice && affiliate && invoiceAffiliate !== affiliate) {
+    return NextResponse.json({ error: 'Factura no encontrada' }, { status: 404 })
+  }
 
   if (!invoice?.evidence_key) {
     return NextResponse.json({ url: null })
@@ -58,15 +65,19 @@ export async function POST(
   }
 
   const { id } = await params
+  const affiliate = getEffectiveAffiliate(session, req)
   const supabase = createAdminClient()
 
   const { data: invoice } = await supabase
     .from('invoices')
-    .select('id, status')
+    .select('id, status, members!member_id!inner(affiliate)')
     .eq('id', id)
     .maybeSingle()
 
-  if (!invoice) return NextResponse.json({ error: 'Factura no encontrada' }, { status: 404 })
+  const invoiceAffiliate = (invoice?.members as unknown as { affiliate: string } | null)?.affiliate
+  if (!invoice || (affiliate && invoiceAffiliate !== affiliate)) {
+    return NextResponse.json({ error: 'Factura no encontrada' }, { status: 404 })
+  }
 
   const formData = await req.formData()
   const file = formData.get('file') as File | null

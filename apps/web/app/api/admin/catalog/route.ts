@@ -1,4 +1,5 @@
-import { STAFF_ROLES, MANAGER_ROLES } from '@/lib/permissions'
+import { STAFF_ROLES, SCOPED_MANAGER_ROLES } from '@/lib/permissions'
+import { getEffectiveAffiliate, isAffiliate } from '@/lib/scope'
 import { NextRequest, NextResponse } from 'next/server'
 import crypto from 'crypto'
 import { getSession } from '@/lib/auth'
@@ -14,14 +15,16 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
   const status = searchParams.get('status') ?? 'all'
   const q      = searchParams.get('q')?.trim() ?? ''
+  const affiliate = getEffectiveAffiliate(session, req)
 
   const supabase = createAdminClient()
 
   let query = supabase
     .from('reward_skus')
-    .select('id, name, description, image_url, points_cost, stock, stock_alert_threshold, geo_type, geo_states, geo_cities, is_digital, status, category, created_at')
+    .select('id, name, description, image_url, points_cost, stock, stock_alert_threshold, geo_type, geo_states, geo_cities, is_digital, status, category, affiliate, created_at')
     .order('created_at', { ascending: false })
 
+  if (affiliate) query = query.eq('affiliate', affiliate)
   if (status !== 'all') query = query.eq('status', status)
   if (q) query = query.ilike('name', `%${q}%`)
 
@@ -33,7 +36,7 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   const session = await getSession()
-  if (!session || !MANAGER_ROLES.includes(session.role as never)) {
+  if (!session || !SCOPED_MANAGER_ROLES.includes(session.role as never)) {
     return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
   }
 
@@ -45,6 +48,14 @@ export async function POST(req: NextRequest) {
   if (!Number.isInteger(stock) || stock < 0) return NextResponse.json({ error: 'El stock debe ser un entero no negativo' }, { status: 400 })
   if (geo_type === 'local' && (!Array.isArray(geo_states) || geo_states.length === 0)) {
     return NextResponse.json({ error: 'Debes especificar al menos un estado para cobertura local' }, { status: 400 })
+  }
+
+  // Roles scoped (team_admin) siempre crean para su propia empresa; los
+  // globales (owner/admin) deben elegir explícitamente a cuál empresa pertenece.
+  const scoped = getEffectiveAffiliate(session, req)
+  const affiliate = scoped ?? body.affiliate
+  if (!isAffiliate(affiliate)) {
+    return NextResponse.json({ error: 'Debes especificar la empresa (dismant o lauti)' }, { status: 400 })
   }
 
   const supabase = createAdminClient()
@@ -64,6 +75,7 @@ export async function POST(req: NextRequest) {
       geo_cities:            geo_cities ?? [],
       is_digital:            is_digital ?? false,
       category:              category?.trim() || null,
+      affiliate,
       status:                'active',
     })
     .select()

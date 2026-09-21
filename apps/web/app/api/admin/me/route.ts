@@ -7,5 +7,5 @@ export async function GET() {
   if (!session || !STAFF_ROLES.includes(session.role as never)) {
     return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
   }
-  return NextResponse.json({ id: session.sub, role: session.role, name: session.name })
+  return NextResponse.json({ id: session.sub, role: session.role, name: session.name, affiliate: session.affiliate })
 }

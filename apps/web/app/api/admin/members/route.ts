@@ -1,4 +1,5 @@
 import { STAFF_ROLES } from '@/lib/permissions'
+import { getEffectiveAffiliate } from '@/lib/scope'
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/lib/auth'
 import { createAdminClient } from '@/lib/supabase'
@@ -12,15 +13,17 @@ export async function GET(req: NextRequest) {
 
   const { searchParams } = new URL(req.url)
   const q = searchParams.get('q')?.trim() ?? ''
+  const affiliate = getEffectiveAffiliate(session, req)
 
   const supabase = createAdminClient()
 
   let query = supabase
     .from('members')
-    .select('id, full_name, company_name, rfc, location_city, location_state, status, created_at')
+    .select('id, full_name, company_name, rfc, location_city, location_state, status, created_at, roles!role_id(name)')
     .order('created_at', { ascending: false })
     .limit(100)
 
+  if (affiliate) query = query.eq('affiliate', affiliate)
   if (q) {
     query = query.or(`full_name.ilike.%${q}%,rfc.ilike.%${q}%,company_name.ilike.%${q}%`)
   }
@@ -62,8 +65,9 @@ export async function GET(req: NextRequest) {
     invoiceCountMap[inv.member_id] = (invoiceCountMap[inv.member_id] ?? 0) + 1
   }
 
-  const result = (members as (typeof members[number] & { company_name?: string })[]).map(m => ({
+  const result = (members as (typeof members[number] & { company_name?: string })[]).map(({ roles, ...m }) => ({
     ...m,
+    role:          (roles as unknown as { name: string } | null)?.name ?? 'member',
     balance:       balanceMap[m.id] ?? 0,
     invoiceCount:  invoiceCountMap[m.id] ?? 0,
   }))

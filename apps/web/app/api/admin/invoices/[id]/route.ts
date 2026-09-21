@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import crypto from 'crypto'
 import { getSession } from '@/lib/auth'
-import { STAFF_ROLES, MANAGER_ROLES } from '@/lib/permissions'
+import { STAFF_ROLES, SCOPED_MANAGER_ROLES } from '@/lib/permissions'
+import { getEffectiveAffiliate } from '@/lib/scope'
 import { createAdminClient } from '@/lib/supabase'
 
 export async function PATCH(
@@ -14,22 +15,28 @@ export async function PATCH(
   }
 
   const { id } = await params
+  const affiliate = getEffectiveAffiliate(session, req)
   const supabase = createAdminClient()
 
   const { data: invoice } = await supabase
     .from('invoices')
-    .select('id, status, verification_status')
+    .select('id, status, verification_status, members!member_id!inner(affiliate)')
     .eq('id', id)
     .maybeSingle()
 
   if (!invoice) return NextResponse.json({ error: 'Factura no encontrada' }, { status: 404 })
+
+  const invoiceAffiliate = (invoice.members as unknown as { affiliate: string } | null)?.affiliate
+  if (affiliate && invoiceAffiliate !== affiliate) {
+    return NextResponse.json({ error: 'Factura no encontrada' }, { status: 404 })
+  }
 
   if (invoice.status === 'rejected' || invoice.status === 'cancelled') {
     return NextResponse.json({ error: 'No se puede editar una factura rechazada o cancelada' }, { status: 409 })
   }
 
   const isVerified = invoice.verification_status === 'verified'
-  const manager    = MANAGER_ROLES.includes(session.role as never)
+  const manager    = SCOPED_MANAGER_ROLES.includes(session.role as never)
 
   // Facturas ya verificadas solo editables por managers
   if (isVerified && !manager) {

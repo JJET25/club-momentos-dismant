@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/lib/auth'
-import { MANAGER_ROLES } from '@/lib/permissions'
+import { SCOPED_MANAGER_ROLES } from '@/lib/permissions'
+import { getEffectiveAffiliate } from '@/lib/scope'
 import { createAdminClient } from '@/lib/supabase'
 import { uploadFile, getSignedDownloadUrl, STORAGE_PATHS } from '@/lib/storage'
 
@@ -17,24 +18,28 @@ function extFromMime(mime: string) {
 
 /** GET → redirige a la URL firmada del banner (usable como src de <img>) */
 export async function GET(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const session = await getSession()
-  if (!session || !MANAGER_ROLES.includes(session.role as never)) {
+  if (!session || !SCOPED_MANAGER_ROLES.includes(session.role as never)) {
     return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
   }
 
   const { id } = await params
+  const affiliate = getEffectiveAffiliate(session, req)
   const supabase = createAdminClient()
 
   const { data: promo } = await supabase
     .from('partner_promotions')
-    .select('banner_key, image_url')
+    .select('banner_key, image_url, partners!partner_id(affiliate)')
     .eq('id', id)
     .maybeSingle()
 
-  if (!promo) return NextResponse.json({ error: 'No encontrada' }, { status: 404 })
+  const promoAffiliate = (promo?.partners as unknown as { affiliate: string } | null)?.affiliate
+  if (!promo || (affiliate && promoAffiliate !== affiliate)) {
+    return NextResponse.json({ error: 'No encontrada' }, { status: 404 })
+  }
 
   if (promo.banner_key) {
     try {
@@ -57,20 +62,24 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const session = await getSession()
-  if (!session || !MANAGER_ROLES.includes(session.role as never)) {
+  if (!session || !SCOPED_MANAGER_ROLES.includes(session.role as never)) {
     return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
   }
 
   const { id } = await params
+  const affiliate = getEffectiveAffiliate(session, req)
   const supabase = createAdminClient()
 
   const { data: promo } = await supabase
     .from('partner_promotions')
-    .select('id')
+    .select('id, partners!partner_id(affiliate)')
     .eq('id', id)
     .maybeSingle()
 
-  if (!promo) return NextResponse.json({ error: 'Promoción no encontrada' }, { status: 404 })
+  const promoAffiliate = (promo?.partners as unknown as { affiliate: string } | null)?.affiliate
+  if (!promo || (affiliate && promoAffiliate !== affiliate)) {
+    return NextResponse.json({ error: 'Promoción no encontrada' }, { status: 404 })
+  }
 
   const formData = await req.formData()
   const file = formData.get('file') as File | null

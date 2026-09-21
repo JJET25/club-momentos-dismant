@@ -1,4 +1,5 @@
-import { MANAGER_ROLES } from '@/lib/permissions'
+import { SCOPED_MANAGER_ROLES } from '@/lib/permissions'
+import { getEffectiveAffiliate } from '@/lib/scope'
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/lib/auth'
 import { createAdminClient } from '@/lib/supabase'
@@ -6,11 +7,18 @@ import { uploadFile, getSignedDownloadUrl, STORAGE_PATHS } from '@/lib/storage'
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSession()
-  if (!session || !MANAGER_ROLES.includes(session.role as never)) {
+  if (!session || !SCOPED_MANAGER_ROLES.includes(session.role as never)) {
     return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
   }
 
   const { id } = await params
+  const affiliate = getEffectiveAffiliate(session, req)
+  const supabaseCheck = createAdminClient()
+  const { data: skuCheck } = await supabaseCheck.from('reward_skus').select('affiliate').eq('id', id).maybeSingle()
+  if (!skuCheck || (affiliate && skuCheck.affiliate !== affiliate)) {
+    return NextResponse.json({ error: 'Premio no encontrado' }, { status: 404 })
+  }
+
   const formData = await req.formData()
   const file = formData.get('image') as File | null
 
@@ -34,8 +42,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   // URL firmada con vigencia de 10 años — prácticamente permanente para imágenes de catálogo
   const imageUrl = await getSignedDownloadUrl(key, 60 * 60 * 24 * 365 * 10)
 
-  const supabase = createAdminClient()
-  await supabase.from('reward_skus').update({ image_url: imageUrl }).eq('id', id)
+  await supabaseCheck.from('reward_skus').update({ image_url: imageUrl }).eq('id', id)
 
   return NextResponse.json({ image_url: imageUrl })
 }

@@ -2,20 +2,32 @@ import { NextRequest, NextResponse } from 'next/server'
 import crypto from 'crypto'
 import { getSession } from '@/lib/auth'
 import { createAdminClient } from '@/lib/supabase'
-import { MANAGER_ROLES } from '@/lib/permissions'
+import { SCOPED_MANAGER_ROLES } from '@/lib/permissions'
+import { getEffectiveAffiliate } from '@/lib/scope'
 
 export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const session = await getSession()
-  if (!session || !MANAGER_ROLES.includes(session.role as never)) {
+  if (!session || !SCOPED_MANAGER_ROLES.includes(session.role as never)) {
     return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
   }
 
   const { id } = await params
   const body = await req.json()
+  const affiliate = getEffectiveAffiliate(session, req)
   const supabase = createAdminClient()
+
+  const { data: owner } = await supabase
+    .from('partner_promotions')
+    .select('partners!partner_id(affiliate)')
+    .eq('id', id)
+    .maybeSingle()
+  const ownerAffiliate = (owner?.partners as unknown as { affiliate: string } | null)?.affiliate
+  if (!owner || (affiliate && ownerAffiliate !== affiliate)) {
+    return NextResponse.json({ error: 'Promoción no encontrada' }, { status: 404 })
+  }
 
   // ── Acciones de aprobación / rechazo ───────────────────────
   if (body.action === 'approve') {
@@ -116,7 +128,7 @@ export async function PATCH(
 }
 
 export async function DELETE(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const session = await getSession()
@@ -125,7 +137,18 @@ export async function DELETE(
   }
 
   const { id } = await params
+  const affiliate = getEffectiveAffiliate(session, req)
   const supabase = createAdminClient()
+
+  const { data: owner } = await supabase
+    .from('partner_promotions')
+    .select('partners!partner_id(affiliate)')
+    .eq('id', id)
+    .maybeSingle()
+  const ownerAffiliate = (owner?.partners as unknown as { affiliate: string } | null)?.affiliate
+  if (!owner || (affiliate && ownerAffiliate !== affiliate)) {
+    return NextResponse.json({ error: 'Promoción no encontrada' }, { status: 404 })
+  }
 
   const { error } = await supabase.from('partner_promotions').delete().eq('id', id)
   if (error) return NextResponse.json({ error: 'Error al eliminar promoción' }, { status: 500 })

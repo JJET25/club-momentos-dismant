@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import crypto from 'crypto'
 import { getSession } from '@/lib/auth'
 import { STAFF_ROLES } from '@/lib/permissions'
+import { getEffectiveAffiliate } from '@/lib/scope'
 import { createAdminClient } from '@/lib/supabase'
 
 // Registro manual de factura por staff — los puntos NO se acreditan aquí,
@@ -30,15 +31,16 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Los puntos deben ser un entero positivo' }, { status: 400 })
   }
 
+  const affiliate = getEffectiveAffiliate(session, req)
   const supabase = createAdminClient()
 
   const { data: member } = await supabase
     .from('members')
-    .select('id, rfc')
+    .select('id, rfc, affiliate')
     .eq('id', memberId)
     .maybeSingle()
 
-  if (!member) {
+  if (!member || (affiliate && member.affiliate !== affiliate)) {
     return NextResponse.json({ error: 'Miembro no encontrado' }, { status: 404 })
   }
 

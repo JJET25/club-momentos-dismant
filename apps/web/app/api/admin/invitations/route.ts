@@ -1,4 +1,5 @@
-import { MANAGER_ROLES } from '@/lib/permissions'
+import { SCOPED_MANAGER_ROLES } from '@/lib/permissions'
+import { getEffectiveAffiliate, isAffiliate } from '@/lib/scope'
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/lib/auth'
 import { createAdminClient } from '@/lib/supabase'
@@ -9,7 +10,7 @@ import crypto from 'crypto'
 export async function POST(req: NextRequest) {
   const session = await getSession()
 
-  if (!session || !MANAGER_ROLES.includes(session.role as never)) {
+  if (!session || !SCOPED_MANAGER_ROLES.includes(session.role as never)) {
     return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
   }
 
@@ -19,8 +20,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Correo requerido' }, { status: 400 })
   }
 
-  const VALID_AFFILIATES = ['dismant', 'lauti']
-  const normalizedAffiliate = VALID_AFFILIATES.includes(affiliate) ? affiliate : 'dismant'
+  // Un rol scoped (team_admin) solo puede invitar a su propia empresa,
+  // sin importar lo que mande el body; los roles globales eligen libremente.
+  const scoped = getEffectiveAffiliate(session, req)
+  const normalizedAffiliate = scoped ?? (isAffiliate(affiliate) ? affiliate : 'dismant')
 
   const normalizedEmail = email.toLowerCase().trim()
   const supabase = createAdminClient()
@@ -36,11 +39,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Este correo ya tiene una cuenta registrada' }, { status: 409 })
   }
 
-  // Invalidar invitaciones previas no usadas para el mismo correo
+  // Invalidar invitaciones previas no usadas para el mismo correo Y empresa
+  // (la misma persona podría tener una invitación pendiente de la otra empresa)
   await supabase
     .from('invitations')
     .update({ used: true, used_at: new Date().toISOString() })
     .eq('email', normalizedEmail)
+    .eq('affiliate', normalizedAffiliate)
     .eq('used', false)
 
   const id = crypto.randomUUID()
@@ -97,7 +102,7 @@ export async function POST(req: NextRequest) {
 export async function GET(req: NextRequest) {
   const session = await getSession()
 
-  if (!session || !MANAGER_ROLES.includes(session.role as never)) {
+  if (!session || !SCOPED_MANAGER_ROLES.includes(session.role as never)) {
     return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
   }
 
@@ -105,14 +110,19 @@ export async function GET(req: NextRequest) {
   const page = parseInt(searchParams.get('page') ?? '1')
   const limit = 20
   const offset = (page - 1) * limit
+  const affiliate = getEffectiveAffiliate(session, req)
 
   const supabase = createAdminClient()
 
-  const { data, error } = await supabase
+  let query = supabase
     .from('invitations')
     .select('id, email, affiliate, used, used_at, expires_at, created_at, sent_by')
     .order('created_at', { ascending: false })
     .range(offset, offset + limit - 1)
+
+  if (affiliate) query = query.eq('affiliate', affiliate)
+
+  const { data, error } = await query
 
   if (error) {
     return NextResponse.json({ error: 'Error al obtener invitaciones' }, { status: 500 })

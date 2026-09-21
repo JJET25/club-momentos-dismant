@@ -1,23 +1,25 @@
 import { STAFF_ROLES } from '@/lib/permissions'
+import { getEffectiveAffiliate } from '@/lib/scope'
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/lib/auth'
 import { createAdminClient } from '@/lib/supabase'
 import crypto from 'crypto'
 
 /** GET — Detalle completo de un miembro */
-export async function GET(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSession()
   if (!session || !STAFF_ROLES.includes(session.role as never)) {
     return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
   }
 
   const { id } = await params
+  const affiliate = getEffectiveAffiliate(session, req)
   const supabase = createAdminClient()
 
   const [memberRes, ledgerRes, redemptionsRes, invoicesRes] = await Promise.all([
     supabase
       .from('members')
-      .select('id, full_name, company_name, rfc, email, location_state, location_city, status, created_at')
+      .select('id, full_name, company_name, rfc, email, location_state, location_city, status, created_at, affiliate, roles!role_id(name)')
       .eq('id', id)
       .single(),
     supabase
@@ -40,14 +42,22 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
       .limit(20),
   ])
 
-  if (!memberRes.data) {
+  const targetRole = (memberRes.data?.roles as unknown as { name: string } | null)?.name
+
+  // El filtro de perspectiva solo aplica a clientes: el roster de staff
+  // (Equipo) es siempre global, no depende de la perspectiva elegida.
+  if (
+    !memberRes.data ||
+    (targetRole === 'member' && affiliate && memberRes.data.affiliate !== affiliate)
+  ) {
     return NextResponse.json({ error: 'Miembro no encontrado' }, { status: 404 })
   }
 
   const balance = ledgerRes.data?.[0]?.balance_after ?? 0
+  const { roles, ...memberFields } = memberRes.data as typeof memberRes.data & { roles: { name: string } | null }
 
   return NextResponse.json({
-    member:      memberRes.data,
+    member:      { ...memberFields, role: roles?.name ?? 'member' },
     balance,
     ledger:      ledgerRes.data ?? [],
     redemptions: redemptionsRes.data ?? [],

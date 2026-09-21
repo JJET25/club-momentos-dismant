@@ -2,9 +2,11 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSession, createMagicLinkToken } from '@/lib/auth'
 import { createAdminClient } from '@/lib/supabase'
 import { sendEmail, buildMagicLinkEmail } from '@/lib/resend'
+import { getBrand } from '@/lib/brand'
+import { isAffiliate } from '@/lib/scope'
 import crypto from 'crypto'
 
-/** GET — Lista todos los miembros del equipo interno (owner, admin, employee) */
+/** GET — Lista todos los miembros del equipo interno (owner, admin, team_admin, employee) */
 export async function GET() {
   const session = await getSession()
   if (!session || session.role !== 'owner') {
@@ -16,7 +18,7 @@ export async function GET() {
   const { data: roles } = await supabase
     .from('roles')
     .select('id, name')
-    .in('name', ['owner', 'admin', 'employee'])
+    .in('name', ['owner', 'admin', 'team_admin', 'employee'])
 
   if (!roles?.length) return NextResponse.json([])
 
@@ -25,7 +27,7 @@ export async function GET() {
 
   const { data: members, error } = await supabase
     .from('members')
-    .select('id, full_name, email, company_name, role_id, status, created_at, last_login_at')
+    .select('id, full_name, email, company_name, role_id, status, created_at, last_login_at, affiliate')
     .in('role_id', roleIds)
     .order('created_at', { ascending: true })
 
@@ -43,13 +45,16 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Solo el Propietario puede crear miembros del equipo' }, { status: 403 })
   }
 
-  const { full_name, email, role } = await req.json()
+  const { full_name, email, role, affiliate } = await req.json()
 
   if (!full_name?.trim() || !email?.trim() || !role) {
     return NextResponse.json({ error: 'Nombre, correo y rol son obligatorios' }, { status: 400 })
   }
-  if (!['admin', 'employee'].includes(role)) {
-    return NextResponse.json({ error: 'Rol inválido. Solo se puede crear admin o empleado.' }, { status: 400 })
+  if (!['admin', 'team_admin', 'employee'].includes(role)) {
+    return NextResponse.json({ error: 'Rol inválido. Solo se puede crear admin, administrador de equipo o empleado.' }, { status: 400 })
+  }
+  if (!isAffiliate(affiliate)) {
+    return NextResponse.json({ error: 'Debes elegir la empresa (Dismant o Lauti) a la que pertenece' }, { status: 400 })
   }
 
   const supabase = createAdminClient()
@@ -74,14 +79,15 @@ export async function POST(req: NextRequest) {
       id:             crypto.randomUUID(),
       email:          email.toLowerCase().trim(),
       full_name:      full_name.trim(),
-      company_name:   session.affiliate === 'lauti' ? 'Lauti' : 'Dismant',
+      company_name:   getBrand(affiliate).short,
       rfc:            internalRfc,
       location_state: 'Ciudad de México',
       location_city:  'CDMX',
       role_id:        roleRow.id,
+      affiliate,
       status:         'active',
     })
-    .select('id, full_name, email, role_id, status')
+    .select('id, full_name, email, role_id, status, affiliate')
     .single()
 
   if (error) {
@@ -98,7 +104,7 @@ export async function POST(req: NextRequest) {
     action:      'staff.created',
     target_type: 'member',
     target_id:   member.id,
-    metadata:    { role, email: email.toLowerCase().trim() },
+    metadata:    { role, affiliate, email: email.toLowerCase().trim() },
   })
 
   // Enviar correo de bienvenida con magic link para que configure su contraseña
@@ -110,8 +116,8 @@ export async function POST(req: NextRequest) {
     await sendEmail({
       to: member.email,
       subject: `Bienvenido al equipo — accede y configura tu contraseña`,
-      affiliate: session.affiliate,
-      html: buildMagicLinkEmail(magicLink, member.full_name, session.affiliate),
+      affiliate,
+      html: buildMagicLinkEmail(magicLink, member.full_name, affiliate),
     })
   } catch (emailErr) {
     console.error('[staff] Error enviando correo de bienvenida:', emailErr)

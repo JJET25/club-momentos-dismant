@@ -1,17 +1,67 @@
 import { STAFF_ROLES } from '@/lib/permissions'
-import { NextResponse } from 'next/server'
+import { getEffectiveAffiliate } from '@/lib/scope'
+import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/lib/auth'
 import { createAdminClient } from '@/lib/supabase'
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   const session = await getSession()
   if (!session || !STAFF_ROLES.includes(session.role as never)) {
     return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
   }
 
+  const affiliate = getEffectiveAffiliate(session, req)
   const supabase = createAdminClient()
   const now = new Date()
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString()
+
+  // Join condicional: solo se agrega el filtro embebido cuando hay una
+  // empresa efectiva (owner/admin en "Todas" no necesitan el join extra).
+  // Cada rama es un literal completo (no interpolado) para que Supabase
+  // pueda parsear el `select` en tiempo de compilación.
+  let membersQ = supabase.from('members').select('id', { count: 'exact', head: true }).eq('status', 'active')
+  let newMembersQ = supabase.from('members').select('id', { count: 'exact', head: true }).gte('created_at', startOfMonth)
+  let ledgerQ = affiliate
+    ? supabase.from('ledger_entries').select('points, type, members!member_id!inner(affiliate)')
+    : supabase.from('ledger_entries').select('points, type')
+  let pendingInvoicesQ = (affiliate
+    ? supabase.from('invoices').select('id, members!member_id!inner(affiliate)', { count: 'exact', head: true })
+    : supabase.from('invoices').select('id', { count: 'exact', head: true })
+  ).eq('status', 'pending')
+  let approvedInvoicesQ = (affiliate
+    ? supabase.from('invoices').select('id, total_amount, members!member_id!inner(affiliate)')
+    : supabase.from('invoices').select('id, total_amount')
+  ).eq('status', 'approved').gte('created_at', startOfMonth)
+  let pendingRedemptionsQ = (affiliate
+    ? supabase.from('redemptions').select('id, members!member_id!inner(affiliate)', { count: 'exact', head: true })
+    : supabase.from('redemptions').select('id', { count: 'exact', head: true })
+  ).in('status', ['pending', 'processing'])
+  let topRewardsQ = (affiliate
+    ? supabase.from('redemptions').select('reward_skus!sku_id(name), members!member_id!inner(affiliate)')
+    : supabase.from('redemptions').select('reward_skus!sku_id(name)')
+  ).gte('created_at', startOfMonth)
+  let recentInvoicesQ = (affiliate
+    ? supabase.from('invoices').select('id, status, total_amount, created_at, members!member_id!inner(company_name, rfc, affiliate)')
+    : supabase.from('invoices').select('id, status, total_amount, created_at, members!member_id(company_name, rfc)')
+  ).order('created_at', { ascending: false }).limit(6)
+  let recentRedemptionsQ = (affiliate
+    ? supabase.from('redemptions').select('id, status, points_used, created_at, members!member_id!inner(company_name, affiliate), reward_skus!sku_id(name)')
+    : supabase.from('redemptions').select('id, status, points_used, created_at, members!member_id(company_name), reward_skus!sku_id(name)')
+  ).order('created_at', { ascending: false }).limit(6)
+  let recentMembersQ = supabase.from('members').select('id, company_name, email, created_at, status').order('created_at', { ascending: false }).limit(6)
+
+  if (affiliate) {
+    membersQ           = membersQ.eq('affiliate', affiliate)
+    newMembersQ         = newMembersQ.eq('affiliate', affiliate)
+    ledgerQ             = ledgerQ.eq('members.affiliate', affiliate)
+    pendingInvoicesQ    = pendingInvoicesQ.eq('members.affiliate', affiliate)
+    approvedInvoicesQ   = approvedInvoicesQ.eq('members.affiliate', affiliate)
+    pendingRedemptionsQ = pendingRedemptionsQ.eq('members.affiliate', affiliate)
+    topRewardsQ         = topRewardsQ.eq('members.affiliate', affiliate)
+    recentInvoicesQ     = recentInvoicesQ.eq('members.affiliate', affiliate)
+    recentRedemptionsQ  = recentRedemptionsQ.eq('members.affiliate', affiliate)
+    recentMembersQ      = recentMembersQ.eq('affiliate', affiliate)
+  }
 
   const [
     membersRes,
@@ -25,25 +75,8 @@ export async function GET() {
     recentRedemptionsRes,
     recentMembersRes,
   ] = await Promise.all([
-    supabase.from('members').select('id', { count: 'exact', head: true }).eq('status', 'active'),
-    supabase.from('members').select('id', { count: 'exact', head: true }).gte('created_at', startOfMonth),
-    supabase.from('ledger_entries').select('points, type'),
-    supabase.from('invoices').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
-    supabase.from('invoices').select('id, total_amount').eq('status', 'approved').gte('created_at', startOfMonth),
-    supabase.from('redemptions').select('id', { count: 'exact', head: true }).in('status', ['pending', 'processing']),
-    supabase.from('redemptions').select('reward_skus!sku_id(name)').gte('created_at', startOfMonth),
-    supabase.from('invoices')
-      .select('id, status, total_amount, created_at, members!member_id(company_name, rfc)')
-      .order('created_at', { ascending: false })
-      .limit(6),
-    supabase.from('redemptions')
-      .select('id, status, points_used, created_at, members!member_id(company_name), reward_skus!sku_id(name)')
-      .order('created_at', { ascending: false })
-      .limit(6),
-    supabase.from('members')
-      .select('id, company_name, email, created_at, status')
-      .order('created_at', { ascending: false })
-      .limit(6),
+    membersQ, newMembersQ, ledgerQ, pendingInvoicesQ, approvedInvoicesQ,
+    pendingRedemptionsQ, topRewardsQ, recentInvoicesQ, recentRedemptionsQ, recentMembersQ,
   ])
 
   const entries = ledgerRes.data ?? []

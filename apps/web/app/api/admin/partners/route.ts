@@ -2,19 +2,24 @@ import { NextRequest, NextResponse } from 'next/server'
 import crypto from 'crypto'
 import { getSession } from '@/lib/auth'
 import { createAdminClient } from '@/lib/supabase'
-import { MANAGER_ROLES } from '@/lib/permissions'
+import { SCOPED_MANAGER_ROLES } from '@/lib/permissions'
+import { getEffectiveAffiliate, isAffiliate } from '@/lib/scope'
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   const session = await getSession()
-  if (!session || !MANAGER_ROLES.includes(session.role as never)) {
+  if (!session || !SCOPED_MANAGER_ROLES.includes(session.role as never)) {
     return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
   }
 
+  const affiliate = getEffectiveAffiliate(session, req)
   const supabase = createAdminClient()
-  const { data, error } = await supabase
+  let query = supabase
     .from('partners')
-    .select('id, name, logo_url, is_verified, status')
+    .select('id, name, logo_url, is_verified, status, affiliate')
     .order('name')
+  if (affiliate) query = query.eq('affiliate', affiliate)
+
+  const { data, error } = await query
 
   if (error) return NextResponse.json({ error: 'Error al obtener aliados' }, { status: 500 })
 
@@ -23,13 +28,20 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   const session = await getSession()
-  if (!session || !MANAGER_ROLES.includes(session.role as never)) {
+  if (!session || !SCOPED_MANAGER_ROLES.includes(session.role as never)) {
     return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
   }
 
-  const { name, logo_url, is_verified } = await req.json()
+  const body = await req.json()
+  const { name, logo_url, is_verified } = body
   if (!name?.trim()) {
     return NextResponse.json({ error: 'El nombre del aliado es obligatorio' }, { status: 400 })
+  }
+
+  const scoped = getEffectiveAffiliate(session, req)
+  const affiliate = scoped ?? body.affiliate
+  if (!isAffiliate(affiliate)) {
+    return NextResponse.json({ error: 'Debes especificar la empresa (dismant o lauti)' }, { status: 400 })
   }
 
   const supabase = createAdminClient()
@@ -40,6 +52,7 @@ export async function POST(req: NextRequest) {
       name:        name.trim(),
       logo_url:    logo_url?.trim() || null,
       is_verified: is_verified ?? false,
+      affiliate,
     })
     .select('id, name, logo_url, is_verified, status')
     .single()

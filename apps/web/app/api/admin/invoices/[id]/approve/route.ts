@@ -1,4 +1,5 @@
 import { STAFF_ROLES } from '@/lib/permissions'
+import { getEffectiveAffiliate } from '@/lib/scope'
 import { NextRequest, NextResponse } from 'next/server'
 import crypto from 'crypto'
 import { getSession } from '@/lib/auth'
@@ -8,13 +9,14 @@ import { sendPushNotification } from '@/lib/firebase-admin'
 import { getBrand } from '@/lib/brand'
 
 
-export async function POST(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSession()
   if (!session || !STAFF_ROLES.includes(session.role as never)) {
     return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
   }
 
   const { id: invoiceId } = await params
+  const affiliate = getEffectiveAffiliate(session, req)
   const supabase = createAdminClient()
 
   // Obtener factura + datos del miembro en una sola consulta
@@ -30,11 +32,15 @@ export async function POST(_: NextRequest, { params }: { params: Promise<{ id: s
   if (!invoice) {
     return NextResponse.json({ error: 'Factura no encontrada' }, { status: 404 })
   }
+
+  const member = (invoice.members as unknown) as { id: string; full_name: string; email: string; fcm_token: string | null; affiliate?: string } | null
+
+  if (affiliate && member?.affiliate !== affiliate) {
+    return NextResponse.json({ error: 'Factura no encontrada' }, { status: 404 })
+  }
   if (invoice.status !== 'pending') {
     return NextResponse.json({ error: 'Solo se pueden aprobar facturas pendientes' }, { status: 409 })
   }
-
-  const member = (invoice.members as unknown) as { id: string; full_name: string; email: string; fcm_token: string | null; affiliate?: string } | null
   const points = invoice.points_generated ?? 0
 
   // Saldo actual del miembro

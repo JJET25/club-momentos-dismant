@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import crypto from 'crypto'
 import { getSession } from '@/lib/auth'
 import { createAdminClient } from '@/lib/supabase'
-import { MANAGER_ROLES } from '@/lib/permissions'
+import { SCOPED_MANAGER_ROLES } from '@/lib/permissions'
+import { getEffectiveAffiliate } from '@/lib/scope'
 import { insertLedgerEntry } from '@/lib/ledger'
 
 interface CsvRow { rfc: string; puntos: number; razon: string }
@@ -40,9 +41,11 @@ function parseCsv(text: string): { rows: CsvRow[]; errors: string[] } {
 
 export async function POST(req: NextRequest) {
   const session = await getSession()
-  if (!session || !MANAGER_ROLES.includes(session.role as never)) {
+  if (!session || !SCOPED_MANAGER_ROLES.includes(session.role as never)) {
     return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
   }
+
+  const affiliate = getEffectiveAffiliate(session, req)
 
   const formData = await req.formData()
   const file     = formData.get('csv') as File | null
@@ -55,12 +58,15 @@ export async function POST(req: NextRequest) {
 
   const supabase = createAdminClient()
 
-  // Resolve RFCs → member IDs
+  // Resolve RFCs → member IDs (acotado al affiliate efectivo: dos empresas
+  // pueden tener miembros con el mismo RFC desde que dejó de ser único)
   const rfcs = [...new Set(rows.map(r => r.rfc))]
-  const { data: members } = await supabase
+  let membersQuery = supabase
     .from('members')
     .select('id, rfc, full_name')
     .in('rfc', rfcs)
+  if (affiliate) membersQuery = membersQuery.eq('affiliate', affiliate)
+  const { data: members } = await membersQuery
 
   type MemberRow = { id: string; rfc: string; full_name: string }
   const membersByRfc = new Map<string, MemberRow[]>()

@@ -1,4 +1,5 @@
-import { MANAGER_ROLES } from '@/lib/permissions'
+import { SCOPED_MANAGER_ROLES } from '@/lib/permissions'
+import { getEffectiveAffiliate } from '@/lib/scope'
 import { NextRequest, NextResponse } from 'next/server'
 import crypto from 'crypto'
 import { getSession } from '@/lib/auth'
@@ -6,23 +7,26 @@ import { createAdminClient } from '@/lib/supabase'
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSession()
-  if (!session || !MANAGER_ROLES.includes(session.role as never)) {
+  if (!session || !SCOPED_MANAGER_ROLES.includes(session.role as never)) {
     return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
   }
 
   const { id } = await params
   const body = await req.json()
+  const affiliate = getEffectiveAffiliate(session, req)
 
   const supabase = createAdminClient()
 
   // Fetch current SKU to detect stock change
   const { data: current } = await supabase
     .from('reward_skus')
-    .select('id, stock, name')
+    .select('id, stock, name, affiliate')
     .eq('id', id)
     .single()
 
-  if (!current) return NextResponse.json({ error: 'Premio no encontrado' }, { status: 404 })
+  if (!current || (affiliate && current.affiliate !== affiliate)) {
+    return NextResponse.json({ error: 'Premio no encontrado' }, { status: 404 })
+  }
 
   const {
     name, description, image_url, points_cost, stock,
@@ -68,22 +72,25 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   return NextResponse.json({ sku: data })
 }
 
-export async function DELETE(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSession()
   if (!session || session.role !== 'owner') {
     return NextResponse.json({ error: 'Solo el Propietario puede eliminar premios' }, { status: 403 })
   }
 
   const { id } = await params
+  const affiliate = getEffectiveAffiliate(session, req)
   const supabase = createAdminClient()
 
   const { data: sku } = await supabase
     .from('reward_skus')
-    .select('id, name')
+    .select('id, name, affiliate')
     .eq('id', id)
     .single()
 
-  if (!sku) return NextResponse.json({ error: 'Premio no encontrado' }, { status: 404 })
+  if (!sku || (affiliate && sku.affiliate !== affiliate)) {
+    return NextResponse.json({ error: 'Premio no encontrado' }, { status: 404 })
+  }
 
   const { count: redemptionCount } = await supabase
     .from('redemptions')
