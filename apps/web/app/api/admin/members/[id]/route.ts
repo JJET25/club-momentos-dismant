@@ -44,11 +44,12 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 
   const targetRole = (memberRes.data?.roles as unknown as { name: string } | null)?.name
 
-  // El filtro de perspectiva solo aplica a clientes: el roster de staff
-  // (Equipo) es siempre global, no depende de la perspectiva elegida.
+  // Esta vista es solo para clientes — las cuentas de equipo se consultan
+  // desde /admin/team, nunca se mezclan aquí.
   if (
     !memberRes.data ||
-    (targetRole === 'member' && affiliate && memberRes.data.affiliate !== affiliate)
+    targetRole !== 'member' ||
+    (affiliate && memberRes.data.affiliate !== affiliate)
   ) {
     return NextResponse.json({ error: 'Miembro no encontrado' }, { status: 404 })
   }

@@ -7,7 +7,7 @@ export type Affiliate = typeof AFFILIATES[number]
 export const PERSPECTIVE_COOKIE = 'admin_perspective'
 
 /** Roles que ven ambas empresas y pueden cambiar de perspectiva. */
-const GLOBAL_ROLES = ['owner', 'admin']
+export const GLOBAL_ROLES = ['owner', 'admin']
 
 export function isAffiliate(value: unknown): value is Affiliate {
   return typeof value === 'string' && (AFFILIATES as readonly string[]).includes(value)

@@ -46,6 +46,14 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (currentRoleName === newRole) {
     return NextResponse.json({ error: 'El miembro ya tiene ese rol' }, { status: 400 })
   }
+  // Los clientes no pueden promoverse a equipo por esta vía. Las cuentas de
+  // equipo se dan de alta explícitamente desde /admin/team.
+  if (currentRoleName === 'member' && newRole !== 'member') {
+    return NextResponse.json(
+      { error: 'No se puede convertir un cliente en cuenta de equipo. Da de alta la cuenta desde Equipo en su lugar.' },
+      { status: 400 }
+    )
+  }
 
   const updates: Record<string, unknown> = {}
 

@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import { CheckCircle2, Check, X } from 'lucide-react'
+import { MEXICAN_STATES } from '@dismant/types'
 
 // ── Tipos ────────────────────────────────────────────────────
 
@@ -16,7 +17,6 @@ interface Member {
   created_at:     string
   balance:        number
   invoiceCount:   number
-  role:           string
 }
 
 interface MemberDetail {
@@ -32,21 +32,6 @@ const STATUS_CFG: Record<string, { label: string; className: string }> = {
   suspended: { label: 'Suspendido', className: 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400' },
 }
 
-const ROLE_LABEL: Record<string, string> = {
-  owner:      'Propietario',
-  admin:      'Administrador',
-  team_admin: 'Admin. de equipo',
-  employee:   'Empleado',
-  member:     'Cliente',
-}
-
-const ROLE_BADGE: Record<string, string> = {
-  owner:      'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400',
-  admin:      'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
-  team_admin: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
-  employee:   'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400',
-}
-
 function fmtDate(iso: string) {
   return new Date(iso).toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' })
 }
@@ -56,11 +41,10 @@ function fmtPts(n: number) {
 
 // ── Modal de detalle ──────────────────────────────────────────
 
-function MemberDetailModal({ detail, onClose, onUpdated, currentUserRole }: {
+function MemberDetailModal({ detail, onClose, onUpdated }: {
   detail: MemberDetail
   onClose: () => void
   onUpdated: () => void
-  currentUserRole: string
 }) {
   const [tab, setTab]         = useState<'ledger' | 'invoices' | 'canjes'>('ledger')
   const [adjustPts, setAdjustPts] = useState('')
@@ -69,14 +53,6 @@ function MemberDetailModal({ detail, onClose, onUpdated, currentUserRole }: {
   const [adjustError, setAdjustError]   = useState('')
   const [suspendReason, setSuspendReason] = useState('')
   const [suspending, setSuspending]       = useState(false)
-  const [roleChanging, setRoleChanging]   = useState(false)
-  const [roleTarget, setRoleTarget]       = useState('')
-  const [roleError, setRoleError]         = useState('')
-  const [demoteRfc, setDemoteRfc]         = useState('')
-  const [demoteCompany, setDemoteCompany] = useState('')
-  const [demoteState, setDemoteState]     = useState('')
-  const [demoteCity, setDemoteCity]       = useState('')
-  const [teamAdminAffiliate, setTeamAdminAffiliate] = useState('dismant')
 
   const { member, balance } = detail
   const st = STATUS_CFG[member.status] ?? STATUS_CFG.active
@@ -120,44 +96,6 @@ function MemberDetailModal({ detail, onClose, onUpdated, currentUserRole }: {
     onClose()
   }
 
-  const isDemotingToClient   = roleTarget === 'member' && member.role !== 'member'
-  const isAssigningTeamAdmin = roleTarget === 'team_admin' && member.role !== 'team_admin'
-
-  async function handleRoleChange() {
-    if (!roleTarget) return
-    if (isDemotingToClient && (!demoteRfc.trim() || !demoteCompany.trim() || !demoteState.trim() || !demoteCity.trim())) return
-    if (isAssigningTeamAdmin && !teamAdminAffiliate) return
-
-    setRoleChanging(true); setRoleError('')
-    const res = await fetch(`/api/admin/members/${member.id}/role`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        role: roleTarget,
-        ...(isDemotingToClient
-          ? { rfc: demoteRfc, companyName: demoteCompany, locationState: demoteState, locationCity: demoteCity }
-          : {}),
-        ...(isAssigningTeamAdmin ? { affiliate: teamAdminAffiliate } : {}),
-      }),
-    })
-    setRoleChanging(false)
-    if (!res.ok) { const d = await res.json(); setRoleError(d.error ?? 'Error'); return }
-    onUpdated(); onClose()
-  }
-
-  const roleOptions = member.role === 'member'
-    ? [
-        { value: 'employee', label: 'Empleado' },
-        { value: 'team_admin', label: 'Administrador de equipo' },
-        { value: 'admin', label: 'Administrador' },
-      ]
-    : [
-        ...(member.role !== 'employee' ? [{ value: 'employee', label: 'Empleado' }] : []),
-        ...(member.role !== 'team_admin' ? [{ value: 'team_admin', label: 'Administrador de equipo' }] : []),
-        ...(member.role !== 'admin' ? [{ value: 'admin', label: 'Administrador' }] : []),
-        { value: 'member', label: 'Cliente (quitar del equipo)' },
-      ]
-
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40" onClick={onClose}>
       <div
@@ -170,11 +108,6 @@ function MemberDetailModal({ detail, onClose, onUpdated, currentUserRole }: {
             <div className="flex items-center gap-2">
               <h3 className="text-base font-bold text-foreground">{member.full_name}</h3>
               <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${st.className}`}>{st.label}</span>
-              {member.role !== 'member' && (
-                <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${ROLE_BADGE[member.role] ?? ''}`}>
-                  {ROLE_LABEL[member.role] ?? member.role}
-                </span>
-              )}
             </div>
             <p className="text-xs text-muted-foreground mt-0.5">{member.email} · RFC: {member.rfc} · {member.company_name}</p>
           </div>
@@ -340,81 +273,6 @@ function MemberDetailModal({ detail, onClose, onUpdated, currentUserRole }: {
               Reactivar cuenta
             </button>
           )}
-
-          {/* Cambiar rol — solo owner, no aplica a Propietarios */}
-          {currentUserRole === 'owner' && member.role !== 'owner' && (
-            <div className="pt-3 border-t">
-              <p className="text-xs text-muted-foreground mb-2">
-                {member.role === 'member' ? 'Agregar al equipo interno' : 'Cambiar rol del usuario interno'}
-              </p>
-              <div className="flex items-center gap-2">
-                <select
-                  value={roleTarget}
-                  onChange={e => setRoleTarget(e.target.value)}
-                  className="input-field text-sm py-2 flex-1"
-                >
-                  <option value="">Seleccionar nuevo rol…</option>
-                  {roleOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                </select>
-                {!isDemotingToClient && !isAssigningTeamAdmin && (
-                  <button
-                    onClick={handleRoleChange}
-                    disabled={roleChanging || !roleTarget}
-                    className="px-4 py-2 rounded-lg border border-orange-200 text-orange-700 text-sm font-medium hover:bg-orange-50 disabled:opacity-50 dark:border-orange-800 dark:text-orange-400 dark:hover:bg-orange-900/20"
-                  >
-                    {roleChanging ? '…' : 'Cambiar rol'}
-                  </button>
-                )}
-              </div>
-
-              {isAssigningTeamAdmin && (
-                <div className="mt-3 space-y-2 rounded-lg border border-orange-200 dark:border-orange-800 bg-orange-50/50 dark:bg-orange-900/10 p-3">
-                  <label className="block text-xs text-muted-foreground">Empresa que administrará</label>
-                  <select
-                    value={teamAdminAffiliate}
-                    onChange={e => setTeamAdminAffiliate(e.target.value)}
-                    className="input-field text-sm py-2 w-full"
-                  >
-                    <option value="dismant">Dismant</option>
-                    <option value="lauti">Lauti</option>
-                  </select>
-                  <button
-                    onClick={handleRoleChange}
-                    disabled={roleChanging || !teamAdminAffiliate}
-                    className="w-full py-2 rounded-lg border border-orange-200 text-orange-700 text-sm font-medium hover:bg-orange-100 disabled:opacity-50 dark:border-orange-800 dark:text-orange-400 dark:hover:bg-orange-900/20"
-                  >
-                    {roleChanging ? '…' : 'Asignar como administrador de equipo'}
-                  </button>
-                </div>
-              )}
-
-              {isDemotingToClient && (
-                <div className="mt-3 space-y-2 rounded-lg border border-orange-200 dark:border-orange-800 bg-orange-50/50 dark:bg-orange-900/10 p-3">
-                  <p className="text-xs text-muted-foreground">
-                    Esta cuenta tiene un RFC y ubicación de uso interno. Para convertirla en cliente ingresa sus datos fiscales reales:
-                  </p>
-                  <div className="grid grid-cols-2 gap-2">
-                    <input placeholder="RFC" value={demoteRfc} onChange={e => setDemoteRfc(e.target.value.toUpperCase())}
-                      className="input-field text-sm py-2 font-mono" />
-                    <input placeholder="Empresa" value={demoteCompany} onChange={e => setDemoteCompany(e.target.value)}
-                      className="input-field text-sm py-2" />
-                    <input placeholder="Estado" value={demoteState} onChange={e => setDemoteState(e.target.value)}
-                      className="input-field text-sm py-2" />
-                    <input placeholder="Ciudad" value={demoteCity} onChange={e => setDemoteCity(e.target.value)}
-                      className="input-field text-sm py-2" />
-                  </div>
-                  <button
-                    onClick={handleRoleChange}
-                    disabled={roleChanging || !demoteRfc.trim() || !demoteCompany.trim() || !demoteState.trim() || !demoteCity.trim()}
-                    className="w-full py-2 rounded-lg border border-orange-200 text-orange-700 text-sm font-medium hover:bg-orange-100 disabled:opacity-50 dark:border-orange-800 dark:text-orange-400 dark:hover:bg-orange-900/20"
-                  >
-                    {roleChanging ? '…' : 'Convertir a cliente'}
-                  </button>
-                </div>
-              )}
-              {roleError && <p className="text-xs text-red-600 mt-1">{roleError}</p>}
-            </div>
-          )}
         </div>
       </div>
     </div>
@@ -534,23 +392,43 @@ function BulkPointsModal({ onClose }: { onClose: () => void }) {
 
 // ── Página ────────────────────────────────────────────────────
 
+const STATUS_OPTIONS = [
+  { value: '',          label: 'Todos los estatus' },
+  { value: 'active',    label: 'Activo' },
+  { value: 'suspended', label: 'Suspendido' },
+]
+
+const AFFILIATE_FILTER_OPTIONS = [
+  { value: '',        label: 'Todas las empresas' },
+  { value: 'dismant',  label: 'Dismant' },
+  { value: 'lauti',    label: 'Lauti' },
+]
+
 export default function MembersPage() {
   const [members, setMembers]   = useState<Member[]>([])
   const [loading, setLoading]   = useState(true)
   const [search, setSearch]     = useState('')
+  const [statusFilter, setStatusFilter]       = useState('')
+  const [stateFilter, setStateFilter]         = useState('')
+  const [affiliateFilter, setAffiliateFilter] = useState('')
+  const [isGlobalRole, setIsGlobalRole]       = useState(false)
   const [detail, setDetail]     = useState<MemberDetail | null>(null)
   const [loadingDetail, setLoadingDetail] = useState(false)
-  const [currentUserRole, setCurrentUserRole] = useState('')
   const [bulkOpen, setBulkOpen] = useState(false)
 
   useEffect(() => {
-    fetch('/api/admin/me').then(r => r.json()).then(d => setCurrentUserRole(d.role ?? ''))
+    fetch('/api/admin/me').then(r => r.json()).then(d => setIsGlobalRole(d.role === 'owner' || d.role === 'admin'))
   }, [])
 
-  const load = useCallback(async (q = '') => {
+  const load = useCallback(async (filters: { q: string; status: string; state: string; affiliate: string }) => {
     setLoading(true)
-    const params = q ? `?q=${encodeURIComponent(q)}` : ''
-    const res = await fetch(`/api/admin/members${params}`)
+    const params = new URLSearchParams()
+    if (filters.q)         params.set('q', filters.q)
+    if (filters.status)    params.set('status', filters.status)
+    if (filters.state)     params.set('state', filters.state)
+    if (filters.affiliate) params.set('affiliate', filters.affiliate)
+    const qs = params.toString()
+    const res = await fetch(`/api/admin/members${qs ? `?${qs}` : ''}`)
     if (res.ok) {
       const { members: data } = await res.json()
       setMembers(data)
@@ -558,12 +436,18 @@ export default function MembersPage() {
     setLoading(false)
   }, [])
 
-  useEffect(() => { load() }, [load])
+  const currentFilters = { q: search, status: statusFilter, state: stateFilter, affiliate: affiliateFilter }
 
   useEffect(() => {
-    const t = setTimeout(() => load(search), 300)
+    const t = setTimeout(() => load(currentFilters), 300)
     return () => clearTimeout(t)
-  }, [search, load])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search, statusFilter, stateFilter, affiliateFilter, load])
+
+  const hasActiveFilters = !!(search || statusFilter || stateFilter || affiliateFilter)
+  function clearFilters() {
+    setSearch(''); setStatusFilter(''); setStateFilter(''); setAffiliateFilter('')
+  }
 
   async function openDetail(id: string) {
     setLoadingDetail(true)
@@ -578,8 +462,7 @@ export default function MembersPage() {
         <MemberDetailModal
           detail={detail}
           onClose={() => setDetail(null)}
-          onUpdated={() => load(search)}
-          currentUserRole={currentUserRole}
+          onUpdated={() => load(currentFilters)}
         />
       )}
       {bulkOpen && <BulkPointsModal onClose={() => setBulkOpen(false)} />}
@@ -587,7 +470,7 @@ export default function MembersPage() {
       <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Miembros</h1>
-          <p className="text-muted-foreground text-sm mt-1">Gestión de cuentas del programa.</p>
+          <p className="text-muted-foreground text-sm mt-1">Gestión de cuentas de clientes del programa.</p>
         </div>
         <button
           onClick={() => setBulkOpen(true)}
@@ -600,8 +483,8 @@ export default function MembersPage() {
         </button>
       </div>
 
-      <div className="flex gap-3 items-center">
-        <div className="relative flex-1 max-w-sm">
+      <div className="flex flex-wrap gap-3 items-center">
+        <div className="relative flex-1 min-w-[220px] max-w-sm">
           <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
           </svg>
@@ -613,6 +496,43 @@ export default function MembersPage() {
             className="input-field pl-9 text-sm py-2 w-full"
           />
         </div>
+
+        <select
+          value={statusFilter}
+          onChange={e => setStatusFilter(e.target.value)}
+          className="input-field text-sm py-2 w-auto"
+        >
+          {STATUS_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+        </select>
+
+        <select
+          value={stateFilter}
+          onChange={e => setStateFilter(e.target.value)}
+          className="input-field text-sm py-2 w-auto"
+        >
+          <option value="">Todos los estados</option>
+          {MEXICAN_STATES.map(s => <option key={s} value={s}>{s}</option>)}
+        </select>
+
+        {isGlobalRole && (
+          <select
+            value={affiliateFilter}
+            onChange={e => setAffiliateFilter(e.target.value)}
+            className="input-field text-sm py-2 w-auto"
+          >
+            {AFFILIATE_FILTER_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+          </select>
+        )}
+
+        {hasActiveFilters && (
+          <button
+            onClick={clearFilters}
+            className="text-sm text-muted-foreground hover:text-foreground underline underline-offset-2"
+          >
+            Limpiar filtros
+          </button>
+        )}
+
         {loading && <span className="text-sm text-muted-foreground">Buscando…</span>}
       </div>
 
@@ -642,7 +562,7 @@ export default function MembersPage() {
             ) : members.length === 0 ? (
               <tr>
                 <td colSpan={6} className="px-5 py-10 text-center text-muted-foreground">
-                  {search ? 'Sin resultados para tu búsqueda.' : 'No hay miembros registrados.'}
+                  {hasActiveFilters ? 'Sin resultados para estos filtros.' : 'No hay miembros registrados.'}
                 </td>
               </tr>
             ) : members.map(m => {
@@ -653,16 +573,7 @@ export default function MembersPage() {
                   onClick={() => openDetail(m.id)}
                   className="hover:bg-muted/30 cursor-pointer transition-colors"
                 >
-                  <td className="px-5 py-4 font-medium text-foreground">
-                    <div className="flex items-center gap-2">
-                      {m.full_name}
-                      {m.role !== 'member' && (
-                        <span className={`px-1.5 py-0.5 rounded text-[10px] font-semibold ${ROLE_BADGE[m.role] ?? 'bg-gray-100 text-gray-600'}`}>
-                          {ROLE_LABEL[m.role] ?? m.role}
-                        </span>
-                      )}
-                    </div>
-                  </td>
+                  <td className="px-5 py-4 font-medium text-foreground">{m.full_name}</td>
                   <td className="px-5 py-4">
                     <p className="text-foreground">{m.company_name ?? '—'}</p>
                     <p className="text-xs text-muted-foreground font-mono">{m.rfc}</p>

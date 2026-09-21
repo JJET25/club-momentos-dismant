@@ -1,5 +1,5 @@
 import { STAFF_ROLES } from '@/lib/permissions'
-import { getEffectiveAffiliate } from '@/lib/scope'
+import { GLOBAL_ROLES, getEffectiveAffiliate, isAffiliate } from '@/lib/scope'
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/lib/auth'
 import { createAdminClient } from '@/lib/supabase'
@@ -12,18 +12,32 @@ export async function GET(req: NextRequest) {
   }
 
   const { searchParams } = new URL(req.url)
-  const q = searchParams.get('q')?.trim() ?? ''
-  const affiliate = getEffectiveAffiliate(session, req)
+  const q      = searchParams.get('q')?.trim() ?? ''
+  const status = searchParams.get('status')?.trim() ?? ''
+  const state  = searchParams.get('state')?.trim() ?? ''
+
+  // Filtro de empresa de esta página: solo los roles globales pueden usarlo
+  // para acotar sin tocar la perspectiva del sidebar; si no lo mandan (o no
+  // aplica), se usa el affiliate efectivo de siempre.
+  const affiliateFilter = searchParams.get('affiliate')?.trim() ?? ''
+  const affiliate = (GLOBAL_ROLES.includes(session.role) && isAffiliate(affiliateFilter))
+    ? affiliateFilter
+    : getEffectiveAffiliate(session, req)
 
   const supabase = createAdminClient()
 
+  // Solo clientes — el equipo interno (owner/admin/team_admin/employee) vive
+  // exclusivamente en /admin/team, nunca se mezcla con esta lista.
   let query = supabase
     .from('members')
-    .select('id, full_name, company_name, rfc, location_city, location_state, status, created_at, roles!role_id(name)')
+    .select('id, full_name, company_name, rfc, location_city, location_state, status, created_at, roles!role_id!inner(name)')
+    .eq('roles.name', 'member')
     .order('created_at', { ascending: false })
     .limit(100)
 
   if (affiliate) query = query.eq('affiliate', affiliate)
+  if (status)    query = query.eq('status', status)
+  if (state)     query = query.eq('location_state', state)
   if (q) {
     query = query.or(`full_name.ilike.%${q}%,rfc.ilike.%${q}%,company_name.ilike.%${q}%`)
   }
