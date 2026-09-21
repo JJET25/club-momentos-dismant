@@ -100,19 +100,6 @@ function Step1({
       return false
     }
 
-    // Verificar RFC único
-    const rfcRes = await fetch('/api/auth/check-rfc', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ rfc: data.rfc }),
-    })
-    const { exists: rfcExists } = await rfcRes.json()
-    if (rfcExists) {
-      setErrors({ rfc: 'Este RFC ya tiene una cuenta registrada' })
-      setLoading(false)
-      return false
-    }
-
     setLoading(false)
     return true
   }

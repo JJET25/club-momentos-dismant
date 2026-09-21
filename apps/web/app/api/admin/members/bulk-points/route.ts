@@ -62,10 +62,19 @@ export async function POST(req: NextRequest) {
     .select('id, rfc, full_name')
     .in('rfc', rfcs)
 
-  const memberMap = new Map((members ?? []).map(m => [m.rfc.toUpperCase(), m]))
+  type MemberRow = { id: string; rfc: string; full_name: string }
+  const membersByRfc = new Map<string, MemberRow[]>()
+  for (const m of members ?? []) {
+    const key = m.rfc.toUpperCase()
+    membersByRfc.set(key, [...(membersByRfc.get(key) ?? []), m])
+  }
 
   const preview = rows.map((row, i) => {
-    const member = memberMap.get(row.rfc)
+    const matches = membersByRfc.get(row.rfc) ?? []
+    const member  = matches.length === 1 ? matches[0] : null
+    let error: string | null = null
+    if (matches.length === 0) error = `RFC ${row.rfc} no encontrado`
+    else if (matches.length > 1) error = `RFC ${row.rfc} tiene ${matches.length} cuentas — usa el panel de miembros para asignar puntos individualmente`
     return {
       line:      i + 2,
       rfc:       row.rfc,
@@ -73,7 +82,7 @@ export async function POST(req: NextRequest) {
       razon:     row.razon,
       member_id: member?.id ?? null,
       name:      member?.full_name ?? null,
-      error:     member ? null : `RFC ${row.rfc} no encontrado`,
+      error,
     }
   })
 

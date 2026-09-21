@@ -70,7 +70,7 @@ export async function POST(req: NextRequest) {
 
   if (error) {
     if (error.code === '23505') {
-      return NextResponse.json({ error: 'El correo o RFC ya está registrado' }, { status: 409 })
+      return NextResponse.json({ error: 'Ya existe una cuenta con este correo' }, { status: 409 })
     }
     console.error('[register] Error al crear miembro:', error)
     return NextResponse.json({ error: 'Error al crear la cuenta' }, { status: 500 })

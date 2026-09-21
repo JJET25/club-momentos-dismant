@@ -49,7 +49,7 @@ model Member {
   email           String    @unique
   fullName        String    @map("full_name")
   companyName     String    @map("company_name")
-  rfc             String    @unique
+  rfc             String    // Compartido entre miembros de la misma empresa, no es único
   locationState   String    @map("location_state")  // Estado de México
   locationCity    String    @map("location_city")   // Ciudad
   phone           String?   @map("phone")           // Celular del miembro
@@ -79,6 +79,7 @@ model Member {
   sentInvitations   Invitation[]
   notifications     Notification[]
 
+  @@index([rfc])
   @@map("members")
 }
 
