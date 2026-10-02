@@ -36,7 +36,7 @@ export default async function ClientLayout({ children }: { children: React.React
       </aside>
 
       {/* Main content */}
-      <main className="ml-[324px] flex-1 min-h-screen flex flex-col">
+      <main className="ml-[84px] flex-1 min-h-screen flex flex-col">
         <GlobalBanner />
         <WelcomeBanner name={name} />
         <div className="max-w-6xl mx-auto w-full px-8 py-8">
