@@ -39,7 +39,7 @@ export default async function ClientLayout({ children }: { children: React.React
           </div>
         </div>
 
-        <SidebarNav name={name} email={email} initials={initials} />
+        <SidebarNav name={name} email={email} initials={initials} company={brand.short} />
       </aside>
 
       {/* Main content */}

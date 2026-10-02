@@ -18,8 +18,25 @@ export async function POST(req: NextRequest) {
   if (!valid) return NextResponse.json({ error: 'Código inválido o expirado' }, { status: 400 })
 
   const supabase = createAdminClient()
-  // Solo la cuenta del portal desde el que se pide (la de la otra empresa no se toca)
-  const lookup = await findAccountForTenant(supabase, email, await getRequestTenant())
+  const tenant = await getRequestTenant()
+
+  // Desde la página de inicio la contraseña nueva aplica a todas las cuentas
+  // activas del correo (el código enviado al correo prueba que es su dueño)
+  if (tenant.kind === 'hub') {
+    const newHash = await bcrypt.hash(newPassword, 12)
+    const { data, error } = await supabase
+      .from('members')
+      .update({ password_hash: newHash })
+      .eq('email', email.toLowerCase().trim())
+      .neq('status', 'suspended')
+      .select('id')
+    if (error) return NextResponse.json({ error: 'Error al guardar la contraseña. Intenta de nuevo.' }, { status: 500 })
+    if (!data?.length) return NextResponse.json({ error: 'Cuenta no encontrada' }, { status: 404 })
+    return NextResponse.json({ success: true })
+  }
+
+  // En un portal: solo la cuenta de ese portal (la de la otra empresa no se toca)
+  const lookup = await findAccountForTenant(supabase, email, tenant)
 
   if (!lookup.account) {
     const message = lookupErrorMessage(lookup) ?? 'Cuenta no encontrada'

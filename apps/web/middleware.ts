@@ -4,11 +4,14 @@ import { jwtVerify, type JWTPayload } from 'jose'
 import { canAccessAdminRoute, STAFF_ROLES } from './lib/permissions'
 import {
   resolveTenant, tenantToHeader, TENANT_HEADER, isHostRoutingEnabled,
-  getAffiliateBaseUrl, getAdminBaseUrl, getHomeBaseUrl, type Tenant,
+  getAffiliateBaseUrl, getAdminBaseUrl, getHomeBaseUrl, getHubBaseUrl, type Tenant,
 } from './lib/tenant'
 
 // Rutas que NO requieren autenticación
-const PUBLIC_ROUTES = ['/login', '/register', '/verify', '/elige-tu-club', '/api/auth', '/api/banner', '/api/dev']
+const PUBLIC_ROUTES = ['/login', '/register', '/verify', '/api/auth', '/api/banner', '/api/dev']
+
+// Lo único que sirve el dominio de entrada (página de inicio con login)
+const HUB_API = ['/api/auth/login', '/api/auth/send-otp', '/api/auth/reset-password', '/api/auth/pass']
 
 // Rutas solo para miembros del club (portal cliente)
 const CLIENT_ROUTES = ['/dashboard', '/catalog', '/redemptions', '/statement', '/promotions', '/invoices', '/profile', '/arco']
@@ -51,12 +54,12 @@ async function readSession(request: NextRequest, secret: Uint8Array): Promise<JW
  *  - /register?token=…: se deja pasar; la página valida la invitación y
  *    redirige al portal de la empresa correcta (el middleware no consulta BD).
  *  - /api/*: se deja pasar (magic links ya enviados, crons, clientes en vuelo).
- *  - Resto sin sesión: a la página "Elige tu club".
+ *  - Resto sin sesión: a la página de inicio del proyecto.
  */
 function legacyRedirect(request: NextRequest, session: JWTPayload | null): NextResponse | null {
   if (process.env.LEGACY_REDIRECTS !== 'true' || !isHostRoutingEnabled()) return null
   const { pathname } = request.nextUrl
-  if (pathname.startsWith('/api') || pathname.startsWith('/register') || pathname === '/elige-tu-club') return null
+  if (pathname.startsWith('/api') || pathname.startsWith('/register')) return null
 
   if (session) {
     const base = getHomeBaseUrl(String(session.role), session.affiliate)
@@ -66,7 +69,8 @@ function legacyRedirect(request: NextRequest, session: JWTPayload | null): NextR
     return redirectToBase(request, base, keepPath ? undefined : '/login', 301)
   }
 
-  return NextResponse.redirect(new URL('/elige-tu-club', request.url), 301)
+  const hub = getHubBaseUrl()
+  return hub ? redirectToBase(request, hub, '/', 301) : null
 }
 
 /**
@@ -91,10 +95,11 @@ function tenantGuard(request: NextRequest, tenant: Tenant, session: JWTPayload |
   }
 
   if (tenant.kind === 'hub') {
-    // La entrada del proyecto no tiene portal ni sesiones: solo "Elige tu club"
-    if (pathname === '/elige-tu-club') return null
+    // La entrada del proyecto no tiene portal ni sesiones: solo la página de
+    // inicio y el login que manda a cada quien directo a la aplicación
+    if (pathname === '/' || matches(pathname, HUB_API)) return null
     if (pathname.startsWith('/api')) return NextResponse.json({ error: 'No disponible en este dominio' }, { status: 404 })
-    return NextResponse.redirect(new URL('/elige-tu-club', request.url))
+    return NextResponse.redirect(new URL('/', request.url))
   }
 
   if (tenant.kind === 'admin') {
@@ -126,6 +131,14 @@ export async function middleware(request: NextRequest) {
     ? legacyRedirect(request, session)
     : tenantGuard(request, tenant, session)
   if (early) return early
+
+  // La raíz es la página de inicio solo en el dominio de entrada; en los
+  // portales y el panel lleva al login (o a su área si ya hay sesión)
+  if (pathname === '/') {
+    if (tenant.kind === 'hub') return withTenantHeader(request, tenant)
+    const dest = !session ? '/login' : String(session.role) === 'member' ? '/dashboard' : '/admin/dashboard'
+    return NextResponse.redirect(new URL(dest, request.url))
+  }
 
   // Si ya tiene sesión activa y visita login o registro, redirigir a su área
   if (pathname === '/login' || pathname.startsWith('/register')) {

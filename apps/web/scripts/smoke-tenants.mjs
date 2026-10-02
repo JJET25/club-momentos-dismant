@@ -69,10 +69,16 @@ const expectBody = (label, r, text, present = true) => (r.body.includes(text) ==
 
 console.log('Dominios:', URLS)
 
+const login = (base, email) => get(base, '/api/auth/login', null, {
+  method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email, password: 'smoke-test-invalid' }),
+})
+
 console.log('── Enrutamiento')
 await expectRedirect('portal Dismant /admin → panel central', await get(URLS.dismant, '/admin/dashboard'), URLS.admin, '/admin/dashboard')
 await expectRedirect('panel central sin sesión → login', await get(URLS.admin, '/admin/dashboard'), URLS.admin, '/login')
 await expectRedirect('panel central no sirve el portal de miembros', await get(URLS.admin, '/dashboard'), URLS.admin, '/login')
+await expectRedirect('raíz del portal → login', await get(URLS.lauti, '/'), URLS.lauti, '/login')
+await expectRedirect('raíz del portal con sesión → su inicio', await get(URLS.lauti, '/', S.memberLauti), URLS.lauti, '/dashboard')
 await expectRedirect('sesión Dismant en portal Lauti → login', await get(URLS.lauti, '/dashboard', S.memberDismant), URLS.lauti, '/login')
 await expectRedirect('sesión Lauti en portal Dismant → login', await get(URLS.dismant, '/dashboard', S.memberLauti), URLS.dismant, '/login')
 await expectRedirect('staff en portal de miembros → login', await get(URLS.dismant, '/dashboard', S.owner), URLS.dismant, '/login')
@@ -90,29 +96,30 @@ expectBody('login Lauti no muestra Dismant', loginL, 'Club Momentos Dismant', fa
 expectBody('login panel central', await get(URLS.admin, '/login'), 'Panel de administración')
 
 console.log('── Login por portal (credenciales inválidas, no inicia sesión)')
-const login = (base, email) => get(base, '/api/auth/login', null, {
-  method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email, password: 'smoke-test-invalid' }),
-})
 expectStatus('credenciales inválidas → 401 genérico', await login(URLS.dismant, 'no-existe-smoke@example.com'), 401)
 
 if (URLS.hub) {
-  console.log('── Entrada del proyecto')
-  await expectRedirect('entrada → Elige tu club', await get(URLS.hub, '/login'), URLS.hub, '/elige-tu-club')
-  const hub = await get(URLS.hub, '/elige-tu-club')
-  expectBody('entrada enlaza a Dismant', hub, new URL('/login', URLS.dismant).href)
-  expectBody('entrada enlaza a Lauti', hub, new URL('/login', URLS.lauti).href)
-  expectStatus('entrada no expone la API', await get(URLS.hub, '/api/client/catalog', S.memberLauti), 404)
+  console.log('── Página de inicio (entrada del proyecto)')
+  const home = await get(URLS.hub, '/')
+  expectStatus('la página de inicio carga', home, 200)
+  expectBody('muestra la bienvenida', home, 'Bienvenido a tu programa de lealtad')
+  expectBody('incluye el formulario de inicio de sesión', home, 'Correo electrónico')
+  expectBody('empresas afiliadas: enlace a Dismant', home, 'https://dismant.com.mx/')
+  expectBody('empresas afiliadas: enlace a Lauti', home, 'https://www.silauti.com.mx/')
+  expectBody('no muestra "Elige tu club"', home, 'Elige tu club', false)
+  await expectRedirect('otras rutas de la entrada → inicio', await get(URLS.hub, '/dashboard'), URLS.hub, '/')
+  expectStatus('la entrada no expone la API del portal', await get(URLS.hub, '/api/client/catalog', S.memberLauti), 404)
+  expectStatus('login en la entrada con credenciales inválidas → 401', await login(URLS.hub, 'no-existe-smoke@example.com'), 401)
+  const badPass = await get(URLS.hub, '/api/auth/pass?token=pase-falso')
+  await expectRedirect('pase inválido → login con aviso', badPass, null, '/login')
 }
 
 if (URLS.legacy) {
   console.log(`── Dominio anterior (redirects ${expectLegacyRedirects ? 'activos' : 'inactivos'})`)
   if (expectLegacyRedirects) {
-    await expectRedirect('sin sesión → Elige tu club', await get(URLS.legacy, '/login'), URLS.legacy, '/elige-tu-club')
+    if (URLS.hub) await expectRedirect('sin sesión → página de inicio', await get(URLS.legacy, '/login'), URLS.hub, '/')
     await expectRedirect('miembro Lauti → su portal', await get(URLS.legacy, '/catalog', S.memberLauti), URLS.lauti, '/catalog')
     await expectRedirect('staff → panel central', await get(URLS.legacy, '/admin/members', S.owner), URLS.admin, '/admin/members')
-    const choose = await get(URLS.legacy, '/elige-tu-club')
-    expectBody('Elige tu club enlaza a Dismant', choose, new URL('/login', URLS.dismant).href)
-    expectBody('Elige tu club enlaza a Lauti', choose, new URL('/login', URLS.lauti).href)
   } else {
     expectStatus('dominio anterior sigue sirviendo el login', await get(URLS.legacy, '/login'), 200)
   }

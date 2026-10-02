@@ -42,16 +42,8 @@ const nextConfig: NextConfig = {
     ]
   },
 
-  // Redirigir la raíz al login
-  async redirects() {
-    return [
-      {
-        source: '/',
-        destination: '/login',
-        permanent: false,
-      },
-    ]
-  },
+  // La raíz la resuelve el middleware: página de inicio en el dominio de
+  // entrada, login (o el área de la sesión) en los portales y el panel.
 }
 
 export default nextConfig

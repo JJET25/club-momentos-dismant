@@ -12,7 +12,9 @@ Plataforma web de lealtad B2B multi-marca ("Club Momentos"), usada actualmente p
 - Dominios: `lib/tenant.ts` resuelve el tenant por `Host` (`DISMANT_APP_HOST`, `LAUTI_APP_HOST`, `ADMIN_APP_HOST`; sin ellos todo es `legacy` = comportamiento de un solo dominio). El middleware impide usar una sesión en el portal de otra empresa o en el panel equivocado. Para URLs absolutas (correos, links) usar `getAffiliateBaseUrl()` / `getAdminBaseUrl()`, nunca `NEXT_PUBLIC_APP_URL` directo.
 - Email único **por empresa** (`members_email_affiliate_key`): buscar cuentas con `findAccountForTenant()` (`lib/accounts.ts`), nunca solo por email.
 - Todo lo que ve un miembro se filtra con `getMemberAffiliate(session)`; en admin con `getEffectiveAffiliate()`. `partner_promotions.affiliate` lo fija un trigger desde el partner; `global_banners` es uno por empresa.
-- Staff `employee`/`team_admin` puede tener una o ambas empresas (`staff_affiliates`, claim `affiliates` del JWT); cambia entre ellas con "Ver como". Solo owner/admin tienen vista combinada.
+- Staff `employee`/`team_admin` puede tener una o ambas empresas (`staff_affiliates`, claim `affiliates` del JWT); elige la empresa desde el menú de perfil (`components/profile-menu.tsx`). Solo owner/admin tienen la vista Global, y por ahora no se pueden crear más admins globales (`GLOBAL_ROLE_LOCKED_MESSAGE`).
+- Página de inicio para invitados en `app/page.tsx`, servida solo en `HUB_APP_HOST`. El login entra directo a la aplicación: si la cuenta vive en otro dominio (o hay varias con el mismo correo; gana la última usada), se emite un pase de un solo uso (`lib/passes.ts`, tabla `auth_passes`) que `/api/auth/pass` canjea por la sesión de ese dominio. Para mandar a alguien autenticado a otro dominio usar pases, nunca compartir cookies. Los enlaces mágicos también son pases.
+- Cargas: usar esqueletos (`components/ui/skeleton.tsx`, `components/page-skeletons.tsx` y un `loading.tsx` por ruta) en vez de spinners o "Cargando…"; los spinners solo dentro de botones de acción.
 
 **Documentación completa en `/docs/`:**
 - `docs/Plan_Tecnico.md` — arquitectura, módulos, modelo de datos, flujo CFDI, RBAC, roadmap

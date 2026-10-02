@@ -108,3 +108,8 @@
 ::-webkit-scrollbar-thumb:hover {
   @apply bg-muted-foreground/50;
 }
+
+/* Esqueletos y pulsos sin animación si el sistema pide reducir movimiento */
+@media (prefers-reduced-motion: reduce) {
+  .animate-pulse { animation: none; }
+}

@@ -1,4 +1,5 @@
 'use client'
+import { ReportBodySkeleton } from '@/components/page-skeletons'
 
 import { useEffect, useState } from 'react'
 import {
@@ -98,7 +99,7 @@ function MembersTab({ from, to }: { from: string; to: string }) {
     fetch(`/api/admin/reports?${q}`).then(r => r.ok ? r.json() : null).then(setData)
   }, [from, to])
 
-  if (!data) return <div className="h-64 flex items-center justify-center"><div className="animate-spin w-8 h-8 border-2 border-primary/30 border-t-primary rounded-full" /></div>
+  if (!data) return <ReportBodySkeleton />
 
   const grid  = dark ? '#1e293b' : '#e2e8f0'
   const muted = dark ? '#64748b' : '#94a3b8'
@@ -263,7 +264,7 @@ function LedgerTab({ from, to }: { from: string; to: string }) {
     fetch(`/api/admin/reports?${q}`).then(r => r.ok ? r.json() : null).then(setData)
   }, [from, to])
 
-  if (!data) return <div className="h-64 flex items-center justify-center"><div className="animate-spin w-8 h-8 border-2 border-primary/30 border-t-primary rounded-full" /></div>
+  if (!data) return <ReportBodySkeleton />
 
   const grid  = dark ? '#1e293b' : '#e2e8f0'
   const muted = dark ? '#64748b' : '#94a3b8'
@@ -389,7 +390,7 @@ function RewardsTab({ from, to }: { from: string; to: string }) {
     fetch(`/api/admin/reports?${q}`).then(r => r.ok ? r.json() : null).then(setData)
   }, [from, to])
 
-  if (!data) return <div className="h-64 flex items-center justify-center"><div className="animate-spin w-8 h-8 border-2 border-primary/30 border-t-primary rounded-full" /></div>
+  if (!data) return <ReportBodySkeleton />
 
   const grid  = dark ? '#1e293b' : '#e2e8f0'
   const muted = dark ? '#64748b' : '#94a3b8'

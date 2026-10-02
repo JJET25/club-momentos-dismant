@@ -14,6 +14,13 @@ export const ROLES = {
 
 export type Role = typeof ROLES[keyof typeof ROLES]
 
+// Las cuentas con vista Global (owner/admin) están fijas por ahora: solo
+// jespinoza@silauti.com.mx (Propietario) y jespinoza2511@hotmail.com
+// (Administrador). No se pueden crear ni asignar nuevos administradores
+// globales desde el panel.
+export const GLOBAL_ROLE_LOCKED_MESSAGE =
+  'Por ahora no se pueden agregar administradores globales. Usa Administrador de equipo o Empleado.'
+
 // Roles que tienen acceso al panel de administración
 export const STAFF_ROLES: Role[] = ['owner', 'admin', 'team_admin', 'employee']
 

@@ -2,12 +2,13 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase'
 import { verifyMagicLinkToken } from '@/lib/auth'
 import { getRequestTenant } from '@/lib/tenant-server'
-import { getHomeBaseUrl } from '@/lib/tenant'
+import { getHomeBaseUrl, requestOrigin } from '@/lib/tenant'
 import { ACCOUNT_SELECT, roleOf, buildSessionToken, setSessionOnResponse, type AccountRow } from '@/lib/accounts'
 
 export async function GET(req: NextRequest) {
   const token = req.nextUrl.searchParams.get('token')
-  const loginUrl = new URL('/login', req.url)
+  const origin = requestOrigin(req)
+  const loginUrl = new URL('/login', origin)
 
   if (!token) {
     loginUrl.searchParams.set('error', 'link-invalido')
@@ -43,7 +44,7 @@ export async function GET(req: NextRequest) {
   const onWrongDomain =
     (tenant.kind === 'brand' && (role !== 'member' || tenant.affiliate !== member.affiliate)) ||
     (tenant.kind === 'admin' && role === 'member')
-  if (onWrongDomain && new URL(homeBase).host !== req.nextUrl.host) {
+  if (onWrongDomain && new URL(homeBase).host !== new URL(origin).host) {
     return NextResponse.redirect(new URL(`/api/auth/verify-magic-link?token=${encodeURIComponent(token)}`, homeBase))
   }
 
@@ -61,5 +62,5 @@ export async function GET(req: NextRequest) {
     ? '/admin/setup-password'
     : role === 'member' ? '/dashboard' : '/admin/dashboard'
 
-  return setSessionOnResponse(NextResponse.redirect(new URL(destination, req.url)), sessionToken)
+  return setSessionOnResponse(NextResponse.redirect(new URL(destination, origin)), sessionToken)
 }

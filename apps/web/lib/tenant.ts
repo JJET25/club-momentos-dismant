@@ -119,10 +119,26 @@ export function getAdminBaseUrl(): string {
   return host ? baseUrlForHost(host) : legacyBaseUrl()
 }
 
+/** URL base de la página de inicio del proyecto, o null si no hay HUB_APP_HOST. */
+export function getHubBaseUrl(): string | null {
+  const host = getHubHost()
+  return host ? baseUrlForHost(host) : null
+}
+
 /**
  * URL base donde debe operar una cuenta según su rol: el staff en el panel
  * central, los miembros en el portal de su empresa.
  */
 export function getHomeBaseUrl(role: string, affiliate: unknown): string {
   return role === 'member' ? getAffiliateBaseUrl(affiliate) : getAdminBaseUrl()
+}
+
+/**
+ * Origen (protocolo + dominio) con el que llegó la petición. En las rutas de
+ * API `req.url` puede traer el host interno del servidor; para redirigir
+ * dentro del MISMO dominio se usa el header Host.
+ */
+export function requestOrigin(req: { headers: Headers; nextUrl: { protocol: string; host: string } }): string {
+  const host = req.headers.get('host') ?? req.nextUrl.host
+  return `${req.nextUrl.protocol}//${host}`
 }

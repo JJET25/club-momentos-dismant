@@ -1,4 +1,5 @@
 'use client'
+import { Skeleton, SkeletonRegion } from '@/components/ui/skeleton'
 
 import { useEffect, useState, useCallback } from 'react'
 import {
@@ -671,7 +672,15 @@ export default function AdminRedemptionsPage() {
         </div>
 
         {loading ? (
-          <div className="p-8 text-center text-muted-foreground text-sm">Cargando…</div>
+          <SkeletonRegion label="Cargando…" className="divide-y divide-border">
+            {[0, 1, 2, 3].map(i => (
+              <div key={i} className="flex items-center gap-4 px-6 py-4">
+                <Skeleton className="w-9 h-9 rounded-full shrink-0" />
+                <div className="flex-1 space-y-2"><Skeleton className="h-4 w-1/3" /><Skeleton className="h-3 w-1/4" /></div>
+                <Skeleton className="h-6 w-20 rounded-full" />
+              </div>
+            ))}
+          </SkeletonRegion>
         ) : redemptions.length === 0 ? (
           <div className="py-16 text-center">
             <div className="w-12 h-12 rounded-2xl bg-muted flex items-center justify-center mx-auto mb-3">

@@ -43,6 +43,19 @@ export const GENERIC_BRAND: BrandConfig = {
   scale: GENERIC_SCALE, sidebarBg: '#0f172a',
 }
 
+/** Página de inicio del proyecto (dominio de entrada): índigo neutral, sin marca de empresa. */
+export const HUB_BRAND: BrandConfig = {
+  name: 'Club Momentos', short: 'Club Momentos', initial: 'CM',
+  primary: '#4338CA', primaryHsl: '244.5 57.9% 50.6%', primaryDark: '#1E1B4B', accent: '#4338CA',
+  scale: {
+    50: '225.9 100% 96.7%', 100: '226.5 100% 93.9%', 200: '228 96.5% 88.8%',
+    300: '229.7 93.5% 81.8%', 400: '234.5 89.5% 73.9%', 500: '238.7 83.5% 66.7%',
+    600: '244.5 57.9% 50.6%', 700: '243.7 54.5% 41.4%', 800: '242.2 47.4% 34.3%',
+    900: '243.8 47.1% 20%', 950: '243.2 46.8% 15.5%',
+  },
+  sidebarBg: '#1E1B4B',
+}
+
 // Colores extraídos de los logos y sitios oficiales de cada empresa
 // (dismant.com.mx / silauti.com.mx) — pendientes de confirmar contra manual
 // de marca si existe uno más preciso. Las escalas se generan conservando el

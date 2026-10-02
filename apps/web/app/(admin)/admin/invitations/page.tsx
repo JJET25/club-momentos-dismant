@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { Copy, Check, Info } from 'lucide-react'
+import { Skeleton, SkeletonRegion } from '@/components/ui/skeleton'
 
 type Affiliate = 'dismant' | 'lauti'
 
@@ -251,7 +252,15 @@ export default function InvitationsPage() {
         </div>
 
         {loadingList ? (
-          <div className="p-8 text-center text-muted-foreground text-sm">Cargando...</div>
+          <SkeletonRegion label="Cargando…" className="divide-y divide-border">
+            {[0, 1, 2, 3].map(i => (
+              <div key={i} className="flex items-center gap-4 px-6 py-4">
+                <Skeleton className="w-9 h-9 rounded-full shrink-0" />
+                <div className="flex-1 space-y-2"><Skeleton className="h-4 w-1/3" /><Skeleton className="h-3 w-1/4" /></div>
+                <Skeleton className="h-6 w-20 rounded-full" />
+              </div>
+            ))}
+          </SkeletonRegion>
         ) : invitations.length === 0 ? (
           <div className="p-8 text-center text-muted-foreground text-sm">
             Aún no hay invitaciones enviadas.

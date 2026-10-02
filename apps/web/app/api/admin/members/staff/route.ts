@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getSession, createMagicLinkToken } from '@/lib/auth'
+import { getSession } from '@/lib/auth'
+import { GLOBAL_ROLE_LOCKED_MESSAGE } from '@/lib/permissions'
 import { createAdminClient } from '@/lib/supabase'
 import { sendEmail, buildMagicLinkEmail } from '@/lib/resend'
 import { getBrand } from '@/lib/brand'
 import { isAffiliate } from '@/lib/scope'
-import { getAdminBaseUrl } from '@/lib/tenant'
+import { createPass, passUrl } from '@/lib/passes'
 import { normalizeAffiliates, setStaffAffiliates, SCOPED_STAFF_ROLES } from '@/lib/accounts'
 import crypto from 'crypto'
 
@@ -74,7 +75,10 @@ export async function POST(req: NextRequest) {
   if (!full_name?.trim() || !email?.trim() || !role) {
     return NextResponse.json({ error: 'Nombre, correo y rol son obligatorios' }, { status: 400 })
   }
-  if (!['admin', 'team_admin', 'employee'].includes(role)) {
+  if (role === 'admin') {
+    return NextResponse.json({ error: GLOBAL_ROLE_LOCKED_MESSAGE }, { status: 403 })
+  }
+  if (!['team_admin', 'employee'].includes(role)) {
     return NextResponse.json({ error: 'Rol inválido. Solo se puede crear admin, administrador de equipo o empleado.' }, { status: 400 })
   }
   if (!isAffiliate(affiliate)) {
@@ -138,9 +142,8 @@ export async function POST(req: NextRequest) {
 
   // Enviar correo de bienvenida con magic link para que configure su contraseña
   try {
-    const mlToken = await createMagicLinkToken(member.id, member.email)
-    // El staff opera desde el panel central
-    const magicLink = `${getAdminBaseUrl()}/api/auth/verify-magic-link?token=${mlToken}`
+    // Enlace de un solo uso al panel central para que configure su contraseña
+    const magicLink = passUrl(await createPass(supabase, member.id, 'magic_link'), role, affiliate)
 
     await sendEmail({
       to: member.email,

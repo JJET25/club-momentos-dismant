@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import bcrypt from 'bcryptjs'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { createSessionToken } from './auth'
 import { isAffiliate, getHomeBaseUrl, type Tenant } from './tenant'
@@ -18,7 +19,7 @@ import { isAffiliate, getHomeBaseUrl, type Tenant } from './tenant'
  *                           entrar desde el portal de su empresa.
  */
 
-export const ACCOUNT_SELECT = 'id, email, full_name, status, affiliate, password_hash, roles(name)'
+export const ACCOUNT_SELECT = 'id, email, full_name, status, affiliate, password_hash, last_login_at, roles(name)'
 
 export interface AccountRow {
   id:            string
@@ -27,6 +28,7 @@ export interface AccountRow {
   status:        string
   affiliate:     string
   password_hash: string | null
+  last_login_at?: string | null
   roles:         { name: string } | null
 }
 
@@ -164,4 +166,35 @@ export async function setStaffAffiliates(
     if (error) return { error: error.code === '23505' ? 'Ese correo ya tiene una cuenta en esa empresa' : error.message }
   }
   return { error: null }
+}
+
+export type PasswordLogin =
+  | { account: AccountRow; role: string }
+  | { account: null; reason: 'invalid' | 'no_password' }
+
+/**
+ * Inicio de sesión desde la página de inicio (o desde un portal que no es
+ * el de la cuenta): valida la contraseña contra TODAS las cuentas activas
+ * del correo y entra a la última usada entre las que coinciden. Cada cuenta
+ * tiene su propia contraseña, así que solo cuentan las que coinciden.
+ */
+export async function authenticateAcrossAccounts(rows: AccountRow[], password: string): Promise<PasswordLogin> {
+  const active = rows.filter(r => r.status !== 'suspended')
+  const withPassword = active.filter(r => r.password_hash)
+  if (!withPassword.length) {
+    return { account: null, reason: active.length ? 'no_password' : 'invalid' }
+  }
+
+  const checks = await Promise.all(withPassword.map(r => bcrypt.compare(password, r.password_hash as string)))
+  const matched = withPassword.filter((_, i) => checks[i])
+  if (!matched.length) return { account: null, reason: 'invalid' }
+
+  matched.sort((a, b) => {
+    const ta = a.last_login_at ? Date.parse(a.last_login_at) : 0
+    const tb = b.last_login_at ? Date.parse(b.last_login_at) : 0
+    if (ta !== tb) return tb - ta
+    // Sin historial: primero la cuenta del equipo, luego la de miembro
+    return Number(roleOf(a) === 'member') - Number(roleOf(b) === 'member')
+  })
+  return { account: matched[0], role: roleOf(matched[0]) }
 }

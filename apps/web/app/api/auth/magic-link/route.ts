@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase'
-import { createMagicLinkToken } from '@/lib/auth'
 import { sendEmail, buildMagicLinkEmail } from '@/lib/resend'
 import { getBrand } from '@/lib/brand'
 import { getRequestTenant } from '@/lib/tenant-server'
-import { getHomeBaseUrl } from '@/lib/tenant'
+import { createPass, passUrl } from '@/lib/passes'
 import { findAccountForTenant } from '@/lib/accounts'
 
 export async function POST(req: NextRequest) {
@@ -20,9 +19,9 @@ export async function POST(req: NextRequest) {
   }
 
   const { account: member, role } = lookup
-  const token = await createMagicLinkToken(member.id, member.email)
-  // El enlace apunta al dominio donde opera la cuenta (portal de su empresa o panel)
-  const magicLink = `${getHomeBaseUrl(role, member.affiliate)}/api/auth/verify-magic-link?token=${token}`
+  // Enlace de un solo uso (15 min) en el dominio donde opera la cuenta
+  const token = await createPass(supabase, member.id, 'magic_link')
+  const magicLink = passUrl(token, role, member.affiliate)
 
   if (process.env.RESEND_API_KEY) {
     try {

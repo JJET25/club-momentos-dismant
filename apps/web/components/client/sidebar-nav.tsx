@@ -19,6 +19,8 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 import { ThemeToggle } from '@/components/admin/theme-toggle'
+import { ProfileMenu } from '@/components/profile-menu'
+import { Skeleton, SkeletonRegion } from '@/components/ui/skeleton'
 
 interface NavItem {
   href:  string
@@ -75,9 +77,11 @@ interface Props {
   name:     string
   email:    string
   initials: string
+  /** Empresa del portal (para el subtítulo y el rol del menú de perfil) */
+  company:  string
 }
 
-export function SidebarNav({ name, email, initials }: Props) {
+export function SidebarNav({ name, email, initials, company }: Props) {
   const pathname = usePathname()
   const router   = useRouter()
 
@@ -192,23 +196,14 @@ export function SidebarNav({ name, email, initials }: Props) {
           )}
         </button>
 
-        {/* Usuario — clic lleva al perfil */}
-        <Link
-          href="/profile"
-          className={`flex items-center gap-3 px-2 py-2 rounded-lg transition-all group ${
-            pathname === '/profile' ? 'bg-white/10' : 'hover:bg-white/5'
-          }`}
-        >
-          <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ring-2 transition-all ${
-            pathname === '/profile' ? 'bg-brand-500 ring-brand-400' : 'bg-brand-700 ring-transparent group-hover:ring-brand-600'
-          }`}>
-            <span className="text-[11px] font-bold text-white">{initials}</span>
-          </div>
-          <div className="min-w-0 flex-1">
-            <p className="text-sm font-medium text-white leading-none truncate">{name}</p>
-            <p className="text-[11px] text-brand-400 mt-0.5 truncate">{email}</p>
-          </div>
-        </Link>
+        {/* Usuario — menú de perfil: perfil y cambio de empresa */}
+        <ProfileMenu
+          name={name}
+          subtitle={`Miembro · ${company}`}
+          initials={initials}
+          roleLabel={`Miembro · ${company} · ${email}`}
+          profileHref="/profile"
+        />
 
         <ThemeToggle />
 
@@ -242,7 +237,14 @@ export function SidebarNav({ name, email, initials }: Props) {
 
             <div className="overflow-y-auto flex-1">
               {loadingN ? (
-                <div className="p-8 text-center text-muted-foreground text-sm">Cargando…</div>
+                <SkeletonRegion label="Cargando notificaciones…" className="divide-y divide-border">
+                  {[0, 1, 2].map(i => (
+                    <div key={i} className="flex gap-3 px-5 py-4">
+                      <Skeleton className="w-8 h-8 rounded-xl shrink-0" />
+                      <div className="flex-1 space-y-2"><Skeleton className="h-4 w-2/3" /><Skeleton className="h-3 w-full" /><Skeleton className="h-3 w-1/4" /></div>
+                    </div>
+                  ))}
+                </SkeletonRegion>
               ) : notifs.length === 0 ? (
                 <div className="p-10 text-center">
                   <Bell className="w-8 h-8 text-muted-foreground mx-auto mb-3" />

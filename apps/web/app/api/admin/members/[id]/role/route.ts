@@ -3,6 +3,7 @@ import crypto from 'crypto'
 import { getSession } from '@/lib/auth'
 import { createAdminClient } from '@/lib/supabase'
 import { isValidRFC } from '@/lib/utils'
+import { GLOBAL_ROLE_LOCKED_MESSAGE } from '@/lib/permissions'
 import { isAffiliate } from '@/lib/scope'
 import { normalizeAffiliates, setStaffAffiliates, SCOPED_STAFF_ROLES } from '@/lib/accounts'
 
@@ -23,6 +24,9 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const body = await req.json()
   const newRole = body.role
 
+  if (newRole === 'admin') {
+    return NextResponse.json({ error: GLOBAL_ROLE_LOCKED_MESSAGE }, { status: 403 })
+  }
   if (!CHANGEABLE_ROLES.includes(newRole)) {
     return NextResponse.json({ error: 'Rol inválido. Solo se puede asignar admin, employee o member.' }, { status: 400 })
   }

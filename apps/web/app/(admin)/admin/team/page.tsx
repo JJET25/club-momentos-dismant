@@ -517,7 +517,6 @@ export default function TeamPage() {
               >
                 <option value="employee">Empleado — puede ver miembros y aprobar facturas</option>
                 <option value="team_admin">Administrador de equipo — administra las empresas asignadas</option>
-                <option value="admin">Administrador — acceso completo, ambas empresas</option>
               </select>
             </div>
             {addForm.role === 'admin' ? (
@@ -576,7 +575,7 @@ export default function TeamPage() {
               >
                 <option value="employee">Empleado</option>
                 <option value="team_admin">Administrador de equipo</option>
-                <option value="admin">Administrador</option>
+                {editForm.role === 'admin' && <option value="admin">Administrador (global)</option>}
                 <option value="member">Cliente (quitar del equipo)</option>
               </select>
             </div>

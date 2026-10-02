@@ -1,5 +1,5 @@
-export const PERSPECTIVE_OPTIONS: { value: string; label: string }[] = [
-  { value: '',        label: 'Todas las empresas' },
+export const PERSPECTIVE_OPTIONS: { value: string; label: string; hint?: string }[] = [
+  { value: '',        label: 'Global', hint: 'Todas las empresas' },
   { value: 'dismant',  label: 'Dismant' },
   { value: 'lauti',    label: 'Lauti' },
 ]
