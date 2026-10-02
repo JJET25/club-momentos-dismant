@@ -12,13 +12,15 @@ interface StaffMember {
   created_at:    string
   last_login_at: string | null
   affiliate:     string
+  affiliates?:   string[]
 }
 
 interface FormState {
   full_name: string
   email:     string
-  role:      string
-  affiliate: string
+  role:       string
+  affiliate:  string
+  affiliates: string[]
 }
 
 const ROLE_LABEL: Record<string, string> = {
@@ -36,6 +38,35 @@ const ROLE_BADGE: Record<string, string> = {
 }
 
 const AFFILIATE_LABEL: Record<string, string> = { dismant: 'Dismant', lauti: 'Lauti' }
+
+/** Empleados y admins. de equipo trabajan sobre una o ambas empresas. */
+const SCOPED_ROLES = ['employee', 'team_admin']
+
+function AffiliateChecks({ label, value, onChange }: {
+  label: string; value: string[]; onChange: (v: string[]) => void
+}) {
+  return (
+    <div>
+      <label className="block text-xs font-medium text-muted-foreground mb-1.5">{label}</label>
+      <div className="flex gap-4">
+        {Object.entries(AFFILIATE_LABEL).map(([key, name]) => (
+          <label key={key} className="flex items-center gap-2 text-sm text-foreground cursor-pointer">
+            <input
+              type="checkbox"
+              checked={value.includes(key)}
+              onChange={e => onChange(e.target.checked ? [...value, key] : value.filter(a => a !== key))}
+              className="rounded border-border text-brand-600"
+            />
+            {name}
+          </label>
+        ))}
+      </div>
+      <p className="text-xs text-muted-foreground mt-1">
+        Solo verá la información de las empresas marcadas. Si marca ambas, cambia entre ellas desde &quot;Ver como&quot;.
+      </p>
+    </div>
+  )
+}
 
 function initials(name: string) {
   return name.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase()
@@ -107,7 +138,7 @@ export default function TeamPage() {
   const [reasonInput, setReasonInput] = useState('')
 
   // Formularios
-  const emptyForm: FormState = { full_name: '', email: '', role: 'employee', affiliate: 'dismant' }
+  const emptyForm: FormState = { full_name: '', email: '', role: 'employee', affiliate: 'dismant', affiliates: ['dismant'] }
   const [addForm, setAddForm]   = useState<FormState>(emptyForm)
   const [editForm, setEditForm] = useState<Partial<FormState>>({})
   const [submitting, setSubmitting] = useState(false)
@@ -118,7 +149,7 @@ export default function TeamPage() {
   const [demoteState, setDemoteState]     = useState('')
   const [demoteCity, setDemoteCity]       = useState('')
   const isDemotingToClient = editForm.role === 'member'
-  const isAssigningTeamAdmin = editForm.role === 'team_admin'
+  const isEditingScoped = SCOPED_ROLES.includes(editForm.role ?? '')
 
   function showToast(msg: string, type: 'ok' | 'err' = 'ok') {
     setToast({ msg, type })
@@ -182,9 +213,9 @@ export default function TeamPage() {
         showToast('Completa RFC, empresa, estado y ciudad para convertir a cliente.', 'err')
         return
       }
-      if (isAssigningTeamAdmin && !editForm.affiliate) {
+      if (isEditingScoped && !editForm.affiliates?.length) {
         setSubmitting(false)
-        showToast('Elige la empresa que administrará.', 'err')
+        showToast('Marca al menos una empresa.', 'err')
         return
       }
       calls.push(fetch(`/api/admin/members/${editTarget.id}/role`, {
@@ -195,9 +226,25 @@ export default function TeamPage() {
           ...(isDemotingToClient
             ? { rfc: demoteRfc, companyName: demoteCompany, locationState: demoteState, locationCity: demoteCity }
             : {}),
-          ...(isAssigningTeamAdmin ? { affiliate: editForm.affiliate } : {}),
+          ...(isEditingScoped ? { affiliates: editForm.affiliates } : {}),
         }),
       }))
+    } else if (isEditingScoped) {
+      // Mismo rol, cambian solo las empresas asignadas
+      const before = [...(editTarget.affiliates ?? [editTarget.affiliate])].sort().join(',')
+      const after  = [...(editForm.affiliates ?? [])].sort().join(',')
+      if (before !== after) {
+        if (!editForm.affiliates?.length) {
+          setSubmitting(false)
+          showToast('Marca al menos una empresa.', 'err')
+          return
+        }
+        calls.push(fetch(`/api/admin/members/${editTarget.id}/affiliates`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ affiliates: editForm.affiliates }),
+        }))
+      }
     }
 
     const results = await Promise.all(calls)
@@ -372,7 +419,9 @@ export default function TeamPage() {
                     {/* Empresa */}
                     <td className="px-4 py-4">
                       <span className="text-xs text-muted-foreground">
-                        {m.role === 'owner' || m.role === 'admin' ? 'Global' : (AFFILIATE_LABEL[m.affiliate] ?? m.affiliate)}
+                        {m.role === 'owner' || m.role === 'admin'
+                          ? 'Global'
+                          : (m.affiliates ?? [m.affiliate]).map(a => AFFILIATE_LABEL[a] ?? a).join(' + ')}
                       </span>
                     </td>
 
@@ -409,7 +458,7 @@ export default function TeamPage() {
                           <button
                             onClick={() => {
                               setEditTarget(m)
-                              setEditForm({ full_name: m.full_name, email: m.email, role: m.role, affiliate: m.affiliate })
+                              setEditForm({ full_name: m.full_name, email: m.email, role: m.role, affiliate: m.affiliate, affiliates: m.affiliates ?? [m.affiliate] })
                               setDemoteRfc(''); setDemoteCompany(''); setDemoteState(''); setDemoteCity('')
                             }}
                             title="Editar"
@@ -467,26 +516,32 @@ export default function TeamPage() {
                 className="w-full text-sm border border-border rounded-lg px-3 py-2.5 bg-background text-foreground dark:bg-white/[.06] dark:border-white/[.12] focus:outline-none focus:ring-2 focus:ring-brand-500/30"
               >
                 <option value="employee">Empleado — puede ver miembros y aprobar facturas</option>
-                <option value="team_admin">Administrador de equipo — administra solo su empresa</option>
+                <option value="team_admin">Administrador de equipo — administra las empresas asignadas</option>
                 <option value="admin">Administrador — acceso completo, ambas empresas</option>
               </select>
             </div>
-            <div>
-              <label className="block text-xs font-medium text-muted-foreground mb-1.5">Empresa</label>
-              <select
-                value={addForm.affiliate}
-                onChange={e => setAddForm(p => ({ ...p, affiliate: e.target.value }))}
-                className="w-full text-sm border border-border rounded-lg px-3 py-2.5 bg-background text-foreground dark:bg-white/[.06] dark:border-white/[.12] focus:outline-none focus:ring-2 focus:ring-brand-500/30"
-              >
-                <option value="dismant">Dismant</option>
-                <option value="lauti">Lauti</option>
-              </select>
-              <p className="text-xs text-muted-foreground mt-1">
-                {addForm.role === 'admin'
-                  ? 'Los administradores tienen acceso global; esta empresa solo se usa para el branding de sus correos.'
-                  : 'Determina a qué información tendrá acceso esta cuenta.'}
-              </p>
-            </div>
+            {addForm.role === 'admin' ? (
+              <div>
+                <label className="block text-xs font-medium text-muted-foreground mb-1.5">Marca de sus correos</label>
+                <select
+                  value={addForm.affiliate}
+                  onChange={e => setAddForm(p => ({ ...p, affiliate: e.target.value }))}
+                  className="w-full text-sm border border-border rounded-lg px-3 py-2.5 bg-background text-foreground dark:bg-white/[.06] dark:border-white/[.12] focus:outline-none focus:ring-2 focus:ring-brand-500/30"
+                >
+                  <option value="dismant">Dismant</option>
+                  <option value="lauti">Lauti</option>
+                </select>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Los administradores tienen acceso global a ambas empresas.
+                </p>
+              </div>
+            ) : (
+              <AffiliateChecks
+                label="Empresas"
+                value={addForm.affiliates}
+                onChange={v => setAddForm(p => ({ ...p, affiliates: v }))}
+              />
+            )}
             <p className="text-xs text-muted-foreground bg-muted/40 rounded-lg px-3 py-2.5">
               Se creará la cuenta inmediatamente. Usa el botón <strong>Enviar enlace</strong> para que el miembro pueda ingresar por primera vez.
             </p>
@@ -496,7 +551,7 @@ export default function TeamPage() {
               </button>
               <button
                 onClick={handleCreate}
-                disabled={submitting || !addForm.full_name.trim() || !addForm.email.trim()}
+                disabled={submitting || !addForm.full_name.trim() || !addForm.email.trim() || (addForm.role !== 'admin' && !addForm.affiliates.length)}
                 className="flex-1 py-2.5 rounded-lg bg-brand-600 text-white text-sm font-semibold hover:bg-brand-700 transition-colors disabled:opacity-50"
               >
                 {submitting ? 'Creando…' : 'Crear cuenta'}
@@ -526,18 +581,12 @@ export default function TeamPage() {
               </select>
             </div>
 
-            {isAssigningTeamAdmin && (
-              <div>
-                <label className="block text-xs font-medium text-muted-foreground mb-1.5">Empresa que administrará</label>
-                <select
-                  value={editForm.affiliate ?? 'dismant'}
-                  onChange={e => setEditForm(p => ({ ...p, affiliate: e.target.value }))}
-                  className="w-full text-sm border border-border rounded-lg px-3 py-2.5 bg-background text-foreground dark:bg-white/[.06] dark:border-white/[.12] focus:outline-none focus:ring-2 focus:ring-brand-500/30"
-                >
-                  <option value="dismant">Dismant</option>
-                  <option value="lauti">Lauti</option>
-                </select>
-              </div>
+            {isEditingScoped && (
+              <AffiliateChecks
+                label="Empresas"
+                value={editForm.affiliates ?? []}
+                onChange={v => setEditForm(p => ({ ...p, affiliates: v }))}
+              />
             )}
 
             {isDemotingToClient && (

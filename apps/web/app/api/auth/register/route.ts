@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase'
 import { createSessionToken } from '@/lib/auth'
+import { getRequestTenant } from '@/lib/tenant-server'
 import crypto from 'crypto'
 import bcrypt from 'bcryptjs'
 
@@ -31,6 +32,12 @@ export async function POST(req: NextRequest) {
 
   if (!invitation || invitation.used || new Date(invitation.expires_at) < new Date()) {
     return NextResponse.json({ error: 'La invitación no es válida o ya fue utilizada' }, { status: 403 })
+  }
+
+  // La invitación solo se puede usar en el portal de su empresa
+  const tenant = await getRequestTenant()
+  if (tenant.kind === 'admin' || (tenant.kind === 'brand' && tenant.affiliate !== invitation.affiliate)) {
+    return NextResponse.json({ error: 'Esta invitación pertenece a otra empresa. Ábrela desde el enlace de tu correo.' }, { status: 403 })
   }
 
   // El email del registro debe coincidir con el de la invitación
@@ -70,7 +77,7 @@ export async function POST(req: NextRequest) {
 
   if (error) {
     if (error.code === '23505') {
-      return NextResponse.json({ error: 'Ya existe una cuenta con este correo' }, { status: 409 })
+      return NextResponse.json({ error: 'Ya existe una cuenta con este correo en esta empresa' }, { status: 409 })
     }
     console.error('[register] Error al crear miembro:', error)
     return NextResponse.json({ error: 'Error al crear la cuenta' }, { status: 500 })

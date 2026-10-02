@@ -3,6 +3,8 @@ import crypto from 'crypto'
 import { getSession } from '@/lib/auth'
 import { createAdminClient } from '@/lib/supabase'
 import { sendEmail } from '@/lib/resend'
+import { getBrand } from '@/lib/brand'
+import { getMemberAffiliate } from '@/lib/scope'
 
 const ARCO_RIGHTS = ['acceso', 'rectificacion', 'cancelacion', 'oposicion'] as const
 
@@ -48,13 +50,19 @@ export async function POST(req: NextRequest) {
     metadata:    { folio, right, contact_email: contactEmail.trim() },
   })
 
+  // Cada empresa es responsable de sus propios datos personales: la
+  // confirmación sale con su marca y la solicitud llega a su buzón ARCO.
+  const affiliate = getMemberAffiliate(session)
+  const brand = getBrand(affiliate)
+
   // Email de confirmación al miembro
   sendEmail({
-    to:      contactEmail.trim(),
-    subject: `Solicitud ARCO recibida — Folio ${folio}`,
+    to:        contactEmail.trim(),
+    affiliate,
+    subject:   `Solicitud ARCO recibida — Folio ${folio}`,
     html: `
       <div style="font-family: Inter, sans-serif; max-width: 520px; margin: 0 auto; padding: 32px;">
-        <h2 style="color: #1e3a8a;">Solicitud ARCO recibida</h2>
+        <h2 style="color: ${brand.primaryDark};">Solicitud ARCO recibida — ${brand.name}</h2>
         <p>Hola <strong>${member?.full_name ?? 'Miembro'}</strong>,</p>
         <p>Hemos recibido tu solicitud de derecho de <strong>${rightLabels[right]}</strong>. Nos comunicaremos contigo en un plazo máximo de 20 días hábiles.</p>
         <div style="background: #f1f5f9; border-radius: 8px; padding: 16px; margin: 20px 0;">
@@ -68,12 +76,17 @@ export async function POST(req: NextRequest) {
   }).catch(console.error)
 
   // Notificar al equipo (correo de datos personales)
-  const adminEmail = process.env.ARCO_ADMIN_EMAIL ?? process.env.RESEND_FROM_EMAIL
+  const adminEmail =
+    (affiliate === 'lauti' ? process.env.ARCO_ADMIN_EMAIL_LAUTI : process.env.ARCO_ADMIN_EMAIL_DISMANT)
+    ?? process.env.ARCO_ADMIN_EMAIL
+    ?? process.env.RESEND_FROM_EMAIL
   if (adminEmail) {
     sendEmail({
-      to:      adminEmail,
-      subject: `[ARCO] Nueva solicitud de ${rightLabels[right]} — ${folio}`,
+      to:        adminEmail,
+      affiliate,
+      subject:   `[ARCO ${brand.short}] Nueva solicitud de ${rightLabels[right]} — ${folio}`,
       html: `
+        <p><strong>Empresa:</strong> ${brand.short}</p>
         <p><strong>Folio:</strong> ${folio}</p>
         <p><strong>Miembro ID:</strong> ${session.sub}</p>
         <p><strong>Nombre:</strong> ${member?.full_name}</p>

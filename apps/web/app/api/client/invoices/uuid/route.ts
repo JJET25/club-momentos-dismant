@@ -3,6 +3,7 @@ import crypto from 'crypto'
 import { getSession } from '@/lib/auth'
 import { createAdminClient } from '@/lib/supabase'
 import { isValidCFDIUUID, calculatePoints, isInvoiceWithinPeriod } from '@/lib/utils'
+import { getAffiliateRfc } from '@/lib/scope'
 
 export async function POST(req: NextRequest) {
   const session = await getSession()
@@ -43,15 +44,15 @@ export async function POST(req: NextRequest) {
   // Obtener RFC del miembro
   const { data: member } = await supabase
     .from('members')
-    .select('rfc')
+    .select('rfc, affiliate')
     .eq('id', memberId)
     .single()
 
   if (!member) return NextResponse.json({ error: 'Miembro no encontrado.' }, { status: 404 })
 
-  // Validación: RFC emisor == RFC de Dismant
-  const dismantRfc = process.env.DISMANT_RFC
-  if (dismantRfc && normalizedRfcEmi !== dismantRfc.toUpperCase()) {
+  // Validación: RFC emisor == RFC del affiliate del miembro
+  const affiliateRfc = getAffiliateRfc(member.affiliate)
+  if (affiliateRfc && normalizedRfcEmi !== affiliateRfc.toUpperCase()) {
     return NextResponse.json({ error: 'Esta factura no fue emitida por la empresa correspondiente.' }, { status: 422 })
   }
 

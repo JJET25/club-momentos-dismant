@@ -5,6 +5,7 @@ import { createAdminClient } from '@/lib/supabase'
 import { uploadFile, STORAGE_PATHS } from '@/lib/storage'
 import { parseCFDIXml, calculatePoints, isInvoiceWithinPeriod, isValidCFDIUUID } from '@/lib/utils'
 import { enqueueInvoiceValidation } from '@/lib/queue'
+import { getAffiliateRfc } from '@/lib/scope'
 
 const MAX_FILE_SIZE = 2 * 1024 * 1024 // 2 MB
 
@@ -48,7 +49,7 @@ export async function POST(req: NextRequest) {
   // Obtener RFC del miembro
   const { data: member } = await supabase
     .from('members')
-    .select('rfc')
+    .select('rfc, affiliate')
     .eq('id', memberId)
     .single()
 
@@ -61,9 +62,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Esta factura no está a tu nombre.' }, { status: 422 })
   }
 
-  // Validación: RFC emisor == RFC de Dismant
-  const dismantRfc = process.env.DISMANT_RFC
-  if (dismantRfc && cfdi.rfcEmisor.toUpperCase() !== dismantRfc.toUpperCase()) {
+  // Validación: RFC emisor == RFC del affiliate del miembro
+  const affiliateRfc = getAffiliateRfc(member.affiliate)
+  if (affiliateRfc && cfdi.rfcEmisor.toUpperCase() !== affiliateRfc.toUpperCase()) {
     return NextResponse.json({ error: 'Esta factura no fue emitida por la empresa correspondiente.' }, { status: 422 })
   }
 

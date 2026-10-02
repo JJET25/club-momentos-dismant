@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase'
-import { sendEmail } from '@/lib/resend'
+import { sendEmail, buildPointsExpiringEmail } from '@/lib/resend'
 import { sendPushNotification } from '@/lib/firebase-admin'
 
 // Protected by CRON_SECRET env var — set in Vercel cron config
@@ -24,7 +24,7 @@ export async function GET(req: NextRequest) {
     .from('ledger_entries')
     .select(`
       id, member_id, points, expires_at,
-      members!member_id ( email, full_name, fcm_token )
+      members!member_id ( email, full_name, fcm_token, affiliate )
     `)
     .gt('points', 0)
     .gte('expires_at', now.toISOString())
@@ -35,14 +35,14 @@ export async function GET(req: NextRequest) {
   }
 
   // Group by member
-  type MemberPoints = { email: string; name: string; fcmToken: string | null; points: number; expiresAt: string }
+  type MemberPoints = { email: string; name: string; fcmToken: string | null; affiliate: string; points: number; expiresAt: string }
   const byMember: Record<string, MemberPoints> = {}
 
   for (const e of expiring) {
-    const member = e.members as unknown as { email: string; full_name: string; fcm_token: string | null } | null
+    const member = e.members as unknown as { email: string; full_name: string; fcm_token: string | null; affiliate: string } | null
     if (!member) continue
     if (!byMember[e.member_id]) {
-      byMember[e.member_id] = { email: member.email, name: member.full_name, fcmToken: member.fcm_token, points: 0, expiresAt: e.expires_at! }
+      byMember[e.member_id] = { email: member.email, name: member.full_name, fcmToken: member.fcm_token, affiliate: member.affiliate, points: 0, expiresAt: e.expires_at! }
     }
     byMember[e.member_id].points += e.points
     // Keep the soonest expiry
@@ -63,12 +63,14 @@ export async function GET(req: NextRequest) {
       await sendEmail({
         to:      info.email,
         subject: `⚡ Tienes ${info.points.toLocaleString('es-MX')} puntos por vencer`,
-        html: `
-          <div style="font-family: Inter, sans-serif; max-width: 500px; margin: 0 auto; padding: 32px;">
-            <h2 style="color: #1e3a8a;">¡No pierdas tus puntos, ${info.name}!</h2>
-            <p>Tienes <strong>${info.points.toLocaleString('es-MX')} puntos</strong> que vencen el <strong>${expiryDate}</strong>.</p>
-            <p>Canjéalos antes de que expiren en el <a href="${process.env.NEXT_PUBLIC_APP_URL}/catalog" style="color: #2563eb;">catálogo de premios</a>.</p>
-          </div>`,
+        // Remitente, marca y enlace de la empresa del miembro
+        affiliate: info.affiliate,
+        html:      buildPointsExpiringEmail({
+          userName:  info.name,
+          points:    info.points,
+          expiresAt: expiryDate,
+          affiliate: info.affiliate,
+        }),
       })
     } catch {
       continue

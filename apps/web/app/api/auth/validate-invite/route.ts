@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase'
+import { getAffiliateBaseUrl, getAffiliateHost, isAffiliate } from '@/lib/tenant'
 
 export async function GET(req: NextRequest) {
   const token = req.nextUrl.searchParams.get('token')
@@ -28,5 +29,11 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ valid: false, reason: 'token-expired' })
   }
 
-  return NextResponse.json({ valid: true, email: data.email, affiliate: data.affiliate ?? 'dismant' })
+  const affiliate = isAffiliate(data.affiliate) ? data.affiliate : 'dismant'
+  // Dominio donde debe completarse el registro; la página redirige si el
+  // enlace se abrió en otro (p. ej. el dominio anterior). Solo cuando la
+  // empresa ya tiene dominio propio configurado.
+  const portalUrl = getAffiliateHost(affiliate) ? getAffiliateBaseUrl(affiliate) : null
+
+  return NextResponse.json({ valid: true, email: data.email, affiliate, portalUrl })
 }

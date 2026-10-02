@@ -1,5 +1,6 @@
 import { Resend } from 'resend'
-import { getBrand, BRAND_BLUE, BRAND_BLUE_DARK } from './brand'
+import { getBrand } from './brand'
+import { getAffiliateBaseUrl } from './tenant'
 
 // Lazy-init: evita throw en build de Next.js cuando la API key no está presente
 let _resend: Resend | null = null
@@ -42,7 +43,7 @@ function brandBadge(affiliate: string | undefined, size: number): string {
     <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin: 0 auto;">
       <tr>
         <td width="${size}" height="${size}" align="center" valign="middle"
-            style="background: ${BRAND_BLUE}; border-radius: ${Math.round(size * 0.22)}px; font-family: Inter, Arial, sans-serif; font-size: ${Math.round(size * 0.42)}px; font-weight: 700; line-height: 1; color: #ffffff;">
+            style="background: ${brand.primary}; border-radius: ${Math.round(size * 0.22)}px; font-family: Inter, Arial, sans-serif; font-size: ${Math.round(size * 0.42)}px; font-weight: 700; line-height: 1; color: #ffffff;">
           ${brand.initial}
         </td>
       </tr>
@@ -56,7 +57,7 @@ function brandHeader(affiliate?: string): string {
   return `
     <div style="text-align: center; margin-bottom: 24px;">
       ${brandBadge(affiliate, 56)}
-      <h1 style="margin-top: 10px; font-size: 18px; color: ${BRAND_BLUE_DARK}; margin-bottom: 0;">${brand.name}</h1>
+      <h1 style="margin-top: 10px; font-size: 18px; color: ${brand.primaryDark}; margin-bottom: 0;">${brand.name}</h1>
     </div>
   `
 }
@@ -84,14 +85,15 @@ export async function sendEmail({ to, subject, html, text, attachments, affiliat
 
 /** OTP de acceso al sistema */
 export function buildOTPEmail(code: string, userName?: string, affiliate?: string): string {
+  const cfg = getBrand(affiliate)
   return `
     <div style="font-family: Inter, sans-serif; max-width: 500px; margin: 0 auto; padding: 32px;">
       ${brandHeader(affiliate)}
-      <h2 style="margin-top: 0; color: #1e3a8a;">Tu código de acceso</h2>
+      <h2 style="margin-top: 0; color: ${cfg.primaryDark};">Tu código de acceso</h2>
       ${userName ? `<p>Hola ${userName},</p>` : ''}
       <p>Usa este código para ingresar a tu cuenta. Expira en <strong>10 minutos</strong>.</p>
       <div style="background: #eff6ff; border-radius: 8px; padding: 24px; text-align: center; margin: 24px 0;">
-        <span style="font-size: 36px; font-weight: 700; letter-spacing: 8px; color: #2563eb;">
+        <span style="font-size: 36px; font-weight: 700; letter-spacing: 8px; color: ${cfg.primary};">
           ${code}
         </span>
       </div>
@@ -120,7 +122,7 @@ export function buildInvoiceApprovedEmail(params: {
         <div style="display: inline-flex; align-items: center; justify-content: center; width: 64px; height: 64px; background: #16a34a; border-radius: 16px;">
           <span style="font-size: 30px;">✅</span>
         </div>
-        <h1 style="margin-top: 12px; font-size: 20px; color: ${BRAND_BLUE_DARK}; margin-bottom: 0;">${cfg.name}</h1>
+        <h1 style="margin-top: 12px; font-size: 20px; color: ${cfg.primaryDark}; margin-bottom: 0;">${cfg.name}</h1>
       </div>
 
       <h2 style="color: #15803d; margin-bottom: 8px;">Factura validada exitosamente</h2>
@@ -145,14 +147,14 @@ export function buildInvoiceApprovedEmail(params: {
           </tr>
           <tr>
             <td style="padding: 6px 0; color: #6b7280; font-size: 14px; border-top: 1px solid #dcfce7;">Saldo total</td>
-            <td style="padding: 6px 0; text-align: right; font-weight: 700; color: #2563eb; font-size: 18px; border-top: 1px solid #dcfce7;">${fmtPts(params.newBalance)} pts</td>
+            <td style="padding: 6px 0; text-align: right; font-weight: 700; color: ${cfg.primary}; font-size: 18px; border-top: 1px solid #dcfce7;">${fmtPts(params.newBalance)} pts</td>
           </tr>
         </table>
       </div>
 
       <div style="text-align: center; margin: 28px 0;">
-        <a href="${process.env.NEXT_PUBLIC_APP_URL}/catalog"
-           style="display: inline-block; background: #2563eb; color: white; padding: 14px 32px; border-radius: 10px; text-decoration: none; font-weight: 600; font-size: 15px;">
+        <a href="${getAffiliateBaseUrl(params.affiliate)}/catalog"
+           style="display: inline-block; background: ${cfg.primary}; color: white; padding: 14px 32px; border-radius: 10px; text-decoration: none; font-weight: 600; font-size: 15px;">
           Ver premios disponibles →
         </a>
       </div>
@@ -200,7 +202,7 @@ export function buildInvitationEmail(params: {
     <div style="font-family: Inter, sans-serif; max-width: 500px; margin: 0 auto; padding: 32px;">
       <div style="text-align: center; margin-bottom: 32px;">
         ${brandBadge(params.affiliate, 64)}
-        <h1 style="margin-top: 12px; font-size: 20px; color: ${BRAND_BLUE_DARK}; margin-bottom: 0;">${cfg.name}</h1>
+        <h1 style="margin-top: 12px; font-size: 20px; color: ${cfg.primaryDark}; margin-bottom: 0;">${cfg.name}</h1>
       </div>
 
       <h2 style="color: #111827; margin-bottom: 8px;">
@@ -216,7 +218,7 @@ export function buildInvitationEmail(params: {
 
       <div style="text-align: center; margin: 36px 0;">
         <a href="${params.inviteLink}"
-           style="display: inline-block; background: ${BRAND_BLUE}; color: white; padding: 16px 40px;
+           style="display: inline-block; background: ${cfg.primary}; color: white; padding: 16px 40px;
                   border-radius: 10px; text-decoration: none; font-weight: 600; font-size: 16px;">
           Crear mi cuenta
         </a>
@@ -230,7 +232,7 @@ export function buildInvitationEmail(params: {
           Si el botón no funciona, copia y pega este enlace en tu navegador:
         </p>
         <p style="margin: 6px 0 0; font-size: 11px; word-break: break-all;">
-          <a href="${params.inviteLink}" style="color: ${BRAND_BLUE};">${params.inviteLink}</a>
+          <a href="${params.inviteLink}" style="color: ${cfg.primary};">${params.inviteLink}</a>
         </p>
       </div>
 
@@ -248,14 +250,14 @@ export function buildMagicLinkEmail(magicLink: string, userName?: string, affili
     <div style="font-family: Inter, sans-serif; max-width: 500px; margin: 0 auto; padding: 32px;">
       <div style="text-align: center; margin-bottom: 24px;">
         ${brandBadge(affiliate, 64)}
-        <h1 style="margin-top: 12px; font-size: 20px; color: ${BRAND_BLUE_DARK};">${cfg.name}</h1>
+        <h1 style="margin-top: 12px; font-size: 20px; color: ${cfg.primaryDark};">${cfg.name}</h1>
       </div>
       <h2 style="color: #111827;">Tu enlace de acceso</h2>
       ${userName ? `<p>Hola ${userName},</p>` : ''}
       <p>Haz clic en el botón para ingresar a tu cuenta. Este enlace expira en <strong>15 minutos</strong> y solo puede usarse una vez.</p>
       <div style="text-align: center; margin: 32px 0;">
         <a href="${magicLink}"
-           style="display: inline-block; background: #2563eb; color: white; padding: 14px 32px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 16px;">
+           style="display: inline-block; background: ${cfg.primary}; color: white; padding: 14px 32px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 16px;">
           Ingresar a mi cuenta
         </a>
       </div>
@@ -297,7 +299,7 @@ export function buildVoucherEmail(params: {
         <div style="display:inline-flex;align-items:center;justify-content:center;width:64px;height:64px;background:#16a34a;border-radius:50%;">
           <span style="font-size:30px;">✅</span>
         </div>
-        <h1 style="margin-top:12px;font-size:20px;color:#1e3a8a;margin-bottom:0;">¡Canje exitoso!</h1>
+        <h1 style="margin-top:12px;font-size:20px;color:${cfg.primaryDark};margin-bottom:0;">¡Canje exitoso!</h1>
       </div>
 
       <p style="color:#374151;">Hola <strong>${params.userName}</strong>,</p>
@@ -319,13 +321,13 @@ export function buildVoucherEmail(params: {
         </tr>
         <tr>
           <td style="padding:8px 0;color:#6b7280;font-size:14px;border-top:1px solid #e5e7eb;">Saldo restante</td>
-          <td style="padding:8px 0;text-align:right;font-weight:700;color:#2563eb;font-size:16px;border-top:1px solid #e5e7eb;">${fmtPts(params.newBalance)} pts</td>
+          <td style="padding:8px 0;text-align:right;font-weight:700;color:${cfg.primary};font-size:16px;border-top:1px solid #e5e7eb;">${fmtPts(params.newBalance)} pts</td>
         </tr>
       </table>
 
       <div style="text-align:center;margin:28px 0;">
-        <a href="${process.env.NEXT_PUBLIC_APP_URL}/redemptions"
-           style="display:inline-block;background:#2563eb;color:white;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px;">
+        <a href="${getAffiliateBaseUrl(params.affiliate)}/redemptions"
+           style="display:inline-block;background:${cfg.primary};color:white;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px;">
           Ver mis canjes →
         </a>
       </div>
@@ -381,7 +383,7 @@ export function buildPrizeDeliveredEmail(params: {
         <div style="display:inline-flex;align-items:center;justify-content:center;width:64px;height:64px;background:#16a34a;border-radius:50%;">
           <span style="font-size:30px;">🎁</span>
         </div>
-        <h1 style="margin-top:12px;font-size:20px;color:#1e3a8a;margin-bottom:0;">¡Tu premio está listo!</h1>
+        <h1 style="margin-top:12px;font-size:20px;color:${cfg.primaryDark};margin-bottom:0;">¡Tu premio está listo!</h1>
       </div>
       <p style="color:#374151;">Hola <strong>${params.userName}</strong>,</p>
       <p style="color:#374151;line-height:1.6;">Tu ejecutivo de ${cfg.short} procesó la entrega de <strong>${params.skuName}</strong>.</p>
@@ -391,8 +393,8 @@ export function buildPrizeDeliveredEmail(params: {
         <p style="margin:0;font-size:22px;font-family:monospace;font-weight:700;letter-spacing:5px;color:#374151;">${params.voucherCode}</p>
       </div>
       <div style="text-align:center;margin:28px 0;">
-        <a href="${process.env.NEXT_PUBLIC_APP_URL}/redemptions"
-           style="display:inline-block;background:#2563eb;color:white;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px;">
+        <a href="${getAffiliateBaseUrl(params.affiliate)}/redemptions"
+           style="display:inline-block;background:${cfg.primary};color:white;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px;">
           Ver mis canjes →
         </a>
       </div>
@@ -415,7 +417,7 @@ export function buildPhysicalDeliveredEmail(params: {
         <div style="display:inline-flex;align-items:center;justify-content:center;width:64px;height:64px;background:#16a34a;border-radius:50%;">
           <span style="font-size:30px;">✅</span>
         </div>
-        <h1 style="margin-top:12px;font-size:20px;color:#1e3a8a;margin-bottom:0;">¡Entrega confirmada!</h1>
+        <h1 style="margin-top:12px;font-size:20px;color:${cfg.primaryDark};margin-bottom:0;">¡Entrega confirmada!</h1>
       </div>
       <p style="color:#374151;">Hola <strong>${params.userName}</strong>,</p>
       <p style="color:#374151;line-height:1.6;">
@@ -431,8 +433,8 @@ export function buildPhysicalDeliveredEmail(params: {
         <p style="margin:0;font-size:22px;font-family:monospace;font-weight:700;letter-spacing:5px;color:#374151;">${params.voucherCode}</p>
       </div>
       <div style="text-align:center;margin:28px 0;">
-        <a href="${process.env.NEXT_PUBLIC_APP_URL}/redemptions"
-           style="display:inline-block;background:#2563eb;color:white;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px;">
+        <a href="${getAffiliateBaseUrl(params.affiliate)}/redemptions"
+           style="display:inline-block;background:${cfg.primary};color:white;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px;">
           Ver mis canjes →
         </a>
       </div>
@@ -473,7 +475,7 @@ export function buildShippingNotificationEmail(params: {
         <div style="display:inline-flex;align-items:center;justify-content:center;width:64px;height:64px;background:#0ea5e9;border-radius:50%;">
           <span style="font-size:30px;">🚚</span>
         </div>
-        <h1 style="margin-top:12px;font-size:20px;color:#1e3a8a;margin-bottom:0;">Tu premio está en camino</h1>
+        <h1 style="margin-top:12px;font-size:20px;color:${cfg.primaryDark};margin-bottom:0;">Tu premio está en camino</h1>
       </div>
 
       <p style="color:#374151;">Hola <strong>${params.userName}</strong>,</p>
@@ -497,8 +499,8 @@ export function buildShippingNotificationEmail(params: {
       </div>
 
       <div style="text-align:center;margin:28px 0;">
-        <a href="${process.env.NEXT_PUBLIC_APP_URL}/redemptions"
-           style="display:inline-block;background:#2563eb;color:white;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px;">
+        <a href="${getAffiliateBaseUrl(params.affiliate)}/redemptions"
+           style="display:inline-block;background:${cfg.primary};color:white;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px;">
           Ver mis canjes →
         </a>
       </div>
@@ -527,8 +529,8 @@ export function buildPointsExpiringEmail(params: {
         <p style="margin: 4px 0;"><strong>${params.points} puntos</strong> vencen el <strong>${params.expiresAt}</strong></p>
       </div>
       <p>Visita el catálogo y canjéalos antes de perderlos.</p>
-      <a href="${process.env.NEXT_PUBLIC_APP_URL}/catalog"
-         style="display: inline-block; background: ${BRAND_BLUE}; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; margin-top: 16px;">
+      <a href="${getAffiliateBaseUrl(params.affiliate)}/catalog"
+         style="display: inline-block; background: ${cfg.primary}; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; margin-top: 16px;">
         Ver premios disponibles
       </a>
       <p style="color: #9ca3af; font-size: 12px; text-align: center; margin-top: 24px;">${cfg.name}</p>

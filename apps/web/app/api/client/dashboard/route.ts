@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getSession } from '@/lib/auth'
 import { createAdminClient } from '@/lib/supabase'
+import { getMemberAffiliate } from '@/lib/scope'
 import { getSignedDownloadUrl } from '@/lib/storage'
 
 export async function GET() {
@@ -11,6 +12,7 @@ export async function GET() {
 
   const supabase = createAdminClient()
   const memberId = session.sub
+  const affiliate = getMemberAffiliate(session)
   const now = new Date()
   const nowIso = now.toISOString()
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString()
@@ -48,11 +50,13 @@ export async function GET() {
 
     supabase.from('partner_promotions')
       .select('id, title, description, image_url, banner_key, valid_until, featured, geo_type, geo_states, geo_cities, partners!partner_id(name, logo_url, is_verified)')
+      .eq('affiliate', affiliate)
       .eq('status', 'active').lte('valid_from', nowIso).gte('valid_until', nowIso)
       .order('featured', { ascending: false }).order('created_at', { ascending: false }).limit(10),
 
     supabase.from('reward_skus')
       .select('id, name, image_url, points_cost, category, is_digital, geo_type, geo_states, geo_cities, stock')
+      .eq('affiliate', affiliate)
       .eq('status', 'active').order('points_cost', { ascending: true }),
   ])
 

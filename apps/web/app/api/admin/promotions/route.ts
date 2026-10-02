@@ -17,26 +17,18 @@ export async function GET(req: NextRequest) {
   const search  = searchParams.get('q')
   const affiliate = getEffectiveAffiliate(session, req)
 
-  // Las promociones heredan la empresa de su partner (partners.affiliate),
-  // no tienen columna propia — se filtra vía el join.
-  let query = (affiliate
-    ? supabase.from('partner_promotions').select(`
-        id, title, description, image_url, banner_key, destination_url,
-        geo_type, geo_states, geo_cities, valid_from, valid_until,
-        status, featured, created_at,
-        partners!partner_id!inner ( id, name, logo_url, is_verified, affiliate )
-      `)
-    : supabase.from('partner_promotions').select(`
-        id, title, description, image_url, banner_key, destination_url,
-        geo_type, geo_states, geo_cities, valid_from, valid_until,
-        status, featured, created_at,
-        partners!partner_id ( id, name, logo_url, is_verified )
-      `)
-  )
+  // partner_promotions.affiliate = empresa del aliado (se fija al crear)
+  let query = supabase.from('partner_promotions').select(`
+      id, title, description, image_url, banner_key, destination_url,
+      geo_type, geo_states, geo_cities, valid_from, valid_until,
+      status, featured, created_at, sku_id, affiliate,
+      partners!partner_id ( id, name, logo_url, is_verified ),
+      reward_skus!sku_id ( id, name, image_url, points_cost )
+    `)
     .order('created_at', { ascending: false })
     .limit(100)
 
-  if (affiliate) query = query.eq('partners.affiliate', affiliate)
+  if (affiliate) query = query.eq('affiliate', affiliate)
   if (status && status !== 'all') query = query.eq('status', status)
   if (search) query = query.ilike('title', `%${search}%`)
 
@@ -54,24 +46,39 @@ export async function POST(req: NextRequest) {
 
   const body = await req.json()
   const {
-    partner_id, title, description, image_url, destination_url,
+    partner_id, sku_id, title, description, image_url, destination_url,
     geo_type, geo_states, geo_cities, valid_from, valid_until, featured,
   } = body
 
-  if (!partner_id || !title?.trim() || !valid_from || !valid_until) {
-    return NextResponse.json({ error: 'Faltan campos requeridos: partner_id, title, valid_from, valid_until' }, { status: 400 })
+  if (!partner_id || !valid_from || !valid_until) {
+    return NextResponse.json({ error: 'Faltan campos requeridos: partner_id, valid_from, valid_until' }, { status: 400 })
+  }
+  if (!sku_id && !title?.trim()) {
+    return NextResponse.json({ error: 'Se requiere un título, o un premio del catálogo (sku_id) del que tomarlo' }, { status: 400 })
   }
 
   const affiliate = getEffectiveAffiliate(session, req)
   const supabase = createAdminClient()
 
-  // Un rol scoped (team_admin) solo puede crear promociones para partners
-  // de su propia empresa.
-  if (affiliate) {
-    const { data: partner } = await supabase.from('partners').select('affiliate').eq('id', partner_id).maybeSingle()
-    if (!partner || partner.affiliate !== affiliate) {
-      return NextResponse.json({ error: 'Aliado no encontrado' }, { status: 404 })
-    }
+  // La promoción pertenece a la empresa de su aliado. Con una empresa activa
+  // (rol scoped o perspectiva elegida) solo se aceptan aliados de esa empresa.
+  const { data: partner } = await supabase.from('partners').select('affiliate').eq('id', partner_id).maybeSingle()
+  if (!partner || (affiliate && partner.affiliate !== affiliate)) {
+    return NextResponse.json({ error: 'Aliado no encontrado' }, { status: 404 })
+  }
+
+  // Si se liga a un premio del catálogo, se jalan título/imagen/descripción de
+  // ahí como default — el admin puede seguir sobreescribiéndolos a mano.
+  let sku: { name: string; description: string | null; image_url: string | null } | null = null
+  if (sku_id) {
+    const { data } = await supabase
+      .from('reward_skus')
+      .select('name, description, image_url')
+      .eq('id', sku_id)
+      .eq('affiliate', partner.affiliate) // el premio debe ser del catálogo de la misma empresa
+      .maybeSingle()
+    if (!data) return NextResponse.json({ error: 'Premio de catálogo no encontrado' }, { status: 404 })
+    sku = data
   }
 
   const { data, error } = await supabase
@@ -79,9 +86,11 @@ export async function POST(req: NextRequest) {
     .insert({
       id:              crypto.randomUUID(),
       partner_id,
-      title:           title.trim(),
-      description:     description?.trim() || null,
-      image_url:       image_url || null,
+      affiliate:       partner.affiliate,
+      sku_id:          sku_id || null,
+      title:           (title?.trim() || sku?.name) as string,
+      description:     description?.trim() || sku?.description || null,
+      image_url:       image_url || sku?.image_url || null,
       destination_url: destination_url?.trim() || null,
       geo_type:        geo_type ?? 'national',
       geo_states:      geo_states ?? [],

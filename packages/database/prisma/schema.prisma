@@ -46,7 +46,7 @@ model RolePermission {
 
 model Member {
   id              String    @id @default(uuid())
-  email           String    @unique
+  email           String    // Único POR EMPRESA (ver @@unique abajo): una persona puede ser miembro de ambas
   fullName        String    @map("full_name")
   companyName     String    @map("company_name")
   rfc             String    // Compartido entre miembros de la misma empresa, no es único
@@ -78,9 +78,25 @@ model Member {
   approvedPromotions PartnerPromotion[] @relation("ApprovedPromotions")
   sentInvitations   Invitation[]
   notifications     Notification[]
+  staffAffiliates   StaffAffiliate[]
 
+  @@unique([email, affiliate], map: "members_email_affiliate_key")
+  @@index([email])
   @@index([rfc])
   @@map("members")
+}
+
+// Empresas a las que tiene acceso un empleado / admin. de equipo (una o
+// ambas). owner/admin son globales y no necesitan filas aquí.
+model StaffAffiliate {
+  memberId  String   @map("member_id")
+  affiliate String // dismant | lauti
+  createdAt DateTime @default(now()) @map("created_at")
+
+  member Member @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@id([memberId, affiliate])
+  @@map("staff_affiliates")
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -151,6 +167,8 @@ model Invoice {
   xmlStorageKey       String?   @map("xml_storage_key")  // path en Cloudflare R2
   folioReferencia     String?   @map("folio_referencia")  // folio legible del doc físico (ej. FA-1234)
   evidenceKey         String?   @map("evidence_key")       // R2 key de la foto/PDF del documento físico
+  invoiceNumber       String?   @map("invoice_number")     // número/clave de factura capturado manualmente o por Excel
+  orderNumber         String?   @map("order_number")       // número de pedido asociado a la factura
   // ── Flujo de verificación en dos pasos ──────────────────
   verificationStatus  String    @default("pending") @map("verification_status") // pending | verified
   verifiedBy          String?   @map("verified_by")
@@ -170,16 +188,18 @@ model Invoice {
 }
 
 // ─────────────────────────────────────────────────────────────
-// BANNER GLOBAL DE ANUNCIOS (singleton — solo un registro activo)
+// BANNER DE ANUNCIOS (singleton por empresa)
 // ─────────────────────────────────────────────────────────────
 
 model GlobalBanner {
   id        String   @id @default(uuid())
   message   String
   isActive  Boolean  @default(false) @map("is_active")
+  affiliate String   @default("dismant") // dismant | lauti — un banner por empresa
   updatedAt DateTime @updatedAt @map("updated_at")
   updatedBy String?  @map("updated_by")
 
+  @@index([affiliate, isActive])
   @@map("global_banners")
 }
 
@@ -229,6 +249,7 @@ model RewardSku {
   redemptions    Redemption[]
   reviews        Review[]
   digitalCodes   DigitalCode[]
+  promotions     PartnerPromotion[]
 
   @@index([geoType, status])
   @@index([affiliate])
@@ -310,6 +331,8 @@ model Review {
 model PartnerPromotion {
   id             String   @id @default(uuid())
   partnerId      String   @map("partner_id")
+  affiliate      String   @default("dismant") // = partners.affiliate (lo fija un trigger)
+  skuId          String?  @map("sku_id") // premio del catálogo del que se jala título/imagen/descripción
   title          String
   description    String?
   imageUrl       String?  @map("image_url")
@@ -327,10 +350,12 @@ model PartnerPromotion {
   createdAt      DateTime @default(now()) @map("created_at")
 
   partner        Partner  @relation(fields: [partnerId], references: [id])
+  sku      RewardSku? @relation(fields: [skuId], references: [id])
   creator        Member?  @relation("CreatedPromotions", fields: [createdBy], references: [id])
   approver       Member?  @relation("ApprovedPromotions", fields: [approvedBy], references: [id])
 
   @@index([status, validUntil])
+  @@index([affiliate, status, validUntil], map: "partner_promotions_affiliate_status_idx")
   @@map("partner_promotions")
 }
 

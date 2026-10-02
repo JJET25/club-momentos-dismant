@@ -4,9 +4,10 @@ export const PERSPECTIVE_OPTIONS: { value: string; label: string }[] = [
   { value: 'lauti',    label: 'Lauti' },
 ]
 
-export function readPerspective(): string {
-  const match = document.cookie.match(/(?:^|; )admin_perspective=([^;]*)/)
-  return match ? decodeURIComponent(match[1]) : ''
+/** Opciones visibles para una sesión: la vista combinada solo para roles
+ *  globales; el staff scoped solo ve las empresas que tiene asignadas. */
+export function perspectiveOptionsFor(isGlobal: boolean, allowed: string[]) {
+  return PERSPECTIVE_OPTIONS.filter(o => (o.value === '' ? isGlobal : allowed.includes(o.value)))
 }
 
 export function setPerspective(value: string) {

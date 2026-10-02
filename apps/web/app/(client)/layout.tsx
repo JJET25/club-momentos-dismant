@@ -1,5 +1,5 @@
 import { getSession } from '@/lib/auth'
-import { getBrand } from '@/lib/brand'
+import { getBrand, getBrandCssVars } from '@/lib/brand'
 import { SidebarNav } from '@/components/client/sidebar-nav'
 import { GlobalBanner } from '@/components/GlobalBanner'
 import { WelcomeBanner } from '@/components/client/WelcomeBanner'
@@ -22,17 +22,16 @@ export default async function ClientLayout({ children }: { children: React.React
   const brand = getBrand(session?.affiliate)
 
   return (
-    <div className="min-h-screen bg-background flex">
+    <div className="min-h-screen bg-background flex" style={getBrandCssVars(brand) as React.CSSProperties}>
 
       {/* Sidebar */}
-      <aside className="w-60 bg-[#0f172a] flex flex-col fixed h-full z-40">
+      <aside className="w-60 flex flex-col fixed h-full z-40" style={{ background: brand.sidebarBg }}>
 
         {/* Logo / Brand */}
         <div className="px-5 py-5 border-b border-white/5">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-brand-600 flex items-center justify-center shrink-0">
-              <span className="text-sm font-bold text-white">{brand.initial}</span>
-            </div>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={brand.logo} alt={brand.name} className="w-8 h-8 rounded-lg object-contain bg-white shrink-0" />
             <div className="min-w-0">
               <p className="text-[13px] font-semibold text-white leading-none">{brand.name}</p>
               <p className="text-[11px] text-slate-500 mt-0.5 font-medium uppercase tracking-wide">Mi Portal</p>

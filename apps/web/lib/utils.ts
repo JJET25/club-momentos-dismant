@@ -64,7 +64,7 @@ export function isValidCFDIUUID(uuid: string): boolean {
 }
 
 /** Calcula los puntos que genera una factura */
-export function calculatePoints(amountMXN: number, pointsPerAmount = 100): number {
+export function calculatePoints(amountMXN: number, pointsPerAmount = 1000): number {
   return Math.floor(amountMXN / pointsPerAmount)
 }
 

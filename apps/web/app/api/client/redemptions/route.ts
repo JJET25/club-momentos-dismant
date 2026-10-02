@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import crypto from 'crypto'
 import { getSession } from '@/lib/auth'
 import { createAdminClient } from '@/lib/supabase'
+import { getMemberAffiliate } from '@/lib/scope'
 import { sendEmail, buildVoucherEmail } from '@/lib/resend'
 
 function generateVoucherCode(): string {
@@ -27,7 +28,7 @@ export async function POST(req: NextRequest) {
   // 1. Leer SKU y saldo actual en paralelo
   const [skuRes, ledgerRes] = await Promise.all([
     supabase.from('reward_skus')
-      .select('id, name, points_cost, stock, status, is_digital')
+      .select('id, name, points_cost, stock, status, is_digital, affiliate')
       .eq('id', sku_id).single(),
     supabase.from('ledger_entries')
       .select('balance_after').eq('member_id', memberId)
@@ -37,7 +38,8 @@ export async function POST(req: NextRequest) {
   const sku     = skuRes.data
   const balance = ledgerRes.data?.balance_after ?? 0
 
-  if (!sku || sku.status !== 'active') {
+  // Un miembro solo puede canjear premios del catálogo de su empresa
+  if (!sku || sku.status !== 'active' || sku.affiliate !== getMemberAffiliate(session)) {
     return NextResponse.json({ error: 'Premio no disponible' }, { status: 404 })
   }
   if (!sku.is_digital && !delivery_address) {

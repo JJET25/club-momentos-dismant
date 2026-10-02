@@ -5,6 +5,7 @@ import { getSession } from '@/lib/auth'
 import { createAdminClient } from '@/lib/supabase'
 import { sendEmail, buildInvitationEmail } from '@/lib/resend'
 import { getBrand } from '@/lib/brand'
+import { getAffiliateBaseUrl } from '@/lib/tenant'
 import crypto from 'crypto'
 
 export async function POST(req: NextRequest) {
@@ -28,15 +29,17 @@ export async function POST(req: NextRequest) {
   const normalizedEmail = email.toLowerCase().trim()
   const supabase = createAdminClient()
 
-  // Verificar que no sea ya miembro
+  // Verificar que no sea ya miembro DE ESTA EMPRESA (puede serlo de la otra:
+  // cada empresa tiene su propia cuenta e invitación)
   const { data: existing } = await supabase
     .from('members')
     .select('id')
     .eq('email', normalizedEmail)
+    .eq('affiliate', normalizedAffiliate)
     .maybeSingle()
 
   if (existing) {
-    return NextResponse.json({ error: 'Este correo ya tiene una cuenta registrada' }, { status: 409 })
+    return NextResponse.json({ error: `Este correo ya tiene una cuenta en ${getBrand(normalizedAffiliate).short}` }, { status: 409 })
   }
 
   // Invalidar invitaciones previas no usadas para el mismo correo Y empresa
@@ -66,8 +69,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Error al crear la invitación' }, { status: 500 })
   }
 
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
-  const inviteLink = `${appUrl}/register?token=${token}`
+  // El registro se completa en el portal de la empresa que invita
+  const inviteLink = `${getAffiliateBaseUrl(normalizedAffiliate)}/register?token=${token}`
 
   const clubName = getBrand(normalizedAffiliate).name
 

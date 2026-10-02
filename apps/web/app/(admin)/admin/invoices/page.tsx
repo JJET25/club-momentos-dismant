@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback, useRef } from 'react'
-import { ShieldCheck, Plus, Search, X, Pencil, Paperclip, ImageIcon, FileText, Upload, RefreshCw } from 'lucide-react'
+import { ShieldCheck, Plus, Search, X, Pencil, Paperclip, ImageIcon, FileText, Upload, RefreshCw, Check, CheckCircle2 } from 'lucide-react'
 
 // ── Tipos ────────────────────────────────────────────────────
 
@@ -560,14 +560,27 @@ function RegisterInvoiceModal({ onClose, onSuccess }: {
   const [searching, setSearching]     = useState(false)
   const [inputFocused, setInputFocused] = useState(false)
   const [folio, setFolio]             = useState('')
+  const [invoiceNumber, setInvoiceNumber] = useState('')
+  const [orderNumber, setOrderNumber] = useState('')
+  const [rfcEmisor, setRfcEmisor]     = useState('')
   const [points, setPoints]           = useState('')
+  const [pointsTouched, setPointsTouched] = useState(false)
   const [totalMxn, setTotalMxn]       = useState('')
   const [description, setDescription] = useState('')
   const [issuedAt, setIssuedAt]       = useState('')
+  const [paidAt, setPaidAt]           = useState('')
   const [evidenceFile, setEvidence]   = useState<File | null>(null)
   const [submitting, setSubmitting]   = useState(false)
   const [error, setError]             = useState('')
   const fileRef                       = useRef<HTMLInputElement>(null)
+
+  // Autocompleta los puntos a partir del subtotal (1000 MXN = 1 punto) mientras
+  // el usuario no los haya editado a mano.
+  useEffect(() => {
+    if (pointsTouched) return
+    const amount = parseFloat(totalMxn)
+    setPoints(amount > 0 ? String(Math.floor(amount / 1000)) : '')
+  }, [totalMxn, pointsTouched])
 
   useEffect(() => {
     setSearching(true)
@@ -613,10 +626,14 @@ function RegisterInvoiceModal({ onClose, onSuccess }: {
         body:    JSON.stringify({
           memberId:         selectedMember.id,
           points:           pts,
+          invoiceNumber:    invoiceNumber.trim() || undefined,
+          orderNumber:      orderNumber.trim() || undefined,
+          rfcEmisor:        rfcEmisor.trim() || undefined,
           folioReferencia:  folio.trim() || undefined,
           totalMxn:         totalMxn ? parseFloat(totalMxn) : undefined,
           description:      description.trim() || undefined,
           issuedAt:         issuedAt || undefined,
+          paidAt:           paidAt || undefined,
         }),
       })
       if (!res.ok) {
@@ -712,6 +729,45 @@ function RegisterInvoiceModal({ onClose, onSuccess }: {
             )}
           </div>
 
+          {/* Número de factura y pedido */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs font-medium text-muted-foreground block mb-1">Número de factura</label>
+              <input
+                type="text"
+                placeholder="Ej. F-2026-001"
+                value={invoiceNumber}
+                onChange={e => setInvoiceNumber(e.target.value)}
+                className="input-field text-sm w-full"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-muted-foreground block mb-1">Pedido</label>
+              <input
+                type="text"
+                placeholder="Ej. PED-4321"
+                value={orderNumber}
+                onChange={e => setOrderNumber(e.target.value)}
+                className="input-field text-sm w-full"
+              />
+            </div>
+          </div>
+
+          {/* RFC del affiliate emisor */}
+          <div>
+            <label className="text-xs font-medium text-muted-foreground block mb-1">
+              RFC afiliado
+              <span className="ml-1 font-normal text-muted-foreground/60">(se autocompleta según la marca del miembro si se deja vacío)</span>
+            </label>
+            <input
+              type="text"
+              placeholder="Ej. XAXX010101000"
+              value={rfcEmisor}
+              onChange={e => setRfcEmisor(e.target.value.toUpperCase())}
+              className="input-field text-sm w-full"
+            />
+          </div>
+
           {/* Folio de referencia */}
           <div>
             <label className="text-xs font-medium text-muted-foreground block mb-1">
@@ -727,24 +783,10 @@ function RegisterInvoiceModal({ onClose, onSuccess }: {
             />
           </div>
 
-          {/* Puntos */}
-          <div>
-            <label className="text-xs font-medium text-muted-foreground block mb-1">Puntos a asignar *</label>
-            <input
-              type="number"
-              min="1"
-              step="1"
-              placeholder="Ej. 500"
-              value={points}
-              onChange={e => setPoints(e.target.value)}
-              className="input-field text-sm w-full"
-            />
-          </div>
-
-          {/* Monto y fecha */}
+          {/* Monto y fechas */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs font-medium text-muted-foreground block mb-1">Monto MXN</label>
+              <label className="text-xs font-medium text-muted-foreground block mb-1">Subtotal MXN</label>
               <input
                 type="number"
                 min="0"
@@ -764,6 +806,33 @@ function RegisterInvoiceModal({ onClose, onSuccess }: {
                 className="input-field text-sm w-full"
               />
             </div>
+          </div>
+
+          <div>
+            <label className="text-xs font-medium text-muted-foreground block mb-1">Fecha de pago</label>
+            <input
+              type="date"
+              value={paidAt}
+              onChange={e => setPaidAt(e.target.value)}
+              className="input-field text-sm w-full"
+            />
+          </div>
+
+          {/* Puntos (autocompletado desde el subtotal, 1000 MXN = 1 punto) */}
+          <div>
+            <label className="text-xs font-medium text-muted-foreground block mb-1">
+              Puntos a asignar *
+              <span className="ml-1 font-normal text-muted-foreground/60">(autocalculado, editable)</span>
+            </label>
+            <input
+              type="number"
+              min="1"
+              step="1"
+              placeholder="Ej. 500"
+              value={points}
+              onChange={e => { setPoints(e.target.value); setPointsTouched(true) }}
+              className="input-field text-sm w-full"
+            />
           </div>
 
           <div>
@@ -839,6 +908,133 @@ function RegisterInvoiceModal({ onClose, onSuccess }: {
   )
 }
 
+// ── Modal de carga masiva por Excel ────────────────────────────
+
+interface BulkInvoiceRow {
+  line:           number
+  email:          string
+  member_name:    string | null
+  invoice_number: string | null
+  order_number:   string | null
+  total_mxn:      number
+  points:         number
+  error:          string | null
+}
+
+function BulkInvoiceImportModal({ onClose, onSuccess }: { onClose: () => void; onSuccess: () => void }) {
+  const [file, setFile]       = useState<File | null>(null)
+  const [preview, setPreview] = useState<BulkInvoiceRow[] | null>(null)
+  const [result, setResult]   = useState<{ processed: number; skipped: number } | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError]     = useState('')
+
+  const validRows = preview?.filter(r => !r.error) ?? []
+
+  async function handlePreview() {
+    if (!file) return
+    setLoading(true); setError('')
+    const form = new FormData(); form.append('file', file)
+    const res  = await fetch('/api/admin/invoices/bulk-import', { method: 'POST', body: form })
+    setLoading(false)
+    if (!res.ok) { const d = await res.json(); setError(d.error ?? 'Error'); return }
+    const { preview: rows, parseErrors } = await res.json()
+    if (parseErrors?.length) { setError(parseErrors[0]); return }
+    setPreview(rows)
+  }
+
+  async function handleConfirm() {
+    if (!file) return
+    setLoading(true); setError('')
+    const form = new FormData(); form.append('file', file); form.append('confirm', 'true')
+    const res  = await fetch('/api/admin/invoices/bulk-import', { method: 'POST', body: form })
+    setLoading(false)
+    if (!res.ok) { const d = await res.json(); setError(d.error ?? 'Error'); return }
+    const { processed, skipped } = await res.json()
+    setResult({ processed, skipped })
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40" onClick={onClose}>
+      <div className="bg-card rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto p-6 space-y-4" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between">
+          <h3 className="font-bold text-base">Carga masiva de facturas (Excel)</h3>
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <p className="text-xs text-muted-foreground">
+          Las facturas quedan en revisión (pendiente) — un manager las verifica antes de acreditar los puntos, igual que en el registro manual.
+        </p>
+
+        {result ? (
+          <div className="text-center py-6">
+            <CheckCircle2 className="w-12 h-12 text-green-600 mx-auto mb-3" />
+            <p className="font-semibold text-lg">{result.processed} facturas registradas</p>
+            {result.skipped > 0 && <p className="text-sm text-muted-foreground mt-1">{result.skipped} omitidas por errores</p>}
+            <button onClick={() => { onSuccess(); onClose() }} className="mt-4 px-4 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-semibold">Cerrar</button>
+          </div>
+        ) : preview ? (
+          <>
+            <p className="text-sm text-muted-foreground">
+              {validRows.length} de {preview.length} filas válidas. Revisa antes de confirmar.
+            </p>
+            <div className="max-h-56 overflow-y-auto rounded-xl border">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="bg-muted/30">
+                    {['Email', 'N° Factura', 'Pedido', 'Subtotal', 'Pts', 'Estado'].map(h =>
+                      <th key={h} className="px-3 py-2 text-left font-medium text-muted-foreground">{h}</th>
+                    )}
+                  </tr>
+                </thead>
+                <tbody>
+                  {preview.map(r => (
+                    <tr key={r.line} className={`border-t ${r.error ? 'bg-red-50 dark:bg-red-900/20' : ''}`}>
+                      <td className="px-3 py-2">{r.email}</td>
+                      <td className="px-3 py-2 font-mono">{r.invoice_number ?? '—'}</td>
+                      <td className="px-3 py-2 font-mono">{r.order_number ?? '—'}</td>
+                      <td className="px-3 py-2">${r.total_mxn.toLocaleString('es-MX')}</td>
+                      <td className="px-3 py-2 font-semibold text-green-700">+{r.points}</td>
+                      <td className="px-3 py-2">
+                        {r.error
+                          ? <span title={r.error}><X className="w-3.5 h-3.5 text-red-500" /></span>
+                          : <Check className="w-3.5 h-3.5 text-green-600" />}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {error && <p className="text-xs text-red-600">{error}</p>}
+            <div className="flex gap-3">
+              <button onClick={() => setPreview(null)} className="flex-1 py-2.5 rounded-xl border text-sm font-medium text-muted-foreground hover:bg-muted/50">Cambiar archivo</button>
+              <button onClick={handleConfirm} disabled={loading || validRows.length === 0}
+                className="flex-1 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 disabled:opacity-60">
+                {loading ? 'Procesando…' : `Confirmar (${validRows.length} filas)`}
+              </button>
+            </div>
+          </>
+        ) : (
+          <>
+            <p className="text-xs text-muted-foreground">
+              Columnas requeridas: <code className="font-mono bg-muted px-1 rounded">email, subtotal</code>.
+              Opcionales: <code className="font-mono bg-muted px-1 rounded">numero_factura, rfc_afiliado, pedido, fecha_emision, fecha_pago, puntos</code> (si se omite, se autocalcula 1000 MXN = 1 punto).
+            </p>
+            <input type="file" accept=".xlsx,.xls" onChange={e => setFile(e.target.files?.[0] ?? null)}
+              className="w-full text-sm text-muted-foreground file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:bg-muted file:text-foreground file:text-xs file:font-medium hover:file:bg-muted/80 cursor-pointer" />
+            {error && <p className="text-xs text-red-600">{error}</p>}
+            <button onClick={handlePreview} disabled={!file || loading}
+              className="w-full py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 disabled:opacity-60">
+              {loading ? 'Cargando…' : 'Previsualizar'}
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+  )
+}
+
 // ── Página principal ──────────────────────────────────────────
 
 export default function AdminInvoicesPage() {
@@ -848,6 +1044,7 @@ export default function AdminInvoicesPage() {
   const [selected, setSelected]         = useState<Invoice | null>(null)
   const [userRole, setUserRole]         = useState('')
   const [showRegister, setShowRegister] = useState(false)
+  const [showBulkImport, setShowBulkImport] = useState(false)
   const [search, setSearch]             = useState('')
   const [counts, setCounts]             = useState<Record<string, number>>({})
 
@@ -907,6 +1104,13 @@ export default function AdminInvoicesPage() {
         />
       )}
 
+      {showBulkImport && (
+        <BulkInvoiceImportModal
+          onClose={() => setShowBulkImport(false)}
+          onSuccess={() => { load('pending'); setStatus('pending') }}
+        />
+      )}
+
       <div className="flex items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold">Facturas</h1>
@@ -922,6 +1126,13 @@ export default function AdminInvoicesPage() {
             title="Actualizar"
           >
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+          </button>
+          <button
+            onClick={() => setShowBulkImport(true)}
+            className="flex items-center gap-1.5 px-4 py-2 rounded-xl border text-sm font-semibold hover:bg-muted/50 transition-colors"
+          >
+            <Upload className="w-4 h-4" />
+            Cargar Excel
           </button>
           <button
             onClick={() => setShowRegister(true)}

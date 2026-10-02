@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import crypto from 'crypto'
 import { getSession } from '@/lib/auth'
 import { STAFF_ROLES } from '@/lib/permissions'
-import { getEffectiveAffiliate } from '@/lib/scope'
+import { getEffectiveAffiliate, getAffiliateRfc } from '@/lib/scope'
+import { calculatePoints } from '@/lib/utils'
 import { createAdminClient } from '@/lib/supabase'
 
 // Registro manual de factura por staff — los puntos NO se acreditan aquí,
@@ -15,17 +16,27 @@ export async function POST(req: NextRequest) {
 
   const body = await req.json() as {
     memberId:         string
-    points:           number
+    points?:          number
     totalMxn?:        number
+    invoiceNumber?:   string
+    orderNumber?:     string
+    rfcEmisor?:       string
     folioReferencia?: string
     description?:     string
     issuedAt?:        string
+    paidAt?:          string
   }
 
-  const { memberId, points, totalMxn, folioReferencia, description, issuedAt } = body
+  const { memberId, totalMxn, invoiceNumber, orderNumber, rfcEmisor, folioReferencia, description, issuedAt, paidAt } = body
+  let { points } = body
 
   if (!memberId) {
     return NextResponse.json({ error: 'Se requiere memberId' }, { status: 400 })
+  }
+
+  // Si no se especifican puntos a mano, se autocalculan a partir del subtotal (1000 MXN = 1 punto)
+  if (points === undefined && typeof totalMxn === 'number') {
+    points = calculatePoints(totalMxn)
   }
   if (typeof points !== 'number' || points <= 0 || !Number.isInteger(points)) {
     return NextResponse.json({ error: 'Los puntos deben ser un entero positivo' }, { status: 400 })
@@ -54,14 +65,17 @@ export async function POST(req: NextRequest) {
       id:                  invoiceId,
       member_id:           memberId,
       uuid_cfdi:           syntheticUuid,
-      rfc_emisor:          process.env.DISMANT_RFC ?? 'XAXX010101000',
+      rfc_emisor:          rfcEmisor?.trim().toUpperCase() || getAffiliateRfc(member.affiliate) || 'XAXX010101000',
       rfc_receptor:        member.rfc,
       total_mxn:           totalMxn ?? 0,
       issued_at:           issuedAt ? new Date(issuedAt).toISOString() : new Date().toISOString(),
+      paid_at:             paidAt ? new Date(paidAt).toISOString() : null,
       status:              'pending',
       verification_status: 'pending',
       points_generated:    points,
       registered_by:       session.sub,
+      ...(invoiceNumber?.trim() ? { invoice_number: invoiceNumber.trim() } : {}),
+      ...(orderNumber?.trim() ? { order_number: orderNumber.trim() } : {}),
       ...(folioReferencia?.trim() ? { folio_referencia: folioReferencia.trim() } : {}),
     })
     .select('id, uuid_cfdi, status, verification_status, points_generated, created_at')
@@ -78,7 +92,7 @@ export async function POST(req: NextRequest) {
     action:      'invoice.manual_registered',
     target_type: 'invoice',
     target_id:   invoiceId,
-    metadata:    { member_id: memberId, points, total_mxn: totalMxn, description },
+    metadata:    { member_id: memberId, points, total_mxn: totalMxn, order_number: orderNumber, invoice_number: invoiceNumber, description },
   })
 
   return NextResponse.json({ invoice }, { status: 201 })

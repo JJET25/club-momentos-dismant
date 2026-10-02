@@ -23,7 +23,7 @@ import {
 } from 'lucide-react'
 import { ThemeToggle } from './theme-toggle'
 import { hasPermission, type PERMISSIONS } from '@/lib/permissions'
-import { PERSPECTIVE_OPTIONS, readPerspective, setPerspective } from './perspective-switcher'
+import { perspectiveOptionsFor, setPerspective } from './perspective-switcher'
 
 interface NavItem {
   href:       string
@@ -87,18 +87,22 @@ const ROLE_LABEL: Record<string, string> = {
 interface Props {
   name: string
   role: string
+  /** Empresas a las que tiene acceso la sesión */
+  allowed: string[]
+  /** Empresa activa ('' = vista combinada), ya resuelta en el servidor */
+  perspective: string
 }
 
-export function AdminSidebarNav({ name, role }: Props) {
+export function AdminSidebarNav({ name, role, allowed, perspective }: Props) {
   const pathname = usePathname()
   const router   = useRouter()
   const isGlobal = role === 'owner' || role === 'admin'
+  const options  = perspectiveOptionsFor(isGlobal, allowed)
+  // Hay algo que elegir: roles globales, o staff asignado a más de una empresa
+  const canSwitch = options.length > 1
 
-  const [perspective, setPerspectiveState] = useState('')
   const [menuOpen, setMenuOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => { setPerspectiveState(readPerspective()) }, [])
 
   useEffect(() => {
     if (!menuOpen) return
@@ -128,7 +132,7 @@ export function AdminSidebarNav({ name, role }: Props) {
     .join('')
     .toUpperCase()
 
-  const currentLabel = PERSPECTIVE_OPTIONS.find(o => o.value === perspective)?.label ?? 'Todas las empresas'
+  const currentLabel = options.find(o => o.value === perspective)?.label ?? 'Todas las empresas'
 
   return (
     <>
@@ -176,7 +180,7 @@ export function AdminSidebarNav({ name, role }: Props) {
               <p className="px-3 pt-2.5 pb-1.5 text-[10px] font-semibold uppercase tracking-widest text-slate-500">
                 Ver como
               </p>
-              {PERSPECTIVE_OPTIONS.map(opt => (
+              {options.map(opt => (
                 <button
                   key={opt.value}
                   onClick={() => setPerspective(opt.value)}
@@ -192,7 +196,7 @@ export function AdminSidebarNav({ name, role }: Props) {
             </div>
           )}
 
-          {isGlobal ? (
+          {canSwitch ? (
             <button
               onClick={() => setMenuOpen(o => !o)}
               className="flex items-center gap-3 w-full px-2 py-2 rounded-lg hover:bg-white/5 transition-colors"

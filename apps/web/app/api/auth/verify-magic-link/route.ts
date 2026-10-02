@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase'
-import { verifyMagicLinkToken, createSessionToken } from '@/lib/auth'
+import { verifyMagicLinkToken } from '@/lib/auth'
+import { getRequestTenant } from '@/lib/tenant-server'
+import { getHomeBaseUrl } from '@/lib/tenant'
+import { ACCOUNT_SELECT, roleOf, buildSessionToken, setSessionOnResponse, type AccountRow } from '@/lib/accounts'
 
 export async function GET(req: NextRequest) {
   const token = req.nextUrl.searchParams.get('token')
@@ -18,15 +21,30 @@ export async function GET(req: NextRequest) {
   }
 
   const supabase = createAdminClient()
-  const { data: member } = await supabase
+  const { data } = await supabase
     .from('members')
-    .select('id, email, full_name, status, password_hash, affiliate, roles(name)')
+    .select(ACCOUNT_SELECT)
     .eq('id', payload.sub)
     .maybeSingle()
+  const member = data as unknown as AccountRow | null
 
   if (!member || member.status === 'suspended') {
     loginUrl.searchParams.set('error', 'cuenta-suspendida')
     return NextResponse.redirect(loginUrl)
+  }
+
+  const role = roleOf(member)
+
+  // La cookie de sesión es por dominio: si el enlace se abrió en un dominio
+  // que no es el de esta cuenta (p. ej. un correo enviado antes del cambio de
+  // dominio), reenviarlo al dominio correcto para que la sesión quede ahí.
+  const tenant = await getRequestTenant()
+  const homeBase = getHomeBaseUrl(role, member.affiliate)
+  const onWrongDomain =
+    (tenant.kind === 'brand' && (role !== 'member' || tenant.affiliate !== member.affiliate)) ||
+    (tenant.kind === 'admin' && role === 'member')
+  if (onWrongDomain && new URL(homeBase).host !== req.nextUrl.host) {
+    return NextResponse.redirect(new URL(`/api/auth/verify-magic-link?token=${encodeURIComponent(token)}`, homeBase))
   }
 
   // Actualizar último login
@@ -35,29 +53,13 @@ export async function GET(req: NextRequest) {
     .update({ last_login_at: new Date().toISOString() })
     .eq('id', member.id)
 
-  const rolesData = member.roles as unknown as { name: string } | null
-  const role = rolesData?.name ?? 'member'
-  const sessionToken = await createSessionToken({
-    sub: member.id,
-    email: member.email,
-    role,
-    name: member.full_name,
-    affiliate: (member as { affiliate?: string }).affiliate ?? 'dismant',
-  })
+  const sessionToken = await buildSessionToken(supabase, member, role)
 
   // Staff sin contraseña → redirigir a la página de configuración de contraseña
   const needsPasswordSetup = !member.password_hash && role !== 'member'
   const destination = needsPasswordSetup
     ? '/admin/setup-password'
     : role === 'member' ? '/dashboard' : '/admin/dashboard'
-  const response = NextResponse.redirect(new URL(destination, req.url))
-  response.cookies.set('session', sessionToken, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
-    maxAge: 60 * 60 * 24 * 7,
-    path: '/',
-  })
 
-  return response
+  return setSessionOnResponse(NextResponse.redirect(new URL(destination, req.url)), sessionToken)
 }

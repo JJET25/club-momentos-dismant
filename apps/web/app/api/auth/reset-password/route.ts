@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import bcrypt from 'bcryptjs'
 import { verifyOTP } from '@/lib/auth'
 import { createAdminClient } from '@/lib/supabase'
+import { getRequestTenant } from '@/lib/tenant-server'
+import { findAccountForTenant, lookupErrorMessage } from '@/lib/accounts'
 
 export async function POST(req: NextRequest) {
   const { email, otp, newPassword } = await req.json()
@@ -16,13 +18,14 @@ export async function POST(req: NextRequest) {
   if (!valid) return NextResponse.json({ error: 'Código inválido o expirado' }, { status: 400 })
 
   const supabase = createAdminClient()
-  const { data: member } = await supabase
-    .from('members')
-    .select('id')
-    .eq('email', email.toLowerCase().trim())
-    .maybeSingle()
+  // Solo la cuenta del portal desde el que se pide (la de la otra empresa no se toca)
+  const lookup = await findAccountForTenant(supabase, email, await getRequestTenant())
 
-  if (!member) return NextResponse.json({ error: 'Cuenta no encontrada' }, { status: 404 })
+  if (!lookup.account) {
+    const message = lookupErrorMessage(lookup) ?? 'Cuenta no encontrada'
+    return NextResponse.json({ error: message }, { status: lookup.reason === 'not_found' ? 404 : 409 })
+  }
+  const member = lookup.account
 
   const newHash = await bcrypt.hash(newPassword, 12)
   const { error: updateError } = await supabase

@@ -18,19 +18,21 @@ const config: Config = {
     },
     extend: {
       colors: {
-        // Paleta principal — Dismant Brand
+        // Paleta principal — dinámica por affiliate vía variables CSS
+        // (ver app/globals.css para el default y lib/brand.ts#getBrandCssVars
+        // para la sobreescritura por marca).
         brand: {
-          50: '#eff6ff',
-          100: '#dbeafe',
-          200: '#bfdbfe',
-          300: '#93c5fd',
-          400: '#60a5fa',
-          500: '#3b82f6',
-          600: '#2563eb',   // Primary
-          700: '#1d4ed8',
-          800: '#1e40af',
-          900: '#1e3a8a',
-          950: '#172554',
+          50: 'hsl(var(--brand-50) / <alpha-value>)',
+          100: 'hsl(var(--brand-100) / <alpha-value>)',
+          200: 'hsl(var(--brand-200) / <alpha-value>)',
+          300: 'hsl(var(--brand-300) / <alpha-value>)',
+          400: 'hsl(var(--brand-400) / <alpha-value>)',
+          500: 'hsl(var(--brand-500) / <alpha-value>)',
+          600: 'hsl(var(--brand-600) / <alpha-value>)',   // Primary
+          700: 'hsl(var(--brand-700) / <alpha-value>)',
+          800: 'hsl(var(--brand-800) / <alpha-value>)',
+          900: 'hsl(var(--brand-900) / <alpha-value>)',
+          950: 'hsl(var(--brand-950) / <alpha-value>)',
         },
         // Tokens semánticos (para shadcn/ui)
         border: 'hsl(var(--border))',

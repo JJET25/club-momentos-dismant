@@ -12,7 +12,11 @@ export interface SessionPayload {
   email: string
   role: string       // owner | admin | employee | member
   name: string
-  affiliate: string  // dismant | lauti
+  affiliate: string  // dismant | lauti — empresa principal de la cuenta
+  /** Empresas a las que tiene acceso (staff asignado a una o ambas). En
+   *  miembros siempre es [affiliate]. Ausente en sesiones emitidas antes
+   *  de la separación por empresa — ver getAllowedAffiliates(). */
+  affiliates?: string[]
   iat: number
   exp: number
 }

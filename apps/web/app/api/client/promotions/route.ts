@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getSession } from '@/lib/auth'
 import { createAdminClient } from '@/lib/supabase'
+import { getMemberAffiliate } from '@/lib/scope'
 
 export async function GET() {
   const session = await getSession()
@@ -29,6 +30,7 @@ export async function GET() {
       status, featured,
       partners!partner_id ( id, name, logo_url, is_verified )
     `)
+    .eq('affiliate', getMemberAffiliate(session))
     .eq('status', 'active')
     .lte('valid_from',  now)
     .gte('valid_until', now)

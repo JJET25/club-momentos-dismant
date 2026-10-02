@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { getSession } from '@/lib/auth'
 import { redirect } from 'next/navigation'
-import { getBrand } from '@/lib/brand'
+import { getBrand, getBrandCssVars } from '@/lib/brand'
 
 export default async function WelcomePage() {
   const session = await getSession()
@@ -16,44 +16,54 @@ export default async function WelcomePage() {
     .eq('id', session.sub)
     .single()
 
-  const clubName = getBrand((member as { affiliate?: string } | null)?.affiliate).name
+  const brand = getBrand((member as { affiliate?: string } | null)?.affiliate)
   const welcomePoints = parseInt(process.env.WELCOME_BONUS_POINTS ?? '100')
   const firstName = session.name.split(' ')[0]
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-brand-950 to-brand-800 flex items-center justify-center p-4">
+    <div
+      className="min-h-screen flex items-center justify-center p-4"
+      style={{
+        ...getBrandCssVars(brand),
+        background: `linear-gradient(to bottom right, ${brand.primaryDark}, ${brand.primary})`,
+      } as React.CSSProperties}
+    >
       <div className="w-full max-w-md text-center">
         <div className="bg-white rounded-2xl shadow-2xl p-10">
-          <div className="w-20 h-20 bg-brand-50 rounded-full flex items-center justify-center mx-auto mb-6">
-            <svg className="w-10 h-10 text-brand-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
-                d="M12 8v13m0-13V6a2 2 0 112 2h-2zm0 0V5.5A2.5 2.5 0 109.5 8H12zm-7 4h14M5 12a2 2 0 110-4h14a2 2 0 110 4M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7" />
-            </svg>
-          </div>
+          {brand.logo ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={brand.logo} alt={brand.name} className="w-20 h-20 object-contain mx-auto mb-6" />
+          ) : (
+            <div className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6" style={{ background: `${brand.primary}1a` }}>
+              <span className="text-2xl font-bold" style={{ color: brand.primary }}>{brand.initial}</span>
+            </div>
+          )}
 
           <h1 className="text-2xl font-bold text-foreground mb-2">
             ¡Bienvenido, {firstName}!
           </h1>
           <p className="text-muted-foreground mb-6">
-            Tu cuenta está lista. Ya eres parte del {clubName}.
+            Tu cuenta está lista. Ya eres parte del {brand.name}.
           </p>
 
-          <div className="bg-brand-50 rounded-xl p-5 mb-8">
-            <p className="text-sm text-brand-700 mb-1">Puntos de bienvenida acreditados</p>
-            <p className="text-4xl font-bold text-brand-600">+{welcomePoints}</p>
-            <p className="text-xs text-brand-500 mt-1">puntos</p>
+          <div className="rounded-xl p-5 mb-8" style={{ background: `${brand.primary}14` }}>
+            <p className="text-sm mb-1" style={{ color: brand.primaryDark }}>Puntos de bienvenida acreditados</p>
+            <p className="text-4xl font-bold" style={{ color: brand.primary }}>+{welcomePoints}</p>
+            <p className="text-xs mt-1" style={{ color: brand.primary }}>puntos</p>
           </div>
 
           <div className="space-y-3">
             <Link
               href="/catalog"
-              className="block w-full bg-brand-600 text-white py-3 rounded-lg font-medium hover:bg-brand-700 transition-colors"
+              className="block w-full text-white py-3 rounded-lg font-medium transition-opacity hover:opacity-90"
+              style={{ background: brand.primary }}
             >
               Ver catálogo de premios
             </Link>
             <Link
               href="/dashboard"
-              className="block w-full bg-white text-brand-600 border border-brand-200 py-3 rounded-lg font-medium hover:bg-brand-50 transition-colors"
+              className="block w-full bg-white py-3 rounded-lg font-medium border transition-colors hover:bg-muted/30"
+              style={{ color: brand.primary, borderColor: `${brand.primary}40` }}
             >
               Ir a mi cuenta
             </Link>

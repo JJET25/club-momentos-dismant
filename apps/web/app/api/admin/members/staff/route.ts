@@ -4,6 +4,8 @@ import { createAdminClient } from '@/lib/supabase'
 import { sendEmail, buildMagicLinkEmail } from '@/lib/resend'
 import { getBrand } from '@/lib/brand'
 import { isAffiliate } from '@/lib/scope'
+import { getAdminBaseUrl } from '@/lib/tenant'
+import { normalizeAffiliates, setStaffAffiliates, SCOPED_STAFF_ROLES } from '@/lib/accounts'
 import crypto from 'crypto'
 
 /** GET — Lista todos los miembros del equipo interno (owner, admin, team_admin, employee) */
@@ -33,8 +35,22 @@ export async function GET() {
 
   if (error) return NextResponse.json({ error: 'Error al obtener el equipo' }, { status: 500 })
 
+  // Empresas asignadas (empleados y admins. de equipo pueden tener una o ambas)
+  const { data: assignments } = await supabase
+    .from('staff_affiliates')
+    .select('member_id, affiliate')
+    .in('member_id', (members ?? []).map(m => m.id))
+  const affiliatesById = new Map<string, string[]>()
+  for (const a of assignments ?? []) {
+    affiliatesById.set(a.member_id, [...(affiliatesById.get(a.member_id) ?? []), a.affiliate])
+  }
+
   return NextResponse.json(
-    (members ?? []).map(m => ({ ...m, role: roleById[m.role_id] ?? m.role_id }))
+    (members ?? []).map(m => ({
+      ...m,
+      role: roleById[m.role_id] ?? m.role_id,
+      affiliates: affiliatesById.get(m.id) ?? [m.affiliate],
+    }))
   )
 }
 
@@ -45,7 +61,15 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Solo el Propietario puede crear miembros del equipo' }, { status: 403 })
   }
 
-  const { full_name, email, role, affiliate } = await req.json()
+  const body = await req.json()
+  const { full_name, email, role } = body
+  // Empleados y admins. de equipo: una o ambas empresas. Admin: global, la
+  // empresa solo define el branding de sus correos.
+  const isScoped = SCOPED_STAFF_ROLES.includes(role)
+  const affiliates = isScoped
+    ? normalizeAffiliates(body.affiliates ?? (body.affiliate ? [body.affiliate] : []))
+    : []
+  const affiliate = isScoped ? affiliates[0] : body.affiliate
 
   if (!full_name?.trim() || !email?.trim() || !role) {
     return NextResponse.json({ error: 'Nombre, correo y rol son obligatorios' }, { status: 400 })
@@ -54,7 +78,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Rol inválido. Solo se puede crear admin, administrador de equipo o empleado.' }, { status: 400 })
   }
   if (!isAffiliate(affiliate)) {
-    return NextResponse.json({ error: 'Debes elegir la empresa (Dismant o Lauti) a la que pertenece' }, { status: 400 })
+    return NextResponse.json({ error: 'Debes elegir al menos una empresa (Dismant o Lauti)' }, { status: 400 })
   }
 
   const supabase = createAdminClient()
@@ -98,20 +122,25 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: `Error al crear el miembro: ${error.message}` }, { status: 500 })
   }
 
+  if (isScoped) {
+    const { error: assignError } = await setStaffAffiliates(supabase, member.id, affiliates, affiliate)
+    if (assignError) console.error('[POST /staff] staff_affiliates error:', assignError)
+  }
+
   await supabase.from('audit_log').insert({
     id:          crypto.randomUUID(),
     actor_id:    session.sub,
     action:      'staff.created',
     target_type: 'member',
     target_id:   member.id,
-    metadata:    { role, affiliate, email: email.toLowerCase().trim() },
+    metadata:    { role, affiliate, affiliates, email: email.toLowerCase().trim() },
   })
 
   // Enviar correo de bienvenida con magic link para que configure su contraseña
   try {
     const mlToken = await createMagicLinkToken(member.id, member.email)
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
-    const magicLink = `${appUrl}/api/auth/verify-magic-link?token=${mlToken}`
+    // El staff opera desde el panel central
+    const magicLink = `${getAdminBaseUrl()}/api/auth/verify-magic-link?token=${mlToken}`
 
     await sendEmail({
       to: member.email,
@@ -123,5 +152,5 @@ export async function POST(req: NextRequest) {
     console.error('[staff] Error enviando correo de bienvenida:', emailErr)
   }
 
-  return NextResponse.json({ ...member, role })
+  return NextResponse.json({ ...member, role, affiliates: isScoped ? affiliates : [affiliate] })
 }

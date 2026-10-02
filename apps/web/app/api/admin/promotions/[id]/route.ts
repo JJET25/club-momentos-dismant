@@ -86,11 +86,12 @@ export async function PATCH(
 
   // ── Actualización de campos ────────────────────────────────
   const {
-    title, description, image_url, destination_url,
+    sku_id, title, description, image_url, destination_url,
     geo_type, geo_states, geo_cities, valid_from, valid_until, featured,
   } = body
 
   const updates: Record<string, unknown> = {}
+  if (sku_id !== undefined) updates.sku_id = sku_id || null
   if (title !== undefined)           updates.title           = title.trim()
   if (description !== undefined)     updates.description     = description?.trim() || null
   if (image_url !== undefined)       updates.image_url       = image_url || null
@@ -104,6 +105,17 @@ export async function PATCH(
 
   if (Object.keys(updates).length === 0) {
     return NextResponse.json({ error: 'Sin cambios' }, { status: 400 })
+  }
+
+  // Un premio ligado debe ser del catálogo de la misma empresa que el aliado
+  if (updates.sku_id) {
+    const { data: sku } = await supabase
+      .from('reward_skus')
+      .select('id')
+      .eq('id', updates.sku_id as string)
+      .eq('affiliate', ownerAffiliate)
+      .maybeSingle()
+    if (!sku) return NextResponse.json({ error: 'Premio de catálogo no encontrado' }, { status: 404 })
   }
 
   const { data, error } = await supabase

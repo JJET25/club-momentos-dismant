@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import crypto from 'crypto'
-import { getSession } from '@/lib/auth'
+import { getSession, type SessionPayload } from '@/lib/auth'
 import { MANAGER_ROLES } from '@/lib/permissions'
 import { createAdminClient } from '@/lib/supabase'
+import { getEffectiveAffiliate, isAffiliate, type Affiliate } from '@/lib/scope'
+
+// Un banner por empresa: cada portal muestra solo el suyo.
 
 async function requireManager() {
   const session = await getSession()
@@ -10,27 +13,44 @@ async function requireManager() {
   return session
 }
 
-export async function GET() {
+/** Empresa del banner: la indicada explícitamente o la de la perspectiva activa. */
+function resolveBannerAffiliate(session: SessionPayload, req: NextRequest, explicit: unknown): Affiliate | null {
+  if (isAffiliate(explicit)) return explicit
+  return getEffectiveAffiliate(session, req)
+}
+
+export async function GET(req: NextRequest) {
   const session = await requireManager()
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
+
+  const affiliate = resolveBannerAffiliate(session, req, req.nextUrl.searchParams.get('affiliate'))
+  if (!affiliate) {
+    return NextResponse.json({ error: 'Elige la empresa (Dismant o Lauti) del banner' }, { status: 400 })
+  }
 
   const supabase = createAdminClient()
   const { data } = await supabase
     .from('global_banners')
-    .select('id, message, is_active, updated_at')
+    .select('id, message, is_active, updated_at, affiliate')
+    .eq('affiliate', affiliate)
     .order('updated_at', { ascending: false })
     .limit(1)
     .maybeSingle()
 
-  return NextResponse.json({ banner: data ?? null })
+  return NextResponse.json({ banner: data ?? null, affiliate })
 }
 
 export async function PATCH(req: NextRequest) {
   const session = await requireManager()
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
 
-  const body = await req.json() as { message?: string; isActive?: boolean }
+  const body = await req.json() as { message?: string; isActive?: boolean; affiliate?: string }
   const { message, isActive } = body
+
+  const affiliate = resolveBannerAffiliate(session, req, body.affiliate)
+  if (!affiliate) {
+    return NextResponse.json({ error: 'Elige la empresa (Dismant o Lauti) del banner' }, { status: 400 })
+  }
 
   if (message !== undefined && !message.trim()) {
     return NextResponse.json({ error: 'El mensaje no puede estar vacío' }, { status: 400 })
@@ -38,10 +58,11 @@ export async function PATCH(req: NextRequest) {
 
   const supabase = createAdminClient()
 
-  // Singleton: buscar el registro existente
+  // Singleton por empresa: buscar el registro existente
   const { data: existing } = await supabase
     .from('global_banners')
     .select('id')
+    .eq('affiliate', affiliate)
     .order('updated_at', { ascending: false })
     .limit(1)
     .maybeSingle()
@@ -59,7 +80,7 @@ export async function PATCH(req: NextRequest) {
       .from('global_banners')
       .update(patch)
       .eq('id', existing.id)
-      .select('id, message, is_active, updated_at')
+      .select('id, message, is_active, updated_at, affiliate')
       .single()
 
     if (error) return NextResponse.json({ error: 'Error al actualizar el banner' }, { status: 500 })
@@ -75,10 +96,11 @@ export async function PATCH(req: NextRequest) {
         id: crypto.randomUUID(),
         message:    message.trim(),
         is_active:  isActive ?? false,
+        affiliate,
         updated_at: new Date().toISOString(),
         updated_by: session.sub,
       })
-      .select('id, message, is_active, updated_at')
+      .select('id, message, is_active, updated_at, affiliate')
       .single()
 
     if (error) return NextResponse.json({ error: 'Error al crear el banner' }, { status: 500 })

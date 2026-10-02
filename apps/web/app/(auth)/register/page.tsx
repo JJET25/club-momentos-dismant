@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { isValidRFC } from '@/lib/utils'
 import { MEXICAN_STATES } from '@dismant/types'
-import { getBrand } from '@/lib/brand'
+import { getBrand, getBrandCssVars } from '@/lib/brand'
 
 // ── Tipos ────────────────────────────────────────────────────
 
@@ -46,11 +46,13 @@ function ProgressBar({ step, total }: { step: number; total: number }) {
 
 function Step1({
   data,
+  affiliate,
   emailLocked,
   onChange,
   onNext,
 }: {
   data: FormData
+  affiliate: string
   emailLocked: boolean
   onChange: (field: keyof FormData, value: string) => void
   onNext: () => void
@@ -91,7 +93,7 @@ function Step1({
     const emailRes = await fetch('/api/auth/check-email', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: data.email }),
+      body: JSON.stringify({ email: data.email, affiliate }),
     })
     const { exists: emailExists } = await emailRes.json()
     if (emailExists) {
@@ -204,10 +206,12 @@ function Step1({
 function Step2({
   email,
   name,
+  affiliate,
   onNext,
 }: {
   email: string
   name: string
+  affiliate: string
   onNext: () => void
 }) {
   const [code, setCode] = useState(['', '', '', '', '', ''])
@@ -221,9 +225,9 @@ function Step2({
     fetch('/api/auth/send-otp', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, name }),
+      body: JSON.stringify({ email, name, affiliate }),
     })
-  }, [email, name])
+  }, [email, name, affiliate])
 
   useEffect(() => {
     if (countdown <= 0) { setCanResend(true); return }
@@ -275,7 +279,7 @@ function Step2({
     const res = await fetch('/api/auth/verify-otp', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, code: fullCode }),
+      body: JSON.stringify({ email, code: fullCode, purpose: 'register' }),
     })
 
     setLoading(false)
@@ -298,7 +302,7 @@ function Step2({
     await fetch('/api/auth/send-otp', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, name }),
+      body: JSON.stringify({ email, name, affiliate }),
     })
   }
 
@@ -508,6 +512,12 @@ function RegisterContent() {
       .then((r) => r.json())
       .then((data) => {
         if (data.valid) {
+          // Invitación abierta fuera del portal de su empresa (p. ej. desde
+          // el dominio anterior): completar el registro en el dominio correcto
+          if (data.portalUrl && new URL(data.portalUrl).origin !== window.location.origin) {
+            window.location.replace(`${data.portalUrl}/register?token=${encodeURIComponent(inviteToken)}`)
+            return
+          }
           setFormData((prev) => ({ ...prev, email: data.email }))
           setAffiliate(data.affiliate ?? 'dismant')
           setTokenState('valid')
@@ -561,18 +571,30 @@ function RegisterContent() {
   }
 
   const brand = getBrand(affiliate)
-  const affiliateMeta = { clubName: brand.name, initial: brand.initial }
 
   const titles = ['Crea tu cuenta', 'Verifica tu correo', 'Configura tu perfil']
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-brand-950 to-brand-800 flex items-center justify-center p-4">
+    <div
+      className="min-h-screen flex items-center justify-center p-4"
+      style={{
+        ...getBrandCssVars(brand),
+        background: `linear-gradient(to bottom right, ${brand.primaryDark}, ${brand.primary})`,
+      } as React.CSSProperties}
+    >
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-white/10 mb-4">
-            <span className="text-2xl font-bold text-white">{affiliateMeta.initial}</span>
-          </div>
-          <h1 className="text-2xl font-bold text-white">{affiliateMeta.clubName}</h1>
+          {brand.logo ? (
+            <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-white p-2 mb-4">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={brand.logo} alt={brand.name} className="w-full h-full object-contain" />
+            </div>
+          ) : (
+            <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-white/10 mb-4">
+              <span className="text-2xl font-bold text-white">{brand.initial}</span>
+            </div>
+          )}
+          <h1 className="text-2xl font-bold text-white">{brand.name}</h1>
         </div>
 
         <div className="bg-white rounded-2xl shadow-2xl p-8">
@@ -602,13 +624,14 @@ function RegisterContent() {
           {step === 1 && (
             <Step1
               data={formData}
+              affiliate={affiliate}
               emailLocked={true}
               onChange={handleChange}
               onNext={() => setStep(2)}
             />
           )}
           {step === 2 && (
-            <Step2 email={formData.email} name={formData.fullName} onNext={() => setStep(3)} />
+            <Step2 email={formData.email} name={formData.fullName} affiliate={affiliate} onNext={() => setStep(3)} />
           )}
           {step === 3 && (
             <Step3

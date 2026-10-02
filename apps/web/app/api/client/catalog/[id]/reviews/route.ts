@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/lib/auth'
 import { createAdminClient } from '@/lib/supabase'
+import { getMemberAffiliate } from '@/lib/scope'
 
 export async function GET(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await getSession()
@@ -10,6 +11,15 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
 
   const { id: skuId } = await params
   const supabase = createAdminClient()
+
+  // Solo reseñas de premios del catálogo de la empresa del miembro
+  const { data: sku } = await supabase
+    .from('reward_skus')
+    .select('id')
+    .eq('id', skuId)
+    .eq('affiliate', getMemberAffiliate(session))
+    .maybeSingle()
+  if (!sku) return NextResponse.json({ error: 'Premio no encontrado' }, { status: 404 })
 
   const { data: reviews } = await supabase
     .from('reviews')

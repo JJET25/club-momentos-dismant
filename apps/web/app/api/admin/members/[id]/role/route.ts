@@ -4,6 +4,7 @@ import { getSession } from '@/lib/auth'
 import { createAdminClient } from '@/lib/supabase'
 import { isValidRFC } from '@/lib/utils'
 import { isAffiliate } from '@/lib/scope'
+import { normalizeAffiliates, setStaffAffiliates, SCOPED_STAFF_ROLES } from '@/lib/accounts'
 
 const CHANGEABLE_ROLES = ['admin', 'team_admin', 'employee', 'member'] as const
 
@@ -30,7 +31,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
   const { data: targetMember } = await supabase
     .from('members')
-    .select('id, full_name, role_id, roles!role_id(name)')
+    .select('id, full_name, role_id, affiliate, roles!role_id(name)')
     .eq('id', targetId)
     .single()
 
@@ -83,13 +84,17 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     updates.location_city = locationCity
   }
 
-  // team_admin administra una sola empresa — siempre hay que indicar cuál,
-  // sin importar de qué rol venía (cliente, employee, admin, etc.).
-  if (newRole === 'team_admin') {
-    if (!isAffiliate(body.affiliate)) {
-      return NextResponse.json({ error: 'Debes elegir la empresa (Dismant o Lauti) que administrará' }, { status: 400 })
-    }
-    updates.affiliate = body.affiliate
+  // Empleados y admins. de equipo operan sobre una o ambas empresas: se
+  // pueden indicar en `affiliates` (o `affiliate`, una sola). Si no se
+  // indican, conservan su empresa actual.
+  const scopedAffiliates = SCOPED_STAFF_ROLES.includes(newRole)
+    ? normalizeAffiliates(body.affiliates ?? (isAffiliate(body.affiliate) ? [body.affiliate] : []))
+    : []
+  if (newRole === 'team_admin' && !scopedAffiliates.length) {
+    return NextResponse.json({ error: 'Debes elegir la empresa (Dismant o Lauti) que administrará' }, { status: 400 })
+  }
+  if (scopedAffiliates.length && !scopedAffiliates.includes(targetMember.affiliate)) {
+    updates.affiliate = scopedAffiliates[0]
   }
 
   const { data: roleRow } = await supabase
@@ -114,6 +119,24 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       return NextResponse.json({ error: 'Ese correo ya está en uso.' }, { status: 409 })
     }
     return NextResponse.json({ error: 'Error al actualizar el rol' }, { status: 500 })
+  }
+
+  // Empresas asignadas del staff scoped: las indicadas, o al menos su
+  // empresa actual si todavía no tiene ninguna asignación.
+  if (SCOPED_STAFF_ROLES.includes(newRole)) {
+    const primary = (updates.affiliate as string | undefined) ?? targetMember.affiliate
+    let list = scopedAffiliates
+    if (!list.length) {
+      const { count } = await supabase
+        .from('staff_affiliates')
+        .select('member_id', { count: 'exact', head: true })
+        .eq('member_id', targetId)
+      if (!count) list = [primary]
+    }
+    if (list.length) {
+      const { error: assignError } = await setStaffAffiliates(supabase, targetId, list, primary)
+      if (assignError) return NextResponse.json({ error: assignError }, { status: 500 })
+    }
   }
 
   // Audit log

@@ -8,6 +8,12 @@ Plataforma web de lealtad B2B multi-marca ("Club Momentos"), usada actualmente p
 
 **Multi-affiliate / branding dinámico:** No es mono-marca. Cada `Member` e `Invitation` tiene un campo `affiliate` (`dismant` | `lauti`, default `dismant`). `apps/web/lib/brand.ts` mapea el affiliate a nombre/inicial de marca vía `getBrand(affiliate)`; se usa en emails (`lib/resend.ts`, remitente dinámico `RESEND_FROM_EMAIL_DISMANT`/`RESEND_FROM_EMAIL_LAUTI`), PDFs de estado de cuenta, páginas de registro/welcome/invitaciones. Al agregar features nuevas que muestren nombre de marca o envíen correos, usar `getBrand()` en vez de hardcodear "Dismant". No asumir un solo tenant/RFC — aunque `DISMANT_RFC` sigue siendo la validación CFDI vigente (ver nota abajo).
 
+**Separación de empresas (2026-10-01):** Dismant y Lauti son empresas independientes; solo owner/admin (globales) ven ambas.
+- Dominios: `lib/tenant.ts` resuelve el tenant por `Host` (`DISMANT_APP_HOST`, `LAUTI_APP_HOST`, `ADMIN_APP_HOST`; sin ellos todo es `legacy` = comportamiento de un solo dominio). El middleware impide usar una sesión en el portal de otra empresa o en el panel equivocado. Para URLs absolutas (correos, links) usar `getAffiliateBaseUrl()` / `getAdminBaseUrl()`, nunca `NEXT_PUBLIC_APP_URL` directo.
+- Email único **por empresa** (`members_email_affiliate_key`): buscar cuentas con `findAccountForTenant()` (`lib/accounts.ts`), nunca solo por email.
+- Todo lo que ve un miembro se filtra con `getMemberAffiliate(session)`; en admin con `getEffectiveAffiliate()`. `partner_promotions.affiliate` lo fija un trigger desde el partner; `global_banners` es uno por empresa.
+- Staff `employee`/`team_admin` puede tener una o ambas empresas (`staff_affiliates`, claim `affiliates` del JWT); cambia entre ellas con "Ver como". Solo owner/admin tienen vista combinada.
+
 **Documentación completa en `/docs/`:**
 - `docs/Plan_Tecnico.md` — arquitectura, módulos, modelo de datos, flujo CFDI, RBAC, roadmap
 - `docs/cloud.md` — infraestructura cloud, servicios, CI/CD, variables de entorno

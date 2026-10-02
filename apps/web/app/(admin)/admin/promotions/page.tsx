@@ -13,6 +13,14 @@ interface Partner {
   status?:     string
 }
 
+interface CatalogSku {
+  id:          string
+  name:        string
+  description: string | null
+  image_url:   string | null
+  points_cost: number
+}
+
 interface Promotion {
   id:              string
   title:           string
@@ -29,6 +37,8 @@ interface Promotion {
   featured:        boolean
   created_at:      string
   partners:        Partner | null
+  sku_id:          string | null
+  reward_skus:     CatalogSku | null
 }
 
 // ── Config ────────────────────────────────────────────────────
@@ -369,8 +379,9 @@ function DeleteModal({ promo, onClose, onDeleted }: {
 
 // ── Modal de edición ──────────────────────────────────────────
 
-function EditModal({ promo, onClose, onUpdated }: {
+function EditModal({ promo, skus, onClose, onUpdated }: {
   promo:      Promotion
+  skus:       CatalogSku[]
   onClose:    () => void
   onUpdated:  (updated: Partial<Promotion> & { id: string }) => void
 }) {
@@ -381,6 +392,7 @@ function EditModal({ promo, onClose, onUpdated }: {
   }
 
   const [form, setForm] = useState({
+    sku_id:          promo.sku_id ?? '',
     title:           promo.title,
     description:     promo.description ?? '',
     destination_url: promo.destination_url ?? '',
@@ -401,6 +413,20 @@ function EditModal({ promo, onClose, onUpdated }: {
   function set(field: keyof typeof form, value: string | boolean) {
     setForm(prev => ({ ...prev, [field]: value }))
   }
+
+  // Al ligar (o cambiar) el premio del catálogo, se jalan título/descripción
+  // como default (solo si el campo sigue con el valor que ya traía la promoción).
+  function handleSelectSku(skuId: string) {
+    const sku = skus.find(s => s.id === skuId)
+    setForm(prev => ({
+      ...prev,
+      sku_id:      skuId,
+      title:       prev.title === promo.title ? (sku?.name ?? prev.title) : prev.title,
+      description: prev.description === (promo.description ?? '') ? (sku?.description ?? prev.description) : prev.description,
+    }))
+  }
+
+  const selectedSku = skus.find(s => s.id === form.sku_id) ?? null
 
   function handleFile(file: File) {
     if (!['image/jpeg','image/png','image/webp','image/gif'].includes(file.type)) {
@@ -431,6 +457,7 @@ function EditModal({ promo, onClose, onUpdated }: {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
+        sku_id:          form.sku_id || null,
         title:           form.title.trim(),
         description:     form.description.trim() || null,
         destination_url: form.destination_url.trim() || null,
@@ -454,6 +481,7 @@ function EditModal({ promo, onClose, onUpdated }: {
 
     const updates: Partial<Promotion> & { id: string } = {
       id:              promo.id,
+      sku_id:          form.sku_id || null,
       title:           form.title.trim(),
       description:     form.description.trim() || null,
       destination_url: form.destination_url.trim() || null,
@@ -560,6 +588,29 @@ function EditModal({ promo, onClose, onUpdated }: {
                 <p className="text-xs text-muted-foreground/60">JPG, PNG, WEBP, GIF · máx. 5 MB</p>
               </div>
             )}
+          </div>
+
+          {/* Premio del catálogo */}
+          <div>
+            <label className="block text-xs font-medium text-foreground mb-1">
+              Premio del catálogo
+              <span className="ml-1 font-normal text-muted-foreground">(opcional — jala título, descripción e imagen)</span>
+            </label>
+            <div className="flex items-center gap-2">
+              {selectedSku?.image_url && (
+                <img src={selectedSku.image_url} alt="" className="w-9 h-9 rounded-lg object-cover border shrink-0" />
+              )}
+              <select
+                value={form.sku_id}
+                onChange={e => handleSelectSku(e.target.value)}
+                className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-background dark:bg-white/[.06] dark:border-white/[.12] text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+              >
+                <option value="">Sin premio ligado</option>
+                {skus.map(s => (
+                  <option key={s.id} value={s.id}>{s.name} · {s.points_cost} pts</option>
+                ))}
+              </select>
+            </div>
           </div>
 
           {/* Título */}
@@ -797,6 +848,7 @@ const MX_STATES = [
 
 type FormData = {
   partner_id:      string
+  sku_id:          string
   title:           string
   description:     string
   destination_url: string
@@ -809,13 +861,14 @@ type FormData = {
 }
 
 const EMPTY_FORM: FormData = {
-  partner_id: '', title: '', description: '', destination_url: '',
+  partner_id: '', sku_id: '', title: '', description: '', destination_url: '',
   geo_type: 'national', geo_states: '', geo_cities: '',
   valid_from: '', valid_until: '', featured: false,
 }
 
-function CreateModal({ partners, onClose, onCreated, onPartnerCreated }: {
+function CreateModal({ partners, skus, onClose, onCreated, onPartnerCreated }: {
   partners:  Partner[]
+  skus:      CatalogSku[]
   onClose:   () => void
   onCreated: (p: Promotion) => void
   onPartnerCreated: (p: Partner) => void
@@ -837,6 +890,20 @@ function CreateModal({ partners, onClose, onCreated, onPartnerCreated }: {
   function set(field: keyof FormData, value: string | boolean) {
     setForm(prev => ({ ...prev, [field]: value }))
   }
+
+  // Al elegir un premio del catálogo, se jalan título/descripción como
+  // default (solo si el admin no los había escrito ya a mano).
+  function handleSelectSku(skuId: string) {
+    const sku = skus.find(s => s.id === skuId)
+    setForm(prev => ({
+      ...prev,
+      sku_id:      skuId,
+      title:       prev.title || sku?.name || prev.title,
+      description: prev.description || sku?.description || prev.description,
+    }))
+  }
+
+  const selectedSku = skus.find(s => s.id === form.sku_id) ?? null
 
   function handleFile(file: File) {
     if (!['image/jpeg', 'image/png', 'image/webp', 'image/gif'].includes(file.type)) {
@@ -869,6 +936,7 @@ function CreateModal({ partners, onClose, onCreated, onPartnerCreated }: {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         partner_id:      form.partner_id,
+        sku_id:          form.sku_id || null,
         title:           form.title.trim(),
         description:     form.description.trim() || null,
         destination_url: form.destination_url.trim() || null,
@@ -998,6 +1066,29 @@ function CreateModal({ partners, onClose, onCreated, onPartnerCreated }: {
             <p className="text-[11px] text-muted-foreground mt-1">
               Los aliados suspendidos no aparecen aquí. Gestiónalos en <span className="font-medium">Aliados</span>.
             </p>
+          </div>
+
+          {/* Premio del catálogo */}
+          <div>
+            <label className="block text-xs font-medium text-foreground mb-1">
+              Premio del catálogo
+              <span className="ml-1 font-normal text-muted-foreground">(opcional — jala título, descripción e imagen)</span>
+            </label>
+            <div className="flex items-center gap-2">
+              {selectedSku?.image_url && (
+                <img src={selectedSku.image_url} alt="" className="w-9 h-9 rounded-lg object-cover border shrink-0" />
+              )}
+              <select
+                value={form.sku_id}
+                onChange={e => handleSelectSku(e.target.value)}
+                className="w-full px-3 py-2 text-sm border border-border rounded-lg bg-background dark:bg-white/[.06] dark:border-white/[.12] text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+              >
+                <option value="">Sin premio ligado</option>
+                {skus.map(s => (
+                  <option key={s.id} value={s.id}>{s.name} · {s.points_cost} pts</option>
+                ))}
+              </select>
+            </div>
           </div>
 
           {/* Título */}
@@ -1144,6 +1235,7 @@ type Tab = 'pending' | 'history'
 export default function AdminPromotionsPage() {
   const [promotions, setPromotions] = useState<Promotion[]>([])
   const [partners, setPartners]     = useState<Partner[]>([])
+  const [skus, setSkus]             = useState<CatalogSku[]>([])
   const [loading, setLoading]       = useState(true)
   const [tab, setTab]               = useState<Tab>('pending')
   const [rejecting, setRejecting]   = useState<Promotion | null>(null)
@@ -1155,13 +1247,15 @@ export default function AdminPromotionsPage() {
 
   async function load() {
     setLoading(true)
-    const [promoRes, partnerRes, meRes] = await Promise.all([
+    const [promoRes, partnerRes, skuRes, meRes] = await Promise.all([
       fetch('/api/admin/promotions'),
       fetch('/api/admin/partners'),
+      fetch('/api/admin/catalog?status=active'),
       fetch('/api/admin/me'),
     ])
     if (promoRes.ok)   { const d = await promoRes.json();   setPromotions(d.promotions ?? []) }
     if (partnerRes.ok) { const d = await partnerRes.json(); setPartners(d.partners ?? []) }
+    if (skuRes.ok)      { const d = await skuRes.json();     setSkus(d.skus ?? []) }
     if (meRes.ok)      { const d = await meRes.json();      setIsOwner(d.role === 'owner') }
     setLoading(false)
   }
@@ -1222,11 +1316,12 @@ export default function AdminPromotionsPage() {
         <DeleteModal promo={deleting} onClose={() => setDeleting(null)} onDeleted={handleDeleted} />
       )}
       {editing && (
-        <EditModal promo={editing} onClose={() => setEditing(null)} onUpdated={handleEdited} />
+        <EditModal promo={editing} skus={skus} onClose={() => setEditing(null)} onUpdated={handleEdited} />
       )}
       {creating && (
         <CreateModal
           partners={partners}
+          skus={skus}
           onClose={() => setCreating(false)}
           onCreated={handleCreated}
           onPartnerCreated={handlePartnerCreated}

@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import bcrypt from 'bcryptjs'
 import { createAdminClient } from '@/lib/supabase'
-import { createSessionToken } from '@/lib/auth'
+import { getRequestTenant } from '@/lib/tenant-server'
+import { findAccountForTenant, lookupErrorMessage, buildSessionToken, setSessionOnResponse } from '@/lib/accounts'
 
 export async function POST(req: NextRequest) {
   const { email, password } = await req.json()
@@ -10,13 +11,15 @@ export async function POST(req: NextRequest) {
   }
 
   const supabase = createAdminClient()
-  const { data: member } = await supabase
-    .from('members')
-    .select('id, email, full_name, status, password_hash, affiliate, roles(name)')
-    .eq('email', email.toLowerCase().trim())
-    .maybeSingle()
+  const lookup = await findAccountForTenant(supabase, email, await getRequestTenant())
 
-  if (!member || member.status === 'suspended') {
+  if (!lookup.account) {
+    const message = lookupErrorMessage(lookup) ?? 'Correo o contraseña incorrectos'
+    return NextResponse.json({ error: message }, { status: 401 })
+  }
+
+  const { account: member, role } = lookup
+  if (member.status === 'suspended') {
     return NextResponse.json({ error: 'Correo o contraseña incorrectos' }, { status: 401 })
   }
 
@@ -35,24 +38,8 @@ export async function POST(req: NextRequest) {
     .update({ last_login_at: new Date().toISOString() })
     .eq('id', member.id)
 
-  const rolesData = member.roles as unknown as { name: string } | null
-  const role = rolesData?.name ?? 'member'
-  const token = await createSessionToken({
-    sub: member.id,
-    email: member.email,
-    role,
-    name: member.full_name,
-    affiliate: member.affiliate ?? 'dismant',
-  })
+  const token = await buildSessionToken(supabase, member, role)
   const redirectTo = role === 'member' ? '/dashboard' : '/admin/dashboard'
 
-  const response = NextResponse.json({ success: true, redirectTo })
-  response.cookies.set('session', token, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
-    maxAge: 60 * 60 * 24 * 7,
-    path: '/',
-  })
-  return response
+  return setSessionOnResponse(NextResponse.json({ success: true, redirectTo }), token)
 }

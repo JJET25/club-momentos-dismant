@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/lib/auth'
 import { createAdminClient } from '@/lib/supabase'
+import { getMemberAffiliate } from '@/lib/scope'
 
 export async function GET(req: NextRequest) {
   const session = await getSession()
@@ -34,10 +35,11 @@ export async function GET(req: NextRequest) {
   const memberState   = memberRes.data?.location_state ?? ''
   const memberCity    = memberRes.data?.location_city  ?? ''
 
-  // Traer todos los premios activos
+  // Traer los premios activos de la empresa del miembro
   const { data: skus, error } = await supabase
     .from('reward_skus')
     .select('id, name, description, image_url, points_cost, stock, geo_type, geo_states, geo_cities, is_digital, category')
+    .eq('affiliate', getMemberAffiliate(session))
     .eq('status', 'active')
 
   if (error) {

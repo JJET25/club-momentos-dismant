@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase'
 import { sendEmail } from '@/lib/resend'
+import { getBrand } from '@/lib/brand'
+import { getAffiliateBaseUrl } from '@/lib/tenant'
 import { sendPushNotification } from '@/lib/firebase-admin'
 
 function authorized(req: NextRequest): boolean {
@@ -25,7 +27,7 @@ export async function GET(req: NextRequest) {
     .select(`
       id, member_id, created_at,
       reward_skus!sku_id ( name ),
-      members!member_id ( email, full_name, fcm_token ),
+      members!member_id ( email, full_name, fcm_token, affiliate ),
       reviews!redemption_id ( id )
     `)
     .gte('created_at', from24h.toISOString())
@@ -42,22 +44,24 @@ export async function GET(req: NextRequest) {
     const reviews = r.reviews as unknown as { id: string }[] | null
     if (reviews && reviews.length > 0) continue // already reviewed
 
-    const member = r.members as unknown as { email: string; full_name: string; fcm_token: string | null } | null
+    const member = r.members as unknown as { email: string; full_name: string; fcm_token: string | null; affiliate: string } | null
     const sku    = r.reward_skus as unknown as { name: string } | null
     if (!member || !sku) continue
 
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? ''
+    const appUrl = getAffiliateBaseUrl(member.affiliate)
+    const brand  = getBrand(member.affiliate)
 
     try {
       await sendEmail({
-        to:      member.email,
+        to:        member.email,
+        affiliate: member.affiliate,
         subject: `⭐ ¿Cómo fue tu experiencia con ${sku.name}? ¡Gana 5 puntos!`,
         html: `
           <div style="font-family: Inter, sans-serif; max-width: 500px; margin: 0 auto; padding: 32px;">
-            <h2 style="color: #1e3a8a;">Hola, ${member.full_name}</h2>
+            <h2 style="color: ${brand.primaryDark};">Hola, ${member.full_name}</h2>
             <p>¿Qué tal estuvo tu canje de <strong>${sku.name}</strong>?</p>
             <p>Califica tu experiencia y <strong>gana 5 puntos adicionales</strong> si dejas un comentario de al menos 20 caracteres.</p>
-            <a href="${appUrl}/redemptions" style="display: inline-block; margin-top: 16px; padding: 12px 24px; background: #2563eb; color: white; border-radius: 8px; text-decoration: none; font-weight: 600;">
+            <a href="${appUrl}/redemptions" style="display: inline-block; margin-top: 16px; padding: 12px 24px; background: ${brand.primary}; color: white; border-radius: 8px; text-decoration: none; font-weight: 600;">
               Calificar ahora
             </a>
           </div>`,
