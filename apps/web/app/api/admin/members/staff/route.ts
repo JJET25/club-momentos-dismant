@@ -4,7 +4,7 @@ import { GLOBAL_ROLE_LOCKED_MESSAGE } from '@/lib/permissions'
 import { createAdminClient } from '@/lib/supabase'
 import { sendEmail, buildMagicLinkEmail } from '@/lib/resend'
 import { getBrand } from '@/lib/brand'
-import { isAffiliate } from '@/lib/scope'
+import { getEffectiveAffiliate, isAffiliate } from '@/lib/scope'
 import { createPass, passUrl } from '@/lib/passes'
 import { normalizeAffiliates, setStaffAffiliates, SCOPED_STAFF_ROLES } from '@/lib/accounts'
 import crypto from 'crypto'
@@ -66,10 +66,12 @@ export async function POST(req: NextRequest) {
   const { full_name, email, role } = body
   // Empleados y admins. de equipo: una o ambas empresas. Admin: global, la
   // empresa solo define el branding de sus correos.
+  // Fuera de la vista Global la cuenta es solo para la empresa de la vista.
   const isScoped = SCOPED_STAFF_ROLES.includes(role)
-  const affiliates = isScoped
-    ? normalizeAffiliates(body.affiliates ?? (body.affiliate ? [body.affiliate] : []))
-    : []
+  const viewAffiliate = getEffectiveAffiliate(session, req)
+  const affiliates = !isScoped ? []
+    : viewAffiliate ? [viewAffiliate]
+    : normalizeAffiliates(body.affiliates ?? (body.affiliate ? [body.affiliate] : []))
   const affiliate = isScoped ? affiliates[0] : body.affiliate
 
   if (!full_name?.trim() || !email?.trim() || !role) {

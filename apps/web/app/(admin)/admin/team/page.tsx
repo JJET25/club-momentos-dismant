@@ -127,7 +127,7 @@ function Field({ label, type = 'text', value, onChange, placeholder, disabled }:
 export default function TeamPage() {
   const [staff, setStaff]     = useState<StaffMember[]>([])
   const [loading, setLoading] = useState(true)
-  const [me, setMe]           = useState<{ id: string; role: string } | null>(null)
+  const [me, setMe]           = useState<{ id: string; role: string; perspective: string | null } | null>(null)
   const [toast, setToast]     = useState<{ msg: string; type: 'ok' | 'err' } | null>(null)
 
   // Modales
@@ -138,7 +138,13 @@ export default function TeamPage() {
   const [reasonInput, setReasonInput] = useState('')
 
   // Formularios
-  const emptyForm: FormState = { full_name: '', email: '', role: 'employee', affiliate: 'dismant', affiliates: ['dismant'] }
+  // Fuera de la vista Global, la cuenta nueva pertenece a la empresa de la
+  // vista activa (el servidor también lo fuerza).
+  const viewAffiliate = me?.perspective && AFFILIATE_LABEL[me.perspective] ? me.perspective : null
+  const emptyForm: FormState = {
+    full_name: '', email: '', role: 'employee',
+    affiliate: viewAffiliate ?? 'dismant', affiliates: [viewAffiliate ?? 'dismant'],
+  }
   const [addForm, setAddForm]   = useState<FormState>(emptyForm)
   const [editForm, setEditForm] = useState<Partial<FormState>>({})
   const [submitting, setSubmitting] = useState(false)
@@ -534,6 +540,11 @@ export default function TeamPage() {
                   Los administradores tienen acceso global a ambas empresas.
                 </p>
               </div>
+            ) : viewAffiliate ? (
+              <p className="text-xs text-muted-foreground bg-muted/40 rounded-lg px-3 py-2.5">
+                La cuenta será para <strong>{AFFILIATE_LABEL[viewAffiliate]}</strong>. Para asignarla a otra empresa
+                o a ambas cambia a la vista Global desde tu perfil.
+              </p>
             ) : (
               <AffiliateChecks
                 label="Empresas"

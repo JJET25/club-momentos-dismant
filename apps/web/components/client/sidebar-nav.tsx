@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
-import { usePathname, useRouter } from 'next/navigation'
+import { useRouter } from 'next/navigation'
 import {
   LayoutDashboard,
   Gift,
@@ -16,11 +16,16 @@ import {
   XCircle,
   Zap,
   Shield,
+  Home,
+  Store,
+  History,
+  Upload,
   type LucideIcon,
 } from 'lucide-react'
 import { ThemeToggle } from '@/components/admin/theme-toggle'
 import { ProfileMenu } from '@/components/profile-menu'
 import { Skeleton, SkeletonRegion } from '@/components/ui/skeleton'
+import { RailNav } from '@/components/rail-nav'
 
 interface NavItem {
   href:  string
@@ -30,12 +35,14 @@ interface NavItem {
 
 interface NavGroup {
   label: string
+  icon:  LucideIcon
   items: NavItem[]
 }
 
 const NAV_GROUPS: NavGroup[] = [
   {
     label: 'Principal',
+    icon:  Home,
     items: [
       { href: '/dashboard',   label: 'Inicio',           icon: LayoutDashboard },
       { href: '/statement',   label: 'Estado de Cuenta', icon: BarChart2 },
@@ -43,6 +50,7 @@ const NAV_GROUPS: NavGroup[] = [
   },
   {
     label: 'Tienda',
+    icon:  Store,
     items: [
       { href: '/catalog',    label: 'Catálogo',    icon: Gift },
       { href: '/promotions', label: 'Promociones', icon: Megaphone },
@@ -50,6 +58,7 @@ const NAV_GROUPS: NavGroup[] = [
   },
   {
     label: 'Historial',
+    icon:  History,
     items: [
       { href: '/invoices',    label: 'Mis Facturas', icon: FileText },
       { href: '/redemptions', label: 'Mis Canjes',   icon: ShoppingBag },
@@ -57,6 +66,7 @@ const NAV_GROUPS: NavGroup[] = [
   },
   {
     label: 'Privacidad',
+    icon:  Shield,
     items: [
       { href: '/arco', label: 'Derechos ARCO', icon: Shield },
     ],
@@ -79,10 +89,11 @@ interface Props {
   initials: string
   /** Empresa del portal (para el subtítulo y el rol del menú de perfil) */
   company:  string
+  /** Marca de la empresa (colores del riel y logo) */
+  brand:    { name: string; logo?: string; initial: string; sidebarBg: string }
 }
 
-export function SidebarNav({ name, email, initials, company }: Props) {
-  const pathname = usePathname()
+export function SidebarNav({ name, email, initials, company, brand }: Props) {
   const router   = useRouter()
 
   const [notifOpen, setNotifOpen] = useState(false)
@@ -143,78 +154,69 @@ export function SidebarNav({ name, email, initials, company }: Props) {
 
   return (
     <>
-      {/* Nav groups */}
-      <nav className="flex-1 px-3 py-4 space-y-5 overflow-y-auto">
-        {NAV_GROUPS.map(group => (
-          <div key={group.label}>
-            <p className="px-3 mb-1.5 text-[10px] font-semibold uppercase tracking-widest text-brand-500 select-none">
-              {group.label}
-            </p>
-            <div className="space-y-0.5">
-              {group.items.map(item => {
-                const active = pathname === item.href || pathname.startsWith(item.href + '/')
-                const Icon   = item.icon
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all
-                      ${active
-                        ? 'bg-white/10 text-white'
-                        : 'text-brand-400 hover:text-white hover:bg-white/5'
-                      }`}
-                  >
-                    <Icon className={`w-4 h-4 shrink-0 ${active ? 'text-white' : 'text-brand-500'}`} />
-                    {item.label}
-                  </Link>
-                )
-              })}
-            </div>
-          </div>
-        ))}
-      </nav>
-
-      {/* Footer: notificaciones + usuario + logout */}
-      <div className="px-3 py-4 border-t border-brand-800 space-y-0.5">
-
-        {/* Campana de notificaciones */}
-        <button
-          onClick={openNotifications}
-          className="flex items-center gap-3 w-full px-3 py-2 rounded-lg text-sm font-medium text-brand-400 hover:text-white hover:bg-white/5 transition-all"
-        >
-          <span className="relative">
-            <Bell className="w-4 h-4 shrink-0 text-brand-500" />
-            {unread > 0 && (
-              <span className="absolute -top-1.5 -right-1.5 w-3.5 h-3.5 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center leading-none">
-                {unread > 9 ? '9+' : unread}
-              </span>
-            )}
+      <RailNav
+        groups={NAV_GROUPS}
+        railBg={brand.sidebarBg}
+        logo={brand.logo ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={brand.logo} alt={brand.name} className="w-10 h-10 rounded-xl object-contain bg-white" />
+        ) : (
+          <span className="w-10 h-10 rounded-xl bg-brand-600 flex items-center justify-center text-sm font-bold text-white" aria-label={brand.name}>
+            {brand.initial}
           </span>
-          Notificaciones
-          {unread > 0 && (
-            <span className="ml-auto text-xs font-medium text-red-400">{unread}</span>
-          )}
-        </button>
-
-        {/* Usuario — menú de perfil: perfil y cambio de empresa */}
-        <ProfileMenu
-          name={name}
-          subtitle={`Miembro · ${company}`}
-          initials={initials}
-          roleLabel={`Miembro · ${company} · ${email}`}
-          profileHref="/profile"
-        />
-
-        <ThemeToggle />
-
-        <button
-          onClick={handleLogout}
-          className="flex items-center gap-3 w-full px-3 py-2 rounded-lg text-sm font-medium text-brand-400 hover:text-white hover:bg-white/5 transition-all"
-        >
-          <LogOut className="w-4 h-4 shrink-0" />
-          Cerrar sesión
-        </button>
-      </div>
+        )}
+        panelTop={
+          <div className="mb-3 space-y-3">
+            <div className="px-1">
+              <p className="text-[13px] font-semibold text-foreground leading-none">{brand.name}</p>
+              <p className="text-[11px] text-muted-foreground mt-1 font-medium uppercase tracking-wide">Mi Portal</p>
+            </div>
+            <Link
+              href="/invoices"
+              className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl bg-brand-600 text-white text-sm font-semibold hover:bg-brand-700 transition-colors"
+            >
+              <Upload className="w-4 h-4" /> Subir factura
+            </Link>
+          </div>
+        }
+        railBottom={
+          <>
+            <button
+              onClick={openNotifications}
+              aria-label={unread > 0 ? `Notificaciones (${unread} sin leer)` : 'Notificaciones'}
+              title="Notificaciones"
+              className="relative w-11 h-11 rounded-xl flex items-center justify-center text-slate-300 hover:text-white hover:bg-white/5 transition-colors"
+            >
+              <Bell className="w-5 h-5" />
+              {unread > 0 && (
+                <span className="absolute top-1.5 right-1.5 min-w-4 h-4 px-1 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center leading-none">
+                  {unread > 9 ? '9+' : unread}
+                </span>
+              )}
+            </button>
+            {/* Menú de perfil: perfil, cambio de empresa, tema y salida */}
+            <ProfileMenu
+              compact
+              name={name}
+              subtitle={`Miembro · ${company}`}
+              initials={initials}
+              roleLabel={`Miembro · ${company} · ${email}`}
+              profileHref="/profile"
+              footer={
+                <>
+                  <ThemeToggle variant="menu" />
+                  <button
+                    onClick={handleLogout}
+                    className="flex items-center gap-2 w-full px-2.5 py-2 rounded-lg text-sm font-medium hover:bg-muted"
+                  >
+                    <LogOut className="w-4 h-4" /> Cerrar sesión
+                  </button>
+                </>
+              }
+            />
+          </>
+        }
+      />
 
       {/* Panel de notificaciones */}
       {notifOpen && (

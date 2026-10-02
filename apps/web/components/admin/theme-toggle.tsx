@@ -3,7 +3,8 @@
 import { Sun, Moon } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
-export function ThemeToggle() {
+/** `sidebar`: sobre el fondo oscuro de la barra; `menu`: dentro del menú de perfil */
+export function ThemeToggle({ variant = 'sidebar' }: { variant?: 'sidebar' | 'menu' }) {
   const [dark, setDark] = useState(false)
 
   useEffect(() => {
@@ -25,7 +26,9 @@ export function ThemeToggle() {
     <button
       onClick={toggle}
       title={dark ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}
-      className="flex items-center gap-3 w-full px-3 py-2 rounded-lg text-sm font-medium text-brand-400 hover:text-white hover:bg-white/5 transition-all"
+      className={variant === 'menu'
+        ? 'flex items-center gap-2 w-full px-2.5 py-2 rounded-lg text-sm font-medium hover:bg-muted'
+        : 'flex items-center gap-3 w-full px-3 py-2 rounded-lg text-sm font-medium text-brand-400 hover:text-white hover:bg-white/5 transition-all'}
     >
       {dark
         ? <Sun className="w-4 h-4 shrink-0" />

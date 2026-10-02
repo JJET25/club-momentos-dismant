@@ -55,7 +55,11 @@ export default function InvitationsPage() {
   const [copied, setCopied] = useState(false)
   const [invitations, setInvitations] = useState<Invitation[]>([])
   const [loadingList, setLoadingList] = useState(true)
+  // Empresa de la vista activa: fuera de la vista Global la invitación es
+  // siempre para esa empresa (el servidor también lo fuerza).
   const [scopedTo, setScopedTo] = useState<Affiliate | null>(null)
+  const [isGlobal, setIsGlobal] = useState(false)
+  const [meLoaded, setMeLoaded] = useState(false)
 
   async function loadInvitations() {
     setLoadingList(true)
@@ -70,13 +74,12 @@ export default function InvitationsPage() {
   useEffect(() => {
     loadInvitations()
     fetch('/api/admin/me').then(r => r.json()).then(me => {
-      // team_admin solo puede invitar a su propia empresa — se fuerza aquí
-      // y también en el servidor.
-      if (me.role === 'team_admin' && (me.affiliate === 'dismant' || me.affiliate === 'lauti')) {
-        setScopedTo(me.affiliate)
-        setAffiliate(me.affiliate)
+      setIsGlobal(me.role === 'owner' || me.role === 'admin')
+      if (me.perspective === 'dismant' || me.perspective === 'lauti') {
+        setScopedTo(me.perspective)
+        setAffiliate(me.perspective)
       }
-    })
+    }).catch(() => {}).finally(() => setMeLoaded(true))
   }, [])
 
   async function handleSend(e: React.FormEvent) {
@@ -181,10 +184,13 @@ export default function InvitationsPage() {
             <label className="block text-sm font-medium text-foreground mb-2">
               Empresa afiliada *
             </label>
-            {scopedTo ? (
+            {!meLoaded ? (
+              <Skeleton className="h-11 w-full rounded-lg" />
+            ) : scopedTo ? (
               <p className="text-sm text-muted-foreground bg-muted/40 rounded-lg px-3 py-2.5">
-                Como administrador de equipo, tus invitaciones son siempre para{' '}
+                La invitación será para{' '}
                 <strong>{AFFILIATE_OPTIONS.find(o => o.value === scopedTo)?.label ?? scopedTo}</strong>.
+                {isGlobal && ' Para invitar a otra empresa cambia a la vista Global desde tu perfil.'}
               </p>
             ) : (
               <div className="flex gap-3">

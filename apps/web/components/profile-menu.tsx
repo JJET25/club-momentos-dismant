@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Check, ChevronsUpDown, Loader2, UserRound } from 'lucide-react'
 
 export interface ViewOption {
@@ -28,6 +28,10 @@ interface Props {
   views?:     ViewOption[]
   view?:      string
   onSelectView?: (value: string) => void
+  /** Solo el avatar como botón (riel de navegación); el menú abre a la derecha */
+  compact?: boolean
+  /** Acciones al final del menú (tema, cerrar sesión) */
+  footer?: ReactNode
 }
 
 /**
@@ -37,21 +41,35 @@ interface Props {
  * - Cualquier cuenta: cambiar a otra cuenta del mismo correo (otra empresa,
  *   o del portal de miembro al panel). Solo aparece si existe otra cuenta.
  */
-export function ProfileMenu({ name, subtitle, initials, roleLabel, profileHref, views, view, onSelectView }: Props) {
+export function ProfileMenu({ name, subtitle, initials, roleLabel, profileHref, views, view, onSelectView, compact, footer }: Props) {
   const [open, setOpen]         = useState(false)
   const [accounts, setAccounts] = useState<LinkedAccount[] | null>(null)
   const [switching, setSwitching] = useState<string | null>(null)
   const [error, setError]       = useState('')
+  const [slow, setSlow]         = useState(false)
   const ref = useRef<HTMLDivElement>(null)
+
+  // Las cuentas se piden al montar (la barra lateral vive entre navegaciones),
+  // así el menú abre ya con los datos y no parpadea un esqueleto.
+  useEffect(() => {
+    let alive = true
+    fetch('/api/auth/accounts')
+      .then(r => (r.ok ? r.json() : { accounts: [] }))
+      .then(d => { if (alive) setAccounts(d.accounts ?? []) })
+      .catch(() => { if (alive) setAccounts([]) })
+    return () => { alive = false }
+  }, [])
+
+  // Si el menú se abre antes de que lleguen, el esqueleto solo aparece cuando
+  // la carga de verdad tarda; una respuesta rápida no deja rastro.
+  useEffect(() => {
+    if (!open || accounts !== null) { setSlow(false); return }
+    const t = setTimeout(() => setSlow(true), 300)
+    return () => clearTimeout(t)
+  }, [open, accounts])
 
   useEffect(() => {
     if (!open) return
-    if (accounts === null) {
-      fetch('/api/auth/accounts')
-        .then(r => (r.ok ? r.json() : { accounts: [] }))
-        .then(d => setAccounts(d.accounts ?? []))
-        .catch(() => setAccounts([]))
-    }
     function onClick(e: MouseEvent) {
       if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
     }
@@ -64,7 +82,7 @@ export function ProfileMenu({ name, subtitle, initials, roleLabel, profileHref, 
       document.removeEventListener('mousedown', onClick)
       document.removeEventListener('keydown', onKey)
     }
-  }, [open, accounts])
+  }, [open])
 
   async function switchTo(id: string) {
     setSwitching(id)
@@ -92,7 +110,8 @@ export function ProfileMenu({ name, subtitle, initials, roleLabel, profileHref, 
         <div
           role="menu"
           aria-label="Perfil"
-          className="absolute bottom-full left-0 mb-2 w-72 rounded-xl border border-border bg-background text-foreground shadow-xl p-1.5 z-50"
+          className={`absolute w-72 rounded-xl border border-border bg-background text-foreground shadow-xl p-1.5 z-50
+            ${compact ? 'left-full bottom-0 ml-3' : 'bottom-full left-0 mb-2'}`}
         >
           <div className="flex items-center gap-3 px-2.5 py-2.5">
             <span className="w-9 h-9 rounded-full bg-brand-600 text-white text-xs font-bold flex items-center justify-center shrink-0">{initials}</span>
@@ -131,7 +150,7 @@ export function ProfileMenu({ name, subtitle, initials, roleLabel, profileHref, 
             </div>
           )}
 
-          {accounts === null ? (
+          {accounts === null ? slow && (
             <div className="border-t border-border mt-1 px-2.5 py-2 space-y-2" aria-busy="true">
               <div className="h-3 w-24 rounded bg-muted animate-pulse motion-reduce:animate-none" />
               <div className="h-8 rounded-lg bg-muted animate-pulse motion-reduce:animate-none" />
@@ -165,9 +184,23 @@ export function ProfileMenu({ name, subtitle, initials, roleLabel, profileHref, 
               {error && <p className="px-2.5 py-1.5 text-xs text-red-600">{error}</p>}
             </div>
           )}
+
+          {footer && <div className="border-t border-border pt-1 mt-1">{footer}</div>}
         </div>
       )}
 
+      {compact ? (
+        <button
+          onClick={() => setOpen(o => !o)}
+          aria-expanded={open}
+          aria-haspopup="menu"
+          aria-label={`Menú de perfil de ${name}`}
+          title={`${name} · ${subtitle}`}
+          className="w-10 h-10 rounded-full bg-brand-700 hover:ring-2 hover:ring-white/30 flex items-center justify-center transition-shadow"
+        >
+          <span className="text-[11px] font-bold text-white">{initials}</span>
+        </button>
+      ) : (
       <button
         onClick={() => setOpen(o => !o)}
         aria-expanded={open}
@@ -183,6 +216,7 @@ export function ProfileMenu({ name, subtitle, initials, roleLabel, profileHref, 
         </span>
         <ChevronsUpDown className="w-3.5 h-3.5 text-brand-500 shrink-0" />
       </button>
+      )}
     </div>
   )
 }

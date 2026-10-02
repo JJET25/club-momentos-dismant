@@ -19,32 +19,19 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   return (
     <div className="min-h-screen bg-background flex" style={getBrandCssVars(brand) as React.CSSProperties}>
 
-      {/* Sidebar */}
-      <aside className="w-60 flex flex-col fixed h-full" style={{ background: brand.sidebarBg }}>
-
-        {/* Logo / Brand */}
-        <div className="px-5 py-5 border-b border-white/5">
-          <div className="flex items-center gap-3">
-            {brand.logo ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={brand.logo} alt={brand.name} className="w-8 h-8 rounded-lg object-contain bg-white shrink-0" />
-            ) : (
-              <div className="w-8 h-8 rounded-lg bg-brand-600 flex items-center justify-center shrink-0">
-                <span className="text-sm font-bold text-white">{brand.initial}</span>
-              </div>
-            )}
-            <div className="min-w-0">
-              <p className="text-[13px] font-semibold text-white leading-none">{brand.name}</p>
-              <p className="text-[11px] text-slate-500 mt-0.5 font-medium uppercase tracking-wide">Panel Admin</p>
-            </div>
-          </div>
-        </div>
-
-        <AdminSidebarNav name={name} role={role} allowed={allowed} perspective={perspective ?? ''} />
+      {/* Navegación: riel de secciones + panel con las páginas de la sección */}
+      <aside className="fixed inset-y-0 left-0 z-40 flex">
+        <AdminSidebarNav
+          name={name}
+          role={role}
+          allowed={allowed}
+          perspective={perspective ?? ''}
+          brand={{ name: brand.name, initial: brand.initial, logo: brand.logo, sidebarBg: brand.sidebarBg }}
+        />
       </aside>
 
       {/* Main content */}
-      <main className="ml-60 flex-1 min-h-screen flex flex-col">
+      <main className="ml-[324px] flex-1 min-h-screen flex flex-col">
         <div className="max-w-6xl mx-auto w-full px-8 py-8">
           {children}
         </div>
