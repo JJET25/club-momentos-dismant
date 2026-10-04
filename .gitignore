@@ -37,3 +37,7 @@ yarn-error.log*
 
 # Prisma
 packages/database/.env
+
+# Datos locales de prueba (contraseñas de cuentas QA, notas personales)
+scripts/local-db/.env.local
+*.local.md

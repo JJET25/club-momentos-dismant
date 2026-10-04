@@ -158,6 +158,7 @@ export function AdminSidebarNav({ name, role, allowed, perspective, brand }: Pro
           subtitle={`${roleLabel} · ${currentLabel}`}
           initials={initials}
           roleLabel={roleLabel}
+          profileHref="/admin/account"
           // La vista se elige en el panel lateral; aquí solo las otras cuentas
           views={[]}
           footer={

@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { CheckCircle2, Check, X } from 'lucide-react'
 import { MEXICAN_STATES } from '@dismant/types'
+import { hasPermission } from '@/lib/permissions'
 
 // ── Tipos ────────────────────────────────────────────────────
 
@@ -20,7 +21,7 @@ interface Member {
 }
 
 interface MemberDetail {
-  member:      Member & { email: string; company_name: string | null }
+  member:      Member & { email: string; company_name: string | null; phone: string | null }
   balance:     number
   ledger:      { id: string; type: string; points: number; balance_after: number; description: string | null; created_at: string }[]
   redemptions: { id: string; points_spent: number; status: string; created_at: string; reward_skus: { name: string } | null }[]
@@ -39,14 +40,148 @@ function fmtPts(n: number) {
   return (n > 0 ? '+' : '') + n.toLocaleString('es-MX') + ' pts'
 }
 
+// ── Pestaña "Datos": consulta y corrección del perfil ─────────
+
+type ProfileForm = { fullName: string; companyName: string; rfc: string; phone: string; locationState: string; locationCity: string }
+
+function toProfileForm(m: MemberDetail['member']): ProfileForm {
+  return {
+    fullName: m.full_name, companyName: m.company_name ?? '', rfc: m.rfc, phone: m.phone ?? '',
+    locationState: m.location_state ?? '', locationCity: m.location_city ?? '',
+  }
+}
+
+function MemberProfileTab({ member, canEdit, onSaved }: {
+  member:  MemberDetail['member']
+  canEdit: boolean
+  onSaved: (updated: Partial<MemberDetail['member']>) => void
+}) {
+  const [editing, setEditing] = useState(false)
+  const [form, setForm]       = useState<ProfileForm>(() => toProfileForm(member))
+  const [reason, setReason]   = useState('')
+  const [saving, setSaving]   = useState(false)
+  const [error, setError]     = useState('')
+  const [saved, setSaved]     = useState(false)
+
+  const fiscalChanged = form.rfc.trim().toUpperCase() !== member.rfc || form.companyName.trim() !== (member.company_name ?? '')
+
+  async function handleSave(e: React.FormEvent) {
+    e.preventDefault()
+    setSaving(true); setError(''); setSaved(false)
+    const res = await fetch(`/api/admin/members/${member.id}/profile`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...form, reason }),
+    })
+    const data = await res.json().catch(() => ({}))
+    setSaving(false)
+    if (!res.ok) { setError(data.error ?? 'Error al guardar'); return }
+    if (data.member) onSaved(data.member)
+    setEditing(false); setReason(''); setSaved(true)
+  }
+
+  const field = (key: keyof ProfileForm, label: string, props: React.InputHTMLAttributes<HTMLInputElement> = {}) => (
+    <div>
+      <label className="text-xs text-muted-foreground">{label}</label>
+      <input
+        value={form[key]}
+        onChange={e => setForm(f => ({ ...f, [key]: key === 'rfc' ? e.target.value.toUpperCase() : e.target.value }))}
+        className={`input-field w-full text-sm mt-1 ${key === 'rfc' ? 'font-mono' : ''}`}
+        {...props}
+      />
+    </div>
+  )
+
+  if (!editing) {
+    const rows: [string, string | null][] = [
+      ['Nombre', member.full_name],
+      ['Correo', member.email],
+      ['Razón social', member.company_name],
+      ['RFC', member.rfc],
+      ['Celular', member.phone],
+      ['Ubicación', [member.location_city, member.location_state].filter(Boolean).join(', ')],
+    ]
+    return (
+      <div className="space-y-4">
+        {saved && (
+          <p className="flex items-center gap-2 text-sm text-emerald-600"><Check className="w-4 h-4" /> Datos actualizados.</p>
+        )}
+        <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3 text-sm">
+          {rows.map(([label, value]) => (
+            <div key={label}>
+              <dt className="text-xs text-muted-foreground">{label}</dt>
+              <dd className={`text-foreground ${label === 'RFC' ? 'font-mono' : ''}`}>{value || '—'}</dd>
+            </div>
+          ))}
+        </dl>
+        {canEdit && (
+          <button onClick={() => { setForm(toProfileForm(member)); setEditing(true); setSaved(false) }}
+            className="px-4 py-2 rounded-lg border border-border text-sm font-medium hover:bg-muted/50">
+            Editar datos
+          </button>
+        )}
+      </div>
+    )
+  }
+
+  return (
+    <form onSubmit={handleSave} className="space-y-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        {field('fullName', 'Nombre completo', { required: true, minLength: 3, maxLength: 120 })}
+        {field('phone', 'Celular (10 dígitos)', { type: 'tel', maxLength: 16, placeholder: '55 1234 5678' })}
+        {field('companyName', 'Razón social', { required: true, maxLength: 200 })}
+        {field('rfc', 'RFC', { required: true, maxLength: 13 })}
+        <div>
+          <label className="text-xs text-muted-foreground">Estado</label>
+          <select value={form.locationState} onChange={e => setForm(f => ({ ...f, locationState: e.target.value }))}
+            required className="input-field w-full text-sm mt-1">
+            <option value="">Selecciona</option>
+            {MEXICAN_STATES.map(s => <option key={s} value={s}>{s}</option>)}
+          </select>
+        </div>
+        {field('locationCity', 'Ciudad', { required: true, maxLength: 80 })}
+      </div>
+      <p className="text-xs text-muted-foreground">El correo es la identidad de inicio de sesión y no se edita aquí.</p>
+
+      {fiscalChanged && (
+        <div className="rounded-lg border border-amber-300/60 bg-amber-50 dark:bg-amber-900/20 px-3 py-3 space-y-2">
+          <p className="text-xs text-amber-700 dark:text-amber-400">
+            Las facturas de este miembro se validan contra su RFC. A partir del cambio solo se aceptarán facturas emitidas al RFC nuevo.
+          </p>
+          <input value={reason} onChange={e => setReason(e.target.value)} required minLength={5}
+            placeholder="Motivo del cambio (p. ej. folio ARCO)" className="input-field w-full text-sm" />
+        </div>
+      )}
+
+      {error && (
+        <p className="flex items-center gap-2 text-sm text-red-600"><X className="w-4 h-4 shrink-0" /> {error}</p>
+      )}
+
+      <div className="flex gap-2">
+        <button type="submit" disabled={saving}
+          className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 disabled:opacity-60 flex items-center gap-2">
+          {saving && <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />}
+          {saving ? 'Guardando…' : 'Guardar'}
+        </button>
+        <button type="button" onClick={() => { setEditing(false); setError('') }} disabled={saving}
+          className="px-4 py-2 rounded-lg border border-border text-sm font-medium text-muted-foreground hover:bg-muted/50">
+          Cancelar
+        </button>
+      </div>
+    </form>
+  )
+}
+
 // ── Modal de detalle ──────────────────────────────────────────
 
-function MemberDetailModal({ detail, onClose, onUpdated }: {
+function MemberDetailModal({ detail, canEdit, onClose, onUpdated, onProfileSaved }: {
   detail: MemberDetail
+  canEdit: boolean
   onClose: () => void
   onUpdated: () => void
+  onProfileSaved: (updated: Partial<MemberDetail['member']>) => void
 }) {
-  const [tab, setTab]         = useState<'ledger' | 'invoices' | 'canjes'>('ledger')
+  const [tab, setTab]         = useState<'ledger' | 'invoices' | 'canjes' | 'datos'>('ledger')
   const [adjustPts, setAdjustPts] = useState('')
   const [adjustReason, setAdjustReason] = useState('')
   const [adjusting, setAdjusting]       = useState(false)
@@ -126,7 +261,7 @@ function MemberDetailModal({ detail, onClose, onUpdated }: {
 
         {/* Tabs */}
         <div className="flex gap-1 px-6 pt-4 border-b shrink-0">
-          {(['ledger', 'invoices', 'canjes'] as const).map(t => (
+          {(['ledger', 'invoices', 'canjes', 'datos'] as const).map(t => (
             <button
               key={t}
               onClick={() => setTab(t)}
@@ -136,7 +271,7 @@ function MemberDetailModal({ detail, onClose, onUpdated }: {
                   : 'border-transparent text-muted-foreground hover:text-foreground'
               }`}
             >
-              {t === 'ledger' ? 'Movimientos' : t === 'invoices' ? 'Facturas' : 'Canjes'}
+              {t === 'ledger' ? 'Movimientos' : t === 'invoices' ? 'Facturas' : t === 'canjes' ? 'Canjes' : 'Datos'}
             </button>
           ))}
         </div>
@@ -242,6 +377,10 @@ function MemberDetailModal({ detail, onClose, onUpdated }: {
                 </div>
               ))}
             </div>
+          )}
+
+          {tab === 'datos' && (
+            <MemberProfileTab member={member} canEdit={canEdit} onSaved={onProfileSaved} />
           )}
         </div>
 
@@ -412,12 +551,16 @@ export default function MembersPage() {
   const [stateFilter, setStateFilter]         = useState('')
   const [affiliateFilter, setAffiliateFilter] = useState('')
   const [isGlobalRole, setIsGlobalRole]       = useState(false)
+  const [canEditMembers, setCanEditMembers]   = useState(false)
   const [detail, setDetail]     = useState<MemberDetail | null>(null)
   const [loadingDetail, setLoadingDetail] = useState(false)
   const [bulkOpen, setBulkOpen] = useState(false)
 
   useEffect(() => {
-    fetch('/api/admin/me').then(r => r.json()).then(d => setIsGlobalRole(d.role === 'owner' || d.role === 'admin'))
+    fetch('/api/admin/me').then(r => r.json()).then(d => {
+      setIsGlobalRole(d.role === 'owner' || d.role === 'admin')
+      setCanEditMembers(hasPermission(d.role, 'EDIT_MEMBER'))
+    })
   }, [])
 
   const load = useCallback(async (filters: { q: string; status: string; state: string; affiliate: string }) => {
@@ -461,8 +604,13 @@ export default function MembersPage() {
       {detail && (
         <MemberDetailModal
           detail={detail}
+          canEdit={canEditMembers}
           onClose={() => setDetail(null)}
           onUpdated={() => load(currentFilters)}
+          onProfileSaved={updated => {
+            setDetail(d => d && { ...d, member: { ...d.member, ...updated } })
+            load(currentFilters)
+          }}
         />
       )}
       {bulkOpen && <BulkPointsModal onClose={() => setBulkOpen(false)} />}

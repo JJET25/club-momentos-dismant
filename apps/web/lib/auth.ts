@@ -1,5 +1,6 @@
 import { SignJWT, jwtVerify } from 'jose'
 import { cookies } from 'next/headers'
+import { cache } from 'react'
 import { createAdminClient } from './supabase'
 import crypto from 'crypto'
 
@@ -17,6 +18,10 @@ export interface SessionPayload {
    *  miembros siempre es [affiliate]. Ausente en sesiones emitidas antes
    *  de la separación por empresa — ver getAllowedAffiliates(). */
   affiliates?: string[]
+  /** members.session_version al emitir el token. Si en la base ya es mayor
+   *  (cambio de contraseña, "cerrar otras sesiones", suspensión) la sesión
+   *  deja de ser válida. Ausente en tokens anteriores = 0. */
+  sv?: number
   iat: number
   exp: number
 }
@@ -40,12 +45,52 @@ export async function verifySessionToken(token: string): Promise<SessionPayload 
   }
 }
 
-/** Obtiene la sesión actual desde la cookie */
-export async function getSession(): Promise<SessionPayload | null> {
+/**
+ * Obtiene la sesión actual desde la cookie. Además de la firma del JWT
+ * comprueba en la base que la sesión no haya sido revocada (session_version)
+ * ni la cuenta suspendida. Memorizada por request (React cache): una sola
+ * consulta aunque varios componentes la pidan.
+ *
+ * El middleware solo verifica la firma (corre en edge, sin base); por eso
+ * los layouts mandan a /api/auth/logout cuando esto devuelve null.
+ */
+export const getSession = cache(async (): Promise<SessionPayload | null> => {
   const cookieStore = await cookies()
   const token = cookieStore.get(SESSION_COOKIE)?.value
   if (!token) return null
-  return verifySessionToken(token)
+  const payload = await verifySessionToken(token)
+  if (!payload) return null
+  return (await isSessionCurrent(payload)) ? payload : null
+})
+
+async function isSessionCurrent(payload: SessionPayload): Promise<boolean> {
+  const { data, error } = await createAdminClient()
+    .from('members')
+    .select('session_version, status')
+    .eq('id', payload.sub)
+    .maybeSingle()
+  // Ante un error de la base (o columna aún sin migrar) no se tumba a todos
+  // los usuarios: se confía en la firma del JWT, como antes de esta comprobación
+  if (error) {
+    console.error('[auth] No se pudo verificar la versión de sesión:', error.message)
+    return true
+  }
+  if (!data || data.status === 'suspended') return false
+  return (data.session_version ?? 0) === (payload.sv ?? 0)
+}
+
+/**
+ * Invalida todas las sesiones emitidas de una o varias cuentas. Quien llama
+ * debe volver a emitir la sesión actual si quiere conservarla
+ * (buildSessionToken lee la versión nueva).
+ */
+export async function revokeSessions(memberIds: string | string[]) {
+  const supabase = createAdminClient()
+  for (const id of Array.isArray(memberIds) ? memberIds : [memberIds]) {
+    const { data } = await supabase.from('members').select('session_version').eq('id', id).maybeSingle()
+    if (!data) continue
+    await supabase.from('members').update({ session_version: (data.session_version ?? 0) + 1 }).eq('id', id)
+  }
 }
 
 /** Genera un OTP de 6 dígitos, lo hashea y lo guarda en la base de datos */

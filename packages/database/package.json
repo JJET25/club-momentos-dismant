@@ -10,7 +10,9 @@
     "db:studio": "prisma studio",
     "db:seed": "tsx prisma/seed.ts",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "db:migrate:deploy:prod": "sh -c 'set -a; . ./.env.production.local; set +a; echo \"⚠  Aplicando migraciones a PRODUCCIÓN\"; prisma migrate deploy'",
+    "db:local:reset": "bash ../../scripts/local-db/bootstrap.sh"
   },
   "dependencies": {
     "@prisma/client": "^5.17.0"

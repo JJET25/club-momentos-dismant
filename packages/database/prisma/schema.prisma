@@ -57,6 +57,8 @@ model Member {
   affiliate       String    @default("dismant") @map("affiliate") // dismant | lauti
   invitationCode  String?   @map("invitation_code")
   fcmToken        String?   @map("fcm_token")       // Token de Firebase push
+  pushEnabled     Boolean   @default(true) @map("push_enabled")    // false = sin token FCM ni pushes
+  sessionVersion  Int       @default(0) @map("session_version")    // invalida JWT emitidos antes (claim sv)
   status          String    @default("active")       // active | suspended
   roleId          String    @map("role_id")
   createdAt       DateTime  @default(now()) @map("created_at")

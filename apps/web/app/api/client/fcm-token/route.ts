@@ -14,6 +14,10 @@ export async function POST(req: Request) {
   }
 
   const supabase = createAdminClient()
+  // Si el miembro apagó las notificaciones push no se guarda el token
+  const { data } = await supabase.from('members').select('push_enabled').eq('id', userId).maybeSingle()
+  if (data && data.push_enabled === false) return NextResponse.json({ ok: false, disabled: true })
+
   await supabase.from('members').update({ fcm_token: token }).eq('id', userId)
 
   return NextResponse.json({ ok: true })

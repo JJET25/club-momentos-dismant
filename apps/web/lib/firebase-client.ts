@@ -9,19 +9,24 @@ const firebaseConfig = {
   appId:             process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 }
 
-export async function requestAndSavePushToken(): Promise<void> {
-  if (typeof window === 'undefined') return
-  if (!process.env.NEXT_PUBLIC_FIREBASE_API_KEY) return
+export type PushSetupResult = 'ok' | 'unconfigured' | 'unsupported' | 'denied' | 'error'
+
+/** true si este ambiente tiene Firebase configurado (en local no lo tiene). */
+export const isPushConfigured = () => !!process.env.NEXT_PUBLIC_FIREBASE_API_KEY
+
+export async function requestAndSavePushToken(): Promise<PushSetupResult> {
+  if (typeof window === 'undefined') return 'unsupported'
+  if (!isPushConfigured()) return 'unconfigured'
 
   try {
     const supported = await isSupported()
-    if (!supported) return
+    if (!supported) return 'unsupported'
 
     const app       = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig)
     const messaging = getMessaging(app)
 
     const permission = await Notification.requestPermission()
-    if (permission !== 'granted') return
+    if (permission !== 'granted') return 'denied'
 
     const swReg = await navigator.serviceWorker.register('/firebase-messaging-sw.js', { scope: '/' })
 
@@ -30,14 +35,15 @@ export async function requestAndSavePushToken(): Promise<void> {
       serviceWorkerRegistration: swReg,
     })
 
-    if (token) {
-      await fetch('/api/client/fcm-token', {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ token }),
-      })
-    }
+    if (!token) return 'error'
+    await fetch('/api/client/fcm-token', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ token }),
+    })
+    return 'ok'
   } catch {
     // Silent — push is optional, never break the app
+    return 'error'
   }
 }

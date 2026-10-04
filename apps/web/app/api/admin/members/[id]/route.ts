@@ -19,7 +19,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   const [memberRes, ledgerRes, redemptionsRes, invoicesRes] = await Promise.all([
     supabase
       .from('members')
-      .select('id, full_name, company_name, rfc, email, location_state, location_city, status, created_at, affiliate, roles!role_id(name)')
+      .select('id, full_name, company_name, rfc, email, phone, location_state, location_city, status, created_at, affiliate, roles!role_id(name)')
       .eq('id', id)
       .single(),
     supabase

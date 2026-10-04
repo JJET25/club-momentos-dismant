@@ -99,6 +99,15 @@ Variables críticas para arrancar:
 - `JWT_SECRET` — firma de sesiones (genera con: `openssl rand -base64 64`)
 - `DISMANT_RFC` — RFC oficial de Dismant, usado para validar facturas CFDI
 
+## Ambiente local (separado de producción)
+
+`npm run dev` usa **solo** servicios locales; nunca la base de producción.
+- Base: Supabase en Docker (`supabase start`, puertos 553xx — API `127.0.0.1:55321`, DB `55322`, Studio `55323`). Reconstruir desde cero + cuentas de prueba: `bash scripts/local-db/bootstrap.sh` (o `npm run db:local:reset` en `packages/database`).
+- Variables: `apps/web/.env.development.local` (local) vs `apps/web/.env.production.local` (secretos de producción; Next solo los carga en `next build/start`). `packages/database/.env` apunta a la base local; migrar producción es explícito: `npm run db:migrate:deploy:prod`.
+- Sin `RESEND_API_KEY` en dev los correos (OTP, enlaces) se imprimen en la terminal. Sin Firebase, push deshabilitado.
+- Cuentas de prueba: `qa.miembro@`, `qa.teamadmin@`, `qa.miembro.lauti@` y `qa.sinpassword@` (sin contraseña), todas `@clubmomentos.test`. La contraseña se define en `scripts/local-db/.env.local` (copiar de `.env.local.example`; no se versiona) y el detalle está en `scripts/local-db/CUENTAS_PRUEBA.local.md`.
+- Migración `20260930000000_baseline_drift`: recoge columnas que se crearon en producción sin migración; es idempotente. Cualquier cambio de esquema nuevo debe ir en una migración, nunca directo en el SQL Editor.
+
 ## Arquitectura clave
 
 ### Autenticación y sesiones

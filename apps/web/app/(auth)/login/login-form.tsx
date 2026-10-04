@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation'
 
 const ERROR_MESSAGES: Record<string, string> = {
   'link-expirado':       'Tu enlace de acceso expiró. Solicita uno nuevo.',
+  'sesion-cerrada':      'Tu sesión se cerró (cambio de contraseña o cierre desde otro dispositivo). Inicia sesión de nuevo.',
   'link-invalido':       'El enlace de acceso no es válido.',
   'cuenta-suspendida':   'Tu cuenta está suspendida. Contacta a tu ejecutivo.',
   'registro-cerrado':    'El registro es solo por invitación. Contacta a tu ejecutivo.',

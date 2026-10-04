@@ -4,6 +4,7 @@ import { Suspense, useState, useEffect, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { isValidRFC } from '@/lib/utils'
+import { normalizePhone } from '@/lib/profile'
 import { MEXICAN_STATES } from '@dismant/types'
 import { getBrand, getBrandCssVars } from '@/lib/brand'
 
@@ -371,6 +372,7 @@ function Step3({
     const e: Partial<Record<keyof FormData, string>> = {}
     if (!data.locationState) e.locationState = 'Selecciona tu estado'
     if (!data.locationCity.trim()) e.locationCity = 'Ingresa tu ciudad'
+    if (data.phone.trim() && !normalizePhone(data.phone)) e.phone = 'El celular debe tener 10 dígitos'
     if (!data.acceptTerms) e.acceptTerms = 'Debes aceptar los Términos y Condiciones'
     if (!data.acceptPrivacy) e.acceptPrivacy = 'Debes aceptar el Aviso de Privacidad'
     setErrors(e)
@@ -420,7 +422,9 @@ function Step3({
           maxLength={15}
           className="input-field"
         />
-        <p className="text-xs text-muted-foreground mt-1">Opcional — para notificaciones importantes</p>
+        {errors.phone
+          ? <p className="text-danger text-xs mt-1">{errors.phone}</p>
+          : <p className="text-xs text-muted-foreground mt-1">Opcional — para notificaciones importantes</p>}
       </div>
 
       <div className="space-y-3 pt-2">

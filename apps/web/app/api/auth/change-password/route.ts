@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import bcrypt from 'bcryptjs'
-import { getSession } from '@/lib/auth'
+import crypto from 'crypto'
+import { getSession, revokeSessions } from '@/lib/auth'
+import { buildSessionToken, setSessionOnResponse } from '@/lib/accounts'
 import { createAdminClient } from '@/lib/supabase'
 
 export async function POST(req: NextRequest) {
@@ -18,7 +20,7 @@ export async function POST(req: NextRequest) {
   const supabase = createAdminClient()
   const { data: member } = await supabase
     .from('members')
-    .select('id, password_hash')
+    .select('id, email, full_name, affiliate, password_hash')
     .eq('id', session.sub)
     .single()
 
@@ -34,8 +36,25 @@ export async function POST(req: NextRequest) {
   const valid = await bcrypt.compare(currentPassword, member.password_hash)
   if (!valid) return NextResponse.json({ error: 'La contraseña actual es incorrecta' }, { status: 400 })
 
-  const newHash = await bcrypt.hash(newPassword, 12)
-  await supabase.from('members').update({ password_hash: newHash }).eq('id', session.sub)
+  if (await bcrypt.compare(newPassword, member.password_hash)) {
+    return NextResponse.json({ error: 'La nueva contraseña debe ser distinta a la actual' }, { status: 400 })
+  }
 
-  return NextResponse.json({ success: true })
+  const newHash = await bcrypt.hash(newPassword, 12)
+  const { error } = await supabase.from('members').update({ password_hash: newHash }).eq('id', session.sub)
+  if (error) return NextResponse.json({ error: 'Error al guardar la contraseña' }, { status: 500 })
+
+  await supabase.from('audit_log').insert({
+    id:          crypto.randomUUID(),
+    actor_id:    session.sub,
+    action:      'account.password_changed',
+    target_type: 'member',
+    target_id:   session.sub,
+  })
+
+  // Las demás sesiones abiertas (otros dispositivos) dejan de ser válidas;
+  // la actual se vuelve a emitir con la versión nueva para no sacar al usuario
+  await revokeSessions(session.sub)
+  const res = NextResponse.json({ success: true })
+  return setSessionOnResponse(res, await buildSessionToken(supabase, member, session.role))
 }

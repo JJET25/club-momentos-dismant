@@ -22,7 +22,7 @@ interface Props {
   subtitle:  string
   initials:  string
   roleLabel: string
-  /** Enlace a "Mi perfil" (solo el portal de miembros tiene página de perfil) */
+  /** Enlace a la configuración de la cuenta (/profile en el portal, /admin/account en el panel) */
   profileHref?: string
   /** Vistas del panel: Global (solo owner/admin) + empresas asignadas */
   views?:     ViewOption[]
@@ -124,7 +124,7 @@ export function ProfileMenu({ name, subtitle, initials, roleLabel, profileHref, 
           {profileHref && (
             <Link role="menuitem" href={profileHref} onClick={() => setOpen(false)}
               className="flex items-center gap-2 px-2.5 py-2 rounded-lg text-sm font-medium hover:bg-muted border-t border-border">
-              <UserRound className="w-4 h-4" /> Mi perfil
+              <UserRound className="w-4 h-4" /> Configuración de cuenta
             </Link>
           )}
 

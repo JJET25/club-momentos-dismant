@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import bcrypt from 'bcryptjs'
+import crypto from 'crypto'
 import { getSession } from '@/lib/auth'
 import { createAdminClient } from '@/lib/supabase'
 
@@ -36,6 +37,14 @@ export async function POST(req: NextRequest) {
     .eq('id', session.sub)
 
   if (error) return NextResponse.json({ error: 'Error al guardar la contraseña' }, { status: 500 })
+
+  await supabase.from('audit_log').insert({
+    id:          crypto.randomUUID(),
+    actor_id:    session.sub,
+    action:      'account.password_set',
+    target_type: 'member',
+    target_id:   session.sub,
+  })
 
   return NextResponse.json({ success: true })
 }

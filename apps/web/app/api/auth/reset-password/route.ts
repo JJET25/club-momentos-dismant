@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import bcrypt from 'bcryptjs'
-import { verifyOTP } from '@/lib/auth'
+import { verifyOTP, revokeSessions } from '@/lib/auth'
 import { createAdminClient } from '@/lib/supabase'
 import { getRequestTenant } from '@/lib/tenant-server'
 import { findAccountForTenant, lookupErrorMessage } from '@/lib/accounts'
@@ -32,6 +32,8 @@ export async function POST(req: NextRequest) {
       .select('id')
     if (error) return NextResponse.json({ error: 'Error al guardar la contraseña. Intenta de nuevo.' }, { status: 500 })
     if (!data?.length) return NextResponse.json({ error: 'Cuenta no encontrada' }, { status: 404 })
+    // Contraseña restablecida = cualquier sesión abierta deja de valer
+    await revokeSessions(data.map(r => r.id))
     return NextResponse.json({ success: true })
   }
 
@@ -55,5 +57,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Error al guardar la contraseña. Intenta de nuevo.' }, { status: 500 })
   }
 
+  await revokeSessions(member.id)
   return NextResponse.json({ success: true })
 }

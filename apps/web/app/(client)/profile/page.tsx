@@ -2,18 +2,25 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import {
   User, Mail, MapPin, Edit2, Check, X, Shield, ChevronRight,
-  Building2, FileText, Phone, KeyRound, Eye, EyeOff,
+  Building2, FileText, Phone, Info, Bell,
 } from 'lucide-react'
 import { MEXICAN_STATES } from '@dismant/types'
+import { ProfileSkeleton } from '@/components/page-skeletons'
+import { PasswordSection, SessionsSection } from '@/components/account/password-section'
 
 interface Profile {
   id: string; full_name: string; email: string
   company_name: string; rfc: string
   location_state: string; location_city: string
   phone: string | null; created_at: string
+  has_password: boolean
+  push_enabled: boolean
 }
+
+type Form = { fullName: string; phone: string; locationState: string; locationCity: string }
 
 function getInitials(name: string) {
   return name.split(' ').filter(Boolean).slice(0, 2).map(n => n[0]).join('').toUpperCase()
@@ -21,38 +28,80 @@ function getInitials(name: string) {
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString('es-MX', { day: '2-digit', month: 'long', year: 'numeric' })
 }
+function formatPhone(phone: string | null) {
+  if (!phone) return '—'
+  return phone.length === 10 ? `${phone.slice(0, 2)} ${phone.slice(2, 6)} ${phone.slice(6)}` : phone
+}
+function toForm(p: Profile): Form {
+  return { fullName: p.full_name, phone: p.phone ?? '', locationState: p.location_state, locationCity: p.location_city }
+}
 
-function PasswordInput({ value, onChange, placeholder }: { value: string; onChange: (v: string) => void; placeholder?: string }) {
-  const [show, setShow] = useState(false)
+const PUSH_MESSAGES: Record<string, string> = {
+  unconfigured: 'Las notificaciones push no están disponibles en este ambiente; la preferencia quedó guardada.',
+  unsupported:  'Este navegador no admite notificaciones push; la preferencia quedó guardada.',
+  denied:       'El navegador bloqueó las notificaciones. Permítelas en la configuración del sitio.',
+  error:        'No se pudo registrar este dispositivo. Intenta de nuevo más tarde.',
+}
+
+/** Interruptor de notificaciones push (las del ícono de campana siguen llegando). */
+function PushSection({ enabled, onChange }: { enabled: boolean; onChange: (enabled: boolean, message: string) => void }) {
+  const [saving, setSaving] = useState(false)
+  const [notice, setNotice] = useState('')
+
+  async function toggle() {
+    const next = !enabled
+    setSaving(true); setNotice('')
+    const res = await fetch('/api/client/push', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ enabled: next }),
+    })
+    if (!res.ok) { setSaving(false); setNotice('No se pudo guardar la preferencia.'); return }
+    let message = next ? 'Notificaciones push activadas.' : 'Notificaciones push desactivadas.'
+    if (next) {
+      const { requestAndSavePushToken } = await import('@/lib/firebase-client')
+      const result = await requestAndSavePushToken()
+      if (result !== 'ok') { setNotice(PUSH_MESSAGES[result]); message = '' }
+    }
+    setSaving(false)
+    onChange(next, message)
+  }
+
   return (
-    <div className="relative">
-      <input type={show ? 'text' : 'password'} value={value} onChange={e => onChange(e.target.value)}
-        placeholder={placeholder} className="input-field w-full text-sm pr-10" />
-      <button type="button" onClick={() => setShow(s => !s)}
-        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
-        {show ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-      </button>
+    <div className="bg-card border border-border rounded-xl px-5 py-4">
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex items-start gap-3">
+          <div className="w-9 h-9 rounded-xl bg-muted flex items-center justify-center shrink-0">
+            <Bell className="w-4 h-4 text-muted-foreground" />
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-foreground">Notificaciones push</p>
+            <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
+              Avisos en este dispositivo cuando se aprueben tus facturas o tus puntos estén por vencer.
+              Los avisos dentro de la app siguen llegando.
+            </p>
+          </div>
+        </div>
+        <button type="button" role="switch" aria-checked={enabled} aria-label="Notificaciones push"
+          onClick={toggle} disabled={saving}
+          className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors disabled:opacity-60 mt-1 ${enabled ? 'bg-primary' : 'bg-muted-foreground/30'}`}>
+          <span className={`inline-block h-5 w-5 rounded-full bg-white shadow transition-transform ${enabled ? 'translate-x-5' : 'translate-x-0.5'}`} />
+        </button>
+      </div>
+      {notice && <p className="text-[11px] text-amber-600 mt-2">{notice}</p>}
     </div>
   )
 }
 
 export default function ProfilePage() {
+  const router = useRouter()
   const [profile, setProfile]   = useState<Profile | null>(null)
   const [loading, setLoading]   = useState(true)
   const [editing, setEditing]   = useState(false)
   const [saving, setSaving]     = useState(false)
   const [success, setSuccess]   = useState('')
   const [error, setError]       = useState('')
-
-  const [form, setForm] = useState({
-    fullName: '', locationState: '', locationCity: '',
-    phone: '', companyName: '', rfc: '',
-  })
-
-  // Cambiar contraseña
-  const [pwForm, setPwForm]   = useState({ current: '', newPw: '', confirm: '' })
-  const [pwSaving, setPwSaving] = useState(false)
-  const [pwError, setPwError]   = useState('')
+  const [form, setForm]         = useState<Form>({ fullName: '', phone: '', locationState: '', locationCity: '' })
 
   useEffect(() => {
     fetch('/api/client/profile')
@@ -60,29 +109,19 @@ export default function ProfilePage() {
         if (!r.ok) throw new Error(`HTTP ${r.status}`)
         return r.json()
       })
-      .then(({ profile: p }) => {
-        setProfile(p)
-        setForm({
-          fullName:      p.full_name,
-          locationState: p.location_state,
-          locationCity:  p.location_city,
-          phone:         p.phone ?? '',
-          companyName:   p.company_name,
-          rfc:           p.rfc,
-        })
-      })
+      .then(({ profile: p }) => { setProfile(p); setForm(toForm(p)) })
       .catch(() => setError('No se pudo cargar el perfil. Recarga la página.'))
       .finally(() => setLoading(false))
   }, [])
 
+  function flash(message: string) {
+    setSuccess(message)
+    setTimeout(() => setSuccess(''), 3000)
+  }
+
   function startEdit() { setEditing(true); setSuccess(''); setError('') }
   function cancelEdit() {
-    if (!profile) return
-    setForm({
-      fullName: profile.full_name, locationState: profile.location_state,
-      locationCity: profile.location_city, phone: profile.phone ?? '',
-      companyName: profile.company_name, rfc: profile.rfc,
-    })
+    if (profile) setForm(toForm(profile))
     setEditing(false); setError('')
   }
 
@@ -95,43 +134,27 @@ export default function ProfilePage() {
       body: JSON.stringify(form),
     })
     setSaving(false)
-    if (!res.ok) { const { error: msg } = await res.json(); setError(msg ?? 'Error al guardar'); return }
+    if (!res.ok) { const { error: msg } = await res.json().catch(() => ({})); setError(msg ?? 'Error al guardar'); return }
     const { profile: updated } = await res.json()
-    setProfile(updated); setEditing(false); setSuccess('Perfil actualizado correctamente.')
-    setTimeout(() => setSuccess(''), 3000)
+    const nameChanged = updated.full_name !== profile?.full_name
+    setProfile(updated); setForm(toForm(updated)); setEditing(false)
+    flash('Perfil actualizado correctamente.')
+    // El layout lee el nombre de la sesión (renovada por la API)
+    if (nameChanged) router.refresh()
   }
 
-  async function handleChangePassword(e: React.FormEvent) {
-    e.preventDefault()
-    setPwError('')
-    if (pwForm.newPw !== pwForm.confirm) { setPwError('Las contraseñas no coinciden'); return }
-    if (pwForm.newPw.length < 8) { setPwError('Mínimo 8 caracteres'); return }
-    setPwSaving(true)
-    const res = await fetch('/api/auth/change-password', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ currentPassword: pwForm.current, newPassword: pwForm.newPw }),
-    })
-    setPwSaving(false)
-    if (!res.ok) { const { error: msg } = await res.json(); setPwError(msg ?? 'Error al cambiar contraseña'); return }
-    setPwForm({ current: '', newPw: '', confirm: '' })
-    setSuccess('Contraseña actualizada correctamente.')
-    setTimeout(() => setSuccess(''), 3000)
-  }
-
-  if (loading) {
+  if (loading) return <ProfileSkeleton />
+  if (!profile) {
     return (
-      <div className="max-w-xl space-y-4 animate-pulse">
-        <div className="h-8 bg-muted rounded w-32 mb-2" />
-        <div className="h-40 bg-muted rounded-2xl" />
-        <div className="h-48 bg-muted rounded-xl" />
-        <div className="h-36 bg-muted rounded-xl" />
+      <div className="max-w-xl flex items-center gap-2.5 bg-red-500/5 border border-red-500/20 rounded-xl px-4 py-3">
+        <X className="w-4 h-4 text-red-500 shrink-0" />
+        <p className="text-sm text-red-600">{error || 'No se pudo cargar el perfil.'}</p>
       </div>
     )
   }
-  if (!profile) return null
 
   const initials = getInitials(profile.full_name)
+  const locationChanged = editing && (form.locationState !== profile.location_state || form.locationCity.trim() !== profile.location_city)
 
   return (
     <div className="max-w-xl space-y-5">
@@ -171,20 +194,34 @@ export default function ProfilePage() {
         </div>
       )}
 
-      {/* Correo (solo lectura) */}
+      {/* Cuenta y datos fiscales (solo lectura) */}
       <div className="bg-card border border-border rounded-xl overflow-hidden">
         <div className="px-5 py-3 border-b border-border">
-          <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Cuenta</p>
+          <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Cuenta y datos fiscales</p>
         </div>
-        <div className="flex items-center gap-4 px-5 py-4">
-          <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center shrink-0">
-            <Mail className="w-4 h-4 text-muted-foreground" />
+        {[
+          { icon: Mail,      label: 'Correo electrónico', value: profile.email,        mono: false },
+          { icon: Building2, label: 'Razón social',       value: profile.company_name, mono: false },
+          { icon: FileText,  label: 'RFC',                value: profile.rfc,          mono: true },
+        ].map(row => (
+          <div key={row.label} className="flex items-center gap-4 px-5 py-4 border-b border-border">
+            <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center shrink-0">
+              <row.icon className="w-4 h-4 text-muted-foreground" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs text-muted-foreground">{row.label}</p>
+              <p className={`text-sm font-medium text-foreground truncate mt-0.5 ${row.mono ? 'font-mono' : ''}`}>{row.value}</p>
+            </div>
           </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-xs text-muted-foreground">Correo electrónico</p>
-            <p className="text-sm font-medium text-foreground truncate mt-0.5">{profile.email}</p>
-            <p className="text-[11px] text-muted-foreground/60 mt-0.5">No se puede cambiar</p>
-          </div>
+        ))}
+        <div className="flex items-start justify-between gap-4 px-5 py-3 bg-muted/30">
+          <p className="text-[11px] text-muted-foreground leading-relaxed">
+            Tus facturas se validan contra este RFC, por eso estos datos no se editan aquí.
+          </p>
+          <Link href="/arco?derecho=rectificacion"
+            className="flex items-center gap-1 text-xs font-semibold text-primary hover:text-primary/80 transition-colors shrink-0">
+            Solicitar corrección <ChevronRight className="w-3 h-3" />
+          </Link>
         </div>
       </div>
 
@@ -201,71 +238,78 @@ export default function ProfilePage() {
             )}
           </div>
 
-          {[
-            {
-              icon: User, label: 'Nombre completo', key: 'fullName' as const,
-              value: profile.full_name, type: 'text', placeholder: 'Tu nombre completo', note: null,
-            },
-            {
-              icon: Building2, label: 'Empresa', key: 'companyName' as const,
-              value: profile.company_name, type: 'text', placeholder: 'Empresa S.A. de C.V.', note: null,
-            },
-            {
-              icon: FileText, label: 'RFC', key: 'rfc' as const,
-              value: profile.rfc, type: 'text', placeholder: 'RFC fiscal', note: 'Afecta la validación de facturas',
-            },
-            {
-              icon: Phone, label: 'Celular', key: 'phone' as const,
-              value: profile.phone ?? '—', type: 'tel', placeholder: '55 1234 5678', note: null,
-            },
-          ].map((row, i, arr) => (
-            <div key={row.key} className={`flex items-center gap-4 px-5 py-4 ${i < arr.length - 1 ? 'border-b border-border' : ''}`}>
-              <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center shrink-0">
-                <row.icon className="w-4 h-4 text-muted-foreground" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-xs text-muted-foreground mb-1">{row.label}</p>
-                {editing ? (
-                  <input value={form[row.key]} onChange={e => setForm(f => ({ ...f, [row.key]: row.key === 'rfc' ? e.target.value.toUpperCase() : e.target.value }))}
-                    type={row.type} placeholder={row.placeholder}
-                    className={`input-field w-full text-sm ${row.key === 'rfc' ? 'font-mono' : ''}`} />
-                ) : (
-                  <p className={`text-sm font-medium text-foreground ${row.key === 'rfc' ? 'font-mono' : ''}`}>{row.value}</p>
-                )}
-                {editing && row.note && (
-                  <p className="text-[11px] text-amber-600 mt-0.5">⚠ {row.note}</p>
-                )}
-              </div>
+          {/* Nombre */}
+          <div className="flex items-center gap-4 px-5 py-4 border-b border-border">
+            <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center shrink-0">
+              <User className="w-4 h-4 text-muted-foreground" />
             </div>
-          ))}
+            <div className="flex-1 min-w-0">
+              <p className="text-xs text-muted-foreground mb-1">Nombre completo</p>
+              {editing ? (
+                <input value={form.fullName} onChange={e => setForm(f => ({ ...f, fullName: e.target.value }))}
+                  required minLength={3} maxLength={120} autoComplete="name" placeholder="Tu nombre completo"
+                  className="input-field w-full text-sm" />
+              ) : (
+                <p className="text-sm font-medium text-foreground">{profile.full_name}</p>
+              )}
+            </div>
+          </div>
+
+          {/* Celular */}
+          <div className="flex items-center gap-4 px-5 py-4 border-b border-border">
+            <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center shrink-0">
+              <Phone className="w-4 h-4 text-muted-foreground" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs text-muted-foreground mb-1">Celular</p>
+              {editing ? (
+                <>
+                  <input value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))}
+                    type="tel" inputMode="tel" maxLength={16} autoComplete="tel" placeholder="55 1234 5678"
+                    className="input-field w-full text-sm" />
+                  <p className="text-[11px] text-muted-foreground mt-0.5">10 dígitos. Déjalo vacío para quitarlo.</p>
+                </>
+              ) : (
+                <p className="text-sm font-medium text-foreground">{formatPhone(profile.phone)}</p>
+              )}
+            </div>
+          </div>
 
           {/* Estado / Ciudad */}
-          <div className="flex items-center gap-4 px-5 py-4 border-t border-border">
+          <div className="flex items-start gap-4 px-5 py-4">
             <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center shrink-0">
               <MapPin className="w-4 h-4 text-muted-foreground" />
             </div>
-            <div className="flex-1 min-w-0 grid grid-cols-2 gap-3">
-              <div>
-                <p className="text-xs text-muted-foreground mb-1">Estado</p>
-                {editing ? (
-                  <select value={form.locationState} onChange={e => setForm(f => ({ ...f, locationState: e.target.value }))}
-                    required className="input-field w-full text-sm">
-                    <option value="">Selecciona</option>
-                    {MEXICAN_STATES.map(s => <option key={s} value={s}>{s}</option>)}
-                  </select>
-                ) : (
-                  <p className="text-sm font-medium text-foreground">{profile.location_state}</p>
-                )}
+            <div className="flex-1 min-w-0">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">Estado</p>
+                  {editing ? (
+                    <select value={form.locationState} onChange={e => setForm(f => ({ ...f, locationState: e.target.value }))}
+                      required className="input-field w-full text-sm">
+                      <option value="">Selecciona</option>
+                      {MEXICAN_STATES.map(s => <option key={s} value={s}>{s}</option>)}
+                    </select>
+                  ) : (
+                    <p className="text-sm font-medium text-foreground">{profile.location_state}</p>
+                  )}
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">Ciudad</p>
+                  {editing ? (
+                    <input value={form.locationCity} onChange={e => setForm(f => ({ ...f, locationCity: e.target.value }))}
+                      required minLength={2} maxLength={80} placeholder="Ej. Monterrey" className="input-field w-full text-sm" />
+                  ) : (
+                    <p className="text-sm font-medium text-foreground">{profile.location_city}</p>
+                  )}
+                </div>
               </div>
-              <div>
-                <p className="text-xs text-muted-foreground mb-1">Ciudad</p>
-                {editing ? (
-                  <input value={form.locationCity} onChange={e => setForm(f => ({ ...f, locationCity: e.target.value }))}
-                    required placeholder="Ej. Monterrey" className="input-field w-full text-sm" />
-                ) : (
-                  <p className="text-sm font-medium text-foreground">{profile.location_city}</p>
-                )}
-              </div>
+              {locationChanged && (
+                <p className="flex items-start gap-1.5 text-[11px] text-amber-600 mt-2">
+                  <Info className="w-3.5 h-3.5 shrink-0 mt-px" />
+                  Tu ubicación define los premios y promociones locales que ves en el catálogo.
+                </p>
+              )}
             </div>
           </div>
         </div>
@@ -292,43 +336,17 @@ export default function ProfilePage() {
         )}
       </form>
 
-      {/* Cambiar contraseña */}
-      <form onSubmit={handleChangePassword}>
-        <div className="bg-card border border-border rounded-xl overflow-hidden">
-          <div className="px-5 py-3 border-b border-border">
-            <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Seguridad</p>
-          </div>
-          <div className="px-5 py-4 space-y-3">
-            <div className="flex items-center gap-2 mb-1">
-              <KeyRound className="w-4 h-4 text-muted-foreground" />
-              <p className="text-sm font-medium text-foreground">Cambiar contraseña</p>
-            </div>
-            <div>
-              <label className="text-xs text-muted-foreground">Contraseña actual</label>
-              <PasswordInput value={pwForm.current} onChange={v => setPwForm(f => ({ ...f, current: v }))} placeholder="Tu contraseña actual" />
-            </div>
-            <div>
-              <label className="text-xs text-muted-foreground">Nueva contraseña</label>
-              <PasswordInput value={pwForm.newPw} onChange={v => setPwForm(f => ({ ...f, newPw: v }))} placeholder="Mínimo 8 caracteres" />
-            </div>
-            <div>
-              <label className="text-xs text-muted-foreground">Confirmar nueva contraseña</label>
-              <PasswordInput value={pwForm.confirm} onChange={v => setPwForm(f => ({ ...f, confirm: v }))} placeholder="Repite la nueva contraseña" />
-            </div>
-            {pwError && (
-              <div className="flex items-center gap-2 bg-red-500/5 border border-red-500/20 rounded-lg px-3 py-2">
-                <X className="w-3.5 h-3.5 text-red-500 shrink-0" />
-                <p className="text-xs text-red-600">{pwError}</p>
-              </div>
-            )}
-            <button type="submit" disabled={pwSaving || !pwForm.current || !pwForm.newPw || !pwForm.confirm}
-              className="w-full py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 disabled:opacity-60 flex items-center justify-center gap-2 transition-colors mt-1">
-              {pwSaving && <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />}
-              {pwSaving ? 'Guardando…' : 'Actualizar contraseña'}
-            </button>
-          </div>
-        </div>
-      </form>
+      <PasswordSection
+        hasPassword={profile.has_password}
+        onSaved={message => { setProfile(p => p && { ...p, has_password: true }); flash(message) }}
+      />
+
+      <SessionsSection onSaved={flash} />
+
+      <PushSection
+        enabled={profile.push_enabled}
+        onChange={(enabled, message) => { setProfile(p => p && { ...p, push_enabled: enabled }); if (message) flash(message) }}
+      />
 
       {/* ARCO */}
       <div className="bg-card border border-border rounded-xl p-5">

@@ -1,4 +1,5 @@
 import { cookies } from 'next/headers'
+import { redirect } from 'next/navigation'
 import { getSession } from '@/lib/auth'
 import { getBrand, GENERIC_BRAND, getBrandCssVars } from '@/lib/brand'
 import { getAllowedAffiliates, resolvePerspective, PERSPECTIVE_COOKIE } from '@/lib/scope'
@@ -6,6 +7,8 @@ import { AdminSidebarNav } from '@/components/admin/admin-sidebar-nav'
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const session = await getSession()
+  // Sesión revocada o cuenta suspendida (el middleware solo valida la firma)
+  if (!session) redirect('/api/auth/logout')
   const name = session?.name ?? 'Admin'
   const role = session?.role ?? 'admin'
 

@@ -110,7 +110,9 @@ export const SESSION_MAX_AGE = 60 * 60 * 24 * 7
 /** Firma el JWT de sesión de una cuenta (incluye las empresas asignadas si es staff). */
 export async function buildSessionToken(supabase: SupabaseClient, account: Pick<AccountRow, 'id' | 'email' | 'full_name' | 'affiliate'>, role: string) {
   const affiliate = isAffiliate(account.affiliate) ? account.affiliate : 'dismant'
+  const { data: version } = await supabase.from('members').select('session_version').eq('id', account.id).maybeSingle()
   return createSessionToken({
+    sv:         version?.session_version ?? 0,
     sub:        account.id,
     email:      account.email,
     role,

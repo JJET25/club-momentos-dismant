@@ -64,6 +64,16 @@ function brandHeader(affiliate?: string): string {
 
 /** Envía un email transaccional via Resend */
 export async function sendEmail({ to, subject, html, text, attachments, affiliate }: SendEmailOptions) {
+  // Ambiente local sin Resend: el correo se imprime en la terminal (incluye
+  // códigos OTP y enlaces) en lugar de enviarse. En producción falta de llave = error.
+  if (!process.env.RESEND_API_KEY && process.env.NODE_ENV !== 'production') {
+    const plain = (text ?? html.replace(/<style[\s\S]*?<\/style>/gi, '').replace(/<[^>]+>/g, ' '))
+      .replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim()
+    // eslint-disable-next-line no-console
+    console.log(`\n📧 [correo local, no enviado] Para: ${[to].flat().join(', ')}\n   Asunto: ${subject}\n   ${plain}\n`)
+    return { id: 'local-dev' }
+  }
+
   const { data, error } = await getResend().emails.send({
     from: getFromAddress(affiliate),
     to,
@@ -185,6 +195,37 @@ export function buildInvoiceRejectedEmail(params: {
         <p style="margin: 4px 0;"><strong>Razón:</strong> ${params.reason}</p>
       </div>
       <p>Si tienes dudas, contacta a tu ejecutivo de cuenta en ${cfg.short}.</p>
+    </div>
+  `
+}
+
+function escapeHtml(value: string): string {
+  return value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+}
+
+/** Aviso al miembro cuando el staff corrige su RFC o razón social */
+export function buildFiscalDataChangedEmail(params: {
+  userName:   string
+  changes:    { label: string; before: string; after: string }[]
+  profileUrl: string
+  affiliate?: string
+}): string {
+  const cfg = getBrand(params.affiliate)
+  const rows = params.changes.map(c => `
+        <p style="margin: 6px 0;"><strong>${escapeHtml(c.label)}:</strong>
+          <span style="color: #6b7280; text-decoration: line-through;">${escapeHtml(c.before || '—')}</span>
+          → <strong>${escapeHtml(c.after)}</strong></p>`).join('')
+  return `
+    <div style="font-family: Inter, sans-serif; max-width: 500px; margin: 0 auto; padding: 32px;">
+      ${brandHeader(params.affiliate)}
+      <h2 style="color: ${cfg.primaryDark};">Actualizamos tus datos fiscales</h2>
+      <p>Hola ${escapeHtml(params.userName)},</p>
+      <p>El equipo de ${cfg.short} actualizó los datos fiscales de tu cuenta:</p>
+      <div style="background: #f3f4f6; border-radius: 8px; padding: 16px; margin: 16px 0;">${rows}
+      </div>
+      <p>A partir de ahora tus facturas se validarán contra estos datos.</p>
+      <p><a href="${params.profileUrl}" style="color: ${cfg.primary};">Revisar mi perfil</a></p>
+      <p style="color: #6b7280; font-size: 13px;">Si tú no solicitaste este cambio, contacta de inmediato a tu ejecutivo de cuenta en ${cfg.short}.</p>
     </div>
   `
 }

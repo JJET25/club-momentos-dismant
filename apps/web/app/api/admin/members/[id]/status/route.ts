@@ -2,7 +2,7 @@ import { SCOPED_MANAGER_ROLES } from '@/lib/permissions'
 import { getEffectiveAffiliate } from '@/lib/scope'
 import { NextRequest, NextResponse } from 'next/server'
 import crypto from 'crypto'
-import { getSession } from '@/lib/auth'
+import { getSession, revokeSessions } from '@/lib/auth'
 import { createAdminClient } from '@/lib/supabase'
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -56,6 +56,9 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (error) {
     return NextResponse.json({ error: 'Error al actualizar el estatus' }, { status: 500 })
   }
+
+  // Suspender saca de inmediato a la cuenta de todas sus sesiones
+  if (status === 'suspended') await revokeSessions(memberId)
 
   await supabase.from('audit_log').insert({
     id:          crypto.randomUUID(),

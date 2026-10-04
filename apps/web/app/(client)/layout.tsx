@@ -1,4 +1,6 @@
+import { redirect } from 'next/navigation'
 import { getSession } from '@/lib/auth'
+import { createAdminClient } from '@/lib/supabase'
 import { getBrand, getBrandCssVars } from '@/lib/brand'
 import { SidebarNav } from '@/components/client/sidebar-nav'
 import { GlobalBanner } from '@/components/GlobalBanner'
@@ -16,10 +18,14 @@ function getInitials(name: string): string {
 
 export default async function ClientLayout({ children }: { children: React.ReactNode }) {
   const session = await getSession()
+  // Sesión revocada o cuenta suspendida (el middleware solo valida la firma)
+  if (!session) redirect('/api/auth/logout')
   const name = session?.name ?? 'Usuario'
   const email = session?.email ?? ''
   const initials = getInitials(name)
   const brand = getBrand(session?.affiliate)
+  const { data: prefs } = await createAdminClient()
+    .from('members').select('push_enabled').eq('id', session.sub).maybeSingle()
 
   return (
     <div className="min-h-screen bg-background flex" style={getBrandCssVars(brand) as React.CSSProperties}>
@@ -32,6 +38,7 @@ export default async function ClientLayout({ children }: { children: React.React
           initials={initials}
           company={brand.short}
           brand={{ name: brand.name, logo: brand.logo, initial: brand.initial, sidebarBg: brand.sidebarBg }}
+          pushEnabled={prefs?.push_enabled !== false}
         />
       </aside>
 

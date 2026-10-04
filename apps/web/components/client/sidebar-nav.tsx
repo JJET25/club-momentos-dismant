@@ -91,9 +91,11 @@ interface Props {
   company:  string
   /** Marca de la empresa (colores del riel y logo) */
   brand:    { name: string; logo?: string; initial: string; sidebarBg: string }
+  /** Preferencia del miembro; si la apagó no se le vuelve a pedir permiso */
+  pushEnabled: boolean
 }
 
-export function SidebarNav({ name, email, initials, company, brand }: Props) {
+export function SidebarNav({ name, email, initials, company, brand, pushEnabled }: Props) {
   const router   = useRouter()
 
   const [notifOpen, setNotifOpen] = useState(false)
@@ -115,10 +117,10 @@ export function SidebarNav({ name, email, initials, company, brand }: Props) {
   useEffect(() => { fetchNotifications() }, [])
 
   useEffect(() => {
-    if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'default') {
+    if (pushEnabled && typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'default') {
       import('@/lib/firebase-client').then(m => m.requestAndSavePushToken()).catch(() => {})
     }
-  }, [])
+  }, [pushEnabled])
 
   async function openNotifications() {
     setNotifOpen(true)

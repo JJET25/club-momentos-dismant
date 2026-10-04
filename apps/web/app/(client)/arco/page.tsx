@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 
 const RIGHTS = [
@@ -17,6 +17,16 @@ export default function ArcoPage() {
   const [submitting, setSubmitting]     = useState(false)
   const [folio, setFolio]               = useState('')
   const [error, setError]               = useState('')
+
+  // Desde "Mi perfil" se llega con ?derecho=rectificacion para corregir RFC
+  // o razón social, que el miembro no puede editar directamente.
+  useEffect(() => {
+    const requested = new URLSearchParams(window.location.search).get('derecho')
+    if (requested && RIGHTS.some(r => r.value === requested)) setRight(requested)
+    if (requested === 'rectificacion') {
+      setDescription(d => d || 'Solicito corregir mi RFC / razón social. El dato correcto es: ')
+    }
+  }, [])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()

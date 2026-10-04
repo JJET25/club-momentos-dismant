@@ -42,6 +42,7 @@ export const EMPLOYEE_ROUTES = [
   '/admin/members',
   '/admin/invoices',
   '/admin/redemptions',
+  '/admin/account',      // configuración personal (nombre, celular, contraseña)
 ]
 
 /** Rutas de /admin exclusivas para owner y admin (visibilidad global) */
@@ -80,6 +81,7 @@ export const PERMISSIONS = {
   VIEW_MEMBERS:     STAFF_ROLES,
   SUSPEND_MEMBER:   SCOPED_MANAGER_ROLES,
   ADJUST_POINTS:    SCOPED_MANAGER_ROLES,
+  EDIT_MEMBER:      SCOPED_MANAGER_ROLES, // datos de perfil, incluidos RFC y razón social
 
   // Catálogo
   VIEW_CATALOG:     STAFF_ROLES,

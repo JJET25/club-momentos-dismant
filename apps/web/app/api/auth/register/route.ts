@@ -4,6 +4,7 @@ import { createSessionToken } from '@/lib/auth'
 import { getRequestTenant } from '@/lib/tenant-server'
 import crypto from 'crypto'
 import bcrypt from 'bcryptjs'
+import { STAFF_ON_MEMBER_FIELDS, validateProfileInput } from '@/lib/profile'
 
 export async function POST(req: NextRequest) {
   const { email, fullName, companyName, rfc, locationState, locationCity, phone, password, inviteToken } =
@@ -11,6 +12,11 @@ export async function POST(req: NextRequest) {
 
   if (!email || !fullName || !companyName || !rfc || !locationState || !locationCity || !password) {
     return NextResponse.json({ error: 'Faltan campos obligatorios' }, { status: 400 })
+  }
+
+  const profile = validateProfileInput({ fullName, companyName, rfc, locationState, locationCity, phone }, STAFF_ON_MEMBER_FIELDS)
+  if (!profile.update) {
+    return NextResponse.json({ error: profile.error }, { status: 400 })
   }
 
   if (password.length < 8) {
@@ -62,12 +68,7 @@ export async function POST(req: NextRequest) {
     .insert({
       id:            crypto.randomUUID(),
       email:         email.toLowerCase().trim(),
-      full_name:     fullName.trim(),
-      company_name:  companyName.trim(),
-      rfc:           rfc.toUpperCase().trim(),
-      location_state: locationState,
-      location_city:  locationCity.trim(),
-      phone:          phone?.trim() || null,
+      ...profile.update,
       password_hash:  passwordHash,
       affiliate:      invitation.affiliate ?? 'dismant',
       role_id:       role.id,
